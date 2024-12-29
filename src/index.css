@@ -1,0 +1,18 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  *{
+    font-family: "General Sans", "General Sans Placeholder", sans-serif;
+  }
+  
+  body {
+    @apply text-zinc-100 bg-zinc-900 w-screen h-screen;
+  }
+}
+
+
+a{
+  grid-template-columns: repeat(2,1fr);
+}
