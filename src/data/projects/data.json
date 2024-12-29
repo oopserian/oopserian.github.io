@@ -1,0 +1,8 @@
+{
+  "eterm": {
+    "name": "Eterm",
+    "cover": "/appicons/eterm.png",
+    "description": "一款多控终端软件",
+    "url": "https://github.com/catcoal/ETerm"
+  }
+}
