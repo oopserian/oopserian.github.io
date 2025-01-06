@@ -1,4 +1,10 @@
 {
+  "PersonalWebsite": {
+    "name": "Personal Website",
+    "cover": "/appicons/PersonalWebsite.svg",
+    "description": "个人网站",
+    "url": "https://erian.cn"
+  },
   "eterm": {
     "name": "Eterm",
     "cover": "/appicons/eterm.png",
