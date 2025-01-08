@@ -1,11 +1,13 @@
 {
   "PersonalWebsite": {
+    "hide": true,
     "name": "Personal Website",
     "cover": "/appicons/PersonalWebsite.svg",
     "description": "个人网站",
     "url": "https://erian.cn"
   },
   "eterm": {
+    "hide": false,
     "name": "Eterm",
     "cover": "/appicons/eterm.png",
     "description": "一款多控终端软件",

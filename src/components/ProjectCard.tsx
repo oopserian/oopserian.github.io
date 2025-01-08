@@ -1,5 +1,5 @@
 import { cn } from "@/lib/utils";
-import { IconBrandGithub } from "@tabler/icons-react";
+// import { IconBrandGithub } from "@tabler/icons-react";
 
 interface ProjectCardProps {
     logo: string,
@@ -25,7 +25,7 @@ export const ProjectCard: React.FC<ProjectCardProps> = ({ logo, name, descriptio
                 <p className="text-xs font-thin trext-zinc-400">{description}</p>
             </div>
             <div>
-                <IconBrandGithub size={20} stroke={1} />
+                {/* <IconBrandGithub size={20} stroke={1} /> */}
             </div>
         </div>
     )

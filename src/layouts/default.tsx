@@ -38,7 +38,7 @@ const Projects = () => {
             <div className="grid grid-cols-[repeat(auto-fill,minmax(250px,1fr))] gap-2.5">
                 {
                     projectDataList.map(project => (
-                        <ProjectCard key={project.name} logo={project.cover} name={project.name} description={project.description} link={project.url} />
+                        !project.hide && <ProjectCard key={project.name} logo={project.cover} name={project.name} description={project.description} link={project.url} />
                     ))
                 }
             </div>
