@@ -8,7 +8,7 @@
   }
   
   body {
-    @apply text-zinc-100 bg-zinc-900 w-screen h-screen;
+    @apply text-zinc-100 bg-zinc-950 w-screen h-screen;
   }
 }
 

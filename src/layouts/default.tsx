@@ -1,5 +1,7 @@
+import { LabCard } from "@/components/LabCard";
 import { ProjectCard } from "@/components/ProjectCard";
 import projectData from "@/data/projects/data.json";
+import labData from "@/data/labs/data.json";
 
 const Layout: React.FC = () => {
     return (
@@ -8,6 +10,7 @@ const Layout: React.FC = () => {
                 <p className="fixed w-1/4 min-w-40 h-1/4 rounded-full bg-green-400 -top-32 -ml-32 blur-3xl opacity-25"></p>
                 <MineInfos />
                 <Projects />
+                <Labs />
             </main>
         </>
     )
@@ -42,6 +45,23 @@ const Projects = () => {
         </div>
     )
 };
+
+const Labs = () => {
+    const labDataList = Object.values(labData);
+    return (
+        <div className="flex flex-col gap-2.5">
+            <h2 className="text-xl font-bold">Labs</h2>
+            <div className="grid grid-cols-[repeat(auto-fill,minmax(250px,1fr))] gap-2.5">
+                {
+                    labDataList.map(lab => (
+                        <LabCard key={lab.name} data={lab} />
+                    ))
+                }
+            </div>
+        </div>
+    )
+};
+
 
 export {
     Layout
