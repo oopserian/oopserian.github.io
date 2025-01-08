@@ -16,7 +16,7 @@ export const LabCard: React.FC<LabCardProps> = ({ data }) => {
     return (
         <Suspense>
             <div id={name} className="flex flex-col gap-2 bg-zinc-950 border-zinc-800 border rounded-2xl overflow-hidden p-2 transition-[border-color] hover:border-zinc-700">
-                <div className="min-h-12 rounded-xl bg-zinc-900">
+                <div className="flex-1 min-h-12 rounded-xl bg-zinc-900">
                     <Container />
                 </div>
                 <div className="flex justify-between items-center">
