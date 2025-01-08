@@ -6,7 +6,7 @@ import { IconPhotoScan } from '@tabler/icons-react';
 
 export default function Folder() {
     return (
-        <div className='wrap'>
+        <div className='folder-wrap'>
             <div className="folder" style={{
                 width: '8rem'
             }}>
