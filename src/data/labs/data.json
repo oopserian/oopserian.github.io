@@ -2,6 +2,7 @@
     "folder": {
         "name": "folder",
         "en_title": "Folder",
+        "origin_url": "",
         "title": "文件夹",
         "tags": [
             "CSS",
