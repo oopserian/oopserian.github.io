@@ -1,17 +1,14 @@
 import React, { lazy, Suspense } from "react";
-import { IconBrandGithub } from "@tabler/icons-react";
+import { IconCode, IconBulb } from "@tabler/icons-react";
 
 interface LabCardProps {
     data: Lab
 }
 
 export const LabCard: React.FC<LabCardProps> = ({ data }) => {
-    let { name, en_title, tags } = data;
+    let { name, en_title, tags, origin_url } = data;
     const Container = lazy(() => import(`@/data/labs/${name}/page.tsx`));
-
-    const toGithub = () => {
-        window.open('https://github.com/oopserian/oopserian.github.io/tree/main/src/data/labs/' + name);
-    };
+    const originCodeUrl = 'https://github.com/oopserian/oopserian.github.io/tree/main/src/data/labs/' + name;
 
     return (
         <Suspense>
@@ -30,8 +27,17 @@ export const LabCard: React.FC<LabCardProps> = ({ data }) => {
                             }
                         </div>
                     </div>
-                    <div className="cursor-pointer">
-                        <IconBrandGithub onClick={toGithub} size={20} stroke={1} />
+                    <div className="flex gap-2 items-center cursor-pointer">
+                        {
+                            origin_url && (
+                                <a href={origin_url} target="_blank" rel="noopener noreferrer">
+                                    <IconBulb size={22} stroke={1.5}></IconBulb>
+                                </a>
+                            )
+                        }
+                        <a href={originCodeUrl} target="_blank" rel="noopener noreferrer">
+                            <IconCode size={22} stroke={1.5} />
+                        </a>
                     </div>
                 </div>
             </div>
