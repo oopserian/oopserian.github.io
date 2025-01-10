@@ -7,7 +7,7 @@ const Layout: React.FC = () => {
     return (
         <>
             <main className="flex flex-col gap-8 py-10 px-5 w-full max-w-screen-md mx-auto">
-                <p className="fixed w-1/4 min-w-40 h-1/4 rounded-full bg-green-400 -top-32 -ml-32 blur-3xl opacity-25"></p>
+                <Bg />
                 <MineInfos />
                 <Projects />
                 <Labs />
@@ -15,6 +15,15 @@ const Layout: React.FC = () => {
         </>
     )
 };
+
+const Bg = () => {
+    return (
+        <div className="fixed w-[60vw] h-[60vw] left-1/4 -top-10 blur-2xl">
+            <p className="w-1/3 h-1/3 rounded-full bg-gradient-to-br from-sky-500 to-sky-400/2 opacity-40 blur-2xl"></p>
+            <p style={{ transform: 'rotate3d(1,1,1,230deg)' }} className="absolute -top-1/3 -left-1/3 w-full h-full rounded-full border-[300px] border-sky-400 opacity-30"></p>
+        </div>
+    )
+}
 
 const MineInfos = () => {
     return (
