@@ -4,7 +4,7 @@
 
 @layer base {
   *{
-    font-family: "General Sans", "General Sans Placeholder", sans-serif;
+    font-family: ui-monospace,SFMono-Regular,Menlo,Monaco,Consolas,"Liberation Mono","Courier New",monospace;
   }
   
   body {
