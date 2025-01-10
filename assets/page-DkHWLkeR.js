@@ -1,4 +1,4 @@
-import{c as Vs,r as b,j as C}from"./index-DJw3_aLX.js";/**
+import{c as Vs,r as b,j as C}from"./index-DPoE_ICO.js";/**
  * @license @tabler/icons-react v3.17.0 - MIT
  *
  * This source code is licensed under the MIT license.
