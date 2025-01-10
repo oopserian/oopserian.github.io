@@ -17,5 +17,15 @@
         "tags": [
             "CSS"
         ]
+    },
+    "cd-widget": {
+        "name": "cd-widget",
+        "en_title": "CD-Widget",
+        "origin_url": "https://x.com/sovpal/status/1828542375372656894",
+        "title": "cd小组件",
+        "tags": [
+            "Tailwind",
+            "Motion"
+        ]
     }
 }
