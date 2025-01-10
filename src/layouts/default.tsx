@@ -19,7 +19,7 @@ const Layout: React.FC = () => {
 const MineInfos = () => {
     return (
         <div className="relative flex flex-col gap-8">
-            <a target="_blank" href="https://github.com/catcoal" className="border border-zinc-50 block w-12 h-12 rounded-full overflow-hidden bg-gradient-to-t from-zinc-50 to-green-50">
+            <a target="_blank" href="https://github.com/oopserian" className="border border-zinc-50 block w-12 h-12 rounded-full overflow-hidden bg-gradient-to-t from-zinc-50 to-green-50">
                 <img className="w-full h-full object-cover" src="/logo.webp" />
             </a>
             <div>
