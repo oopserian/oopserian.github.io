@@ -5,11 +5,11 @@ export default function HoverCard3d() {
     let [x, y] = usePointer(ref);
 
     return (
-        <div className="w-full h-full flex items-center justify-center">
+        <div className="w-full h-full flex items-center justify-center p-10">
             <div ref={ref} style={{
                 transform: `perspective(500px) rotateX(${-y}deg) rotateY(${x}deg) scale3d(1, 1, 1)`
-            }} className="flex items-center justify-center w-1/2 h-1/2 bg-slate-300 rounded-2xl">
-                <p className="text-blue-500 text-3xl pointer-events-none font-bold" style={{
+            }} className="flex items-center justify-center w-1/2 min-h-28 bg-slate-300 rounded-2xl">
+                <p className="text-blue-500 text-3xl pointer-events-none font-bold select-none" style={{
                     transform: `translate(${x * 3}px,${y * 3}px)`
                 }}>
                     content
