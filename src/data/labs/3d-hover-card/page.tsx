@@ -5,12 +5,16 @@ export default function HoverCard3d() {
     let [x, y] = usePointer(ref);
 
     return (
-        <div className="w-full h-full flex items-center justify-center p-10">
-            <div ref={ref} style={{
-                transform: `perspective(500px) rotateX(${-y}deg) rotateY(${x}deg) scale3d(1, 1, 1)`
-            }} className="flex items-center justify-center w-1/2 min-h-28 bg-slate-300 rounded-2xl">
-                <p className="text-blue-500 text-3xl pointer-events-none font-bold select-none" style={{
-                    transform: `translate(${x * 3}px,${y * 3}px)`
+        <div ref={ref} className="w-full h-full flex items-center justify-center p-6">
+            <div style={{
+                transform: `perspective(500px) rotateX(${-y}deg) rotateY(${x}deg) ${(x || y) ? 'scale3d(1.1, 1.1, 1)' : ''} `,
+                transition: 'transform .2s ease-out',
+                willChange: 'transform'
+            }} className="relaative flex items-center justify-center w-48 h-48 bg-slate-300 rounded-2xl">
+                <p className="text-blue-500 text-3xl font-bold select-none" style={{
+                    transform: `perspective(500px) translate(${x * 3}px,${y * 3}px)`,
+                    transition: 'transform .2s ease-out',
+                    willChange: 'transform'
                 }}>
                     content
                 </p>
@@ -26,11 +30,12 @@ const usePointer = (ref: RefObject<HTMLElement>): [number, number] => {
     useEffect(() => {
         const el = ref.current;
         if (!el) return;
-
-        const handlePointerMove = ({ offsetX, offsetY }: MouseEvent) => {
-            const { clientWidth, clientHeight } = el;
-            const x = (offsetX - clientWidth / 2) / 10 * 2;
-            const y = (offsetY - clientHeight / 2) / 10 * 2;
+        const handlePointerMove = ({ clientX, clientY }: MouseEvent) => {
+            const { width, height, top, left } = el.getBoundingClientRect();
+            const offsetX = clientX - left;
+            const offsetY = clientY - top;
+            const x = (offsetX - width / 2) / 10 * 2;
+            const y = (offsetY - height / 2) / 10 * 2;
             setLocation([x, y]);
         };
         const handlePointerLeave = () => {
