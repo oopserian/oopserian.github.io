@@ -10,7 +10,7 @@
     "hide": false,
     "name": "Eterm",
     "cover": "/appicons/eterm.png",
-    "description": "一款多控终端软件",
+    "description": "A multi-control terminal software.",
     "url": "https://github.com/catcoal/ETerm"
   }
 }

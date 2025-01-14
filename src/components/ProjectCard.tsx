@@ -31,7 +31,7 @@ export const ProjectCard: React.FC<ProjectCardProps> = ({ logo, name, descriptio
                     <img className="relative w-14 h-14" src={logo} />
                     <div className="flex-1">
                         <p className="text-sm font-bold">{name}</p>
-                        <p className="text-xs font-thin trext-zinc-400">{description}</p>
+                        <p className="text-xs font-thin text-zinc-400">{description}</p>
                     </div>
                     <div>
                         {/* <IconBrandGithub size={20} stroke={1} /> */}
