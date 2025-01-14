@@ -33,7 +33,7 @@ export default function CdWidget() {
                 <div className="relative flex-1 flex flex-col justify-end p-4">
                     <div className="flex justify-between items-center">
                         <div className="flex flex-col">
-                            <p className="text-zinc-700 text-sm leading-none">Perfectionism</p>
+                            <p className="text-zinc-700 text-xs leading-none">Perfectionism</p>
                             <p className="text-zinc-500 text-xs leading-none">Jaychou</p>
                         </div>
                         <motion.div className="cursor-pointer"
@@ -45,7 +45,7 @@ export default function CdWidget() {
                             }
                         </motion.div>
                     </div>
-                    <div className="relative mt-2 w-full h-1 bg-zinc-50/50 rounded-full overflow-hidden">
+                    <div className="relative mt-2 w-full h-1 bg-zinc-50/50 rounded-full overflow-hidden transition-transform hover:scale-y-150">
                         <motion.div animate={{
                             translateX: isPlay ? ['-100%', '0%'] : '-100%'
                         }} transition={isPlay ? {
