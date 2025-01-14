@@ -12,22 +12,27 @@ export default function HoverCard3d() {
     const variants: Variants = {
         initial: (index: number) => {
             // 计算旋转角度
-            const rotation = (index - centerIndex) * 8;
+            const rotation = (index - centerIndex) * 10;
             return {
                 rotate: rotation,
                 // 计算X轴偏移，让卡牌横向分开
-                translateX: (index - centerIndex) * 25,
+                translateX: (index - centerIndex) * 30,
                 // 计算Y轴偏移，使卡牌呈弧形排列
                 translateY: Math.abs(rotation) * 0,
                 // 计算Z轴偏移，使卡牌有前后层次
                 translateZ: -Math.abs(rotation) * 2
             }
         },
-        hover: {
-            rotate: 0,
-            scale: 1.1,
-            translateY: "+=25",
-            translateX: "-=10"
+        hover: (index: number) => {
+            const rotation = (index - centerIndex) * 10;
+            const translateY = Math.abs(rotation) * 0;
+            const translateX = (index - centerIndex) * 30
+            return {
+                rotate: 0,
+                scale: 1,
+                translateY: translateY - 25,
+                translateX: translateX - 15,
+            }
         }
     }
 
@@ -41,10 +46,7 @@ export default function HoverCard3d() {
                         custom={index}
                         variants={variants}
                         initial="initial"
-                        // whileHover="hover"
-                        onClick={() => {
-                            console.log(index);
-                        }}
+                        whileHover="hover"
                     >
                         <Card src={src} />
                     </motion.div>
@@ -64,7 +66,19 @@ const Card: React.FC<CardProps> = ({ src, ...props }) => {
     let [x, y] = usePointer(ref);
 
     return (
-        <div {...props} ref={ref} className={cn('border border-zinc-700 rounded-xl overflow-hidden', props.className)}>
+        <div {...props} ref={ref} style={{
+            transform: `perspective(500px) rotateX(${-y * 3}deg) rotateY(${x * 3}deg)`,
+            transition: 'transform 0.2s ease-out',
+            willChange: 'transform',
+        }} className={cn('group border border-zinc-700 rounded-xl overflow-hidden', props.className)}>
+            <div style={{
+                transform: `translateX(${x * 4}px) translateY(${y * 4}px)`,
+                transition: 'transform 0.1s ease-out',
+                transitionProperty: 'transform,opacity',
+                willChange: 'transform',
+            }} className="absolute top-0 left-0 w-full h-full pointer-events-none opacity-0 group-hover:opacity-100">
+                <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 inset-0 w-16 h-16 blur-lg bg-white/50 rounded-full"></div>
+            </div>
             <img src={src} />
         </div>
     )

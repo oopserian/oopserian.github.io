@@ -30,12 +30,13 @@
     },
     "3d-hover-card": {
         "name": "3d-hover-card",
-        "en_title": "3D Hover Card 🚧",
+        "en_title": "3D Hover Card",
         "origin_url": "",
-        "title": "3d浮动卡片 🚧",
+        "title": "3d浮动卡片",
         "tags": [
             "Tailwind",
-            "JavaScript"
+            "Motion",
+            "TypeScript"
         ]
     }
 }
