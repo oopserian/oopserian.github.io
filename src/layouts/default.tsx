@@ -11,7 +11,7 @@ const Layout: React.FC = () => {
                 <Bg />
                 <MineInfos />
                 <Projects />
-                <Labs />
+                <Lab />
             </main>
         </>
     )
@@ -36,13 +36,13 @@ const MineInfos = () => {
                 <h2 className="text-2xl font-bold leading-none">Web & software developer</h2>
                 <p className="text-md font-thin text-zinc-400 leading-none">Building is My Passion!</p>
                 <div className="flex items-center gap-2">
-                    <a href="https://x.com/oopserian" target="_blank">
+                    <a className="opacity-50 hover:opacity-100 transition-opacity" href="https://x.com/oopserian" target="_blank">
                         <IconBrandX size={20} />
                     </a>
-                    <a href="https://github.com/oopserian" target="_blank">
+                    <a className="opacity-50 hover:opacity-100 transition-opacity" href="https://github.com/oopserian" target="_blank">
                         <IconBrandGithub size={20} />
                     </a>
-                    <a href="mailto:oopserian@gmail.com" target="_blank">
+                    <a className="opacity-50 hover:opacity-100 transition-opacity" href="mailto:oopserian@gmail.com" target="_blank">
                         <IconMail size={20} />
                     </a>
                 </div>
@@ -67,11 +67,11 @@ const Projects = () => {
     )
 };
 
-const Labs = () => {
+const Lab = () => {
     const labDataList = Object.values(labData);
     return (
         <div className="flex flex-col gap-2.5">
-            <h2 className="text-xl font-bold">Labs</h2>
+            <h2 className="text-xl font-bold">Lab</h2>
             <div className="grid grid-cols-[repeat(auto-fill,minmax(250px,1fr))] gap-2.5">
                 {
                     labDataList.map(lab => (

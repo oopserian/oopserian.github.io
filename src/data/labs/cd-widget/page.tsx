@@ -34,7 +34,7 @@ export default function CdWidget() {
                     <div className="flex justify-between items-center">
                         <div className="flex flex-col">
                             <p className="text-zinc-700 text-xs leading-none">Perfectionism</p>
-                            <p className="text-zinc-500 text-xs leading-none">Jaychou</p>
+                            <p className="text-zinc-500 text-xs leading-none">Jay Chou</p>
                         </div>
                         <motion.div className="cursor-pointer"
                             whileTap={{

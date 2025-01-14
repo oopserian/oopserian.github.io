@@ -17,15 +17,15 @@ export const ProjectCard: React.FC<ProjectCardProps> = ({ logo, name, descriptio
     return (
         <HoverMotion.Root>
             <HoverMotion.Tilt strength={{
-                x: 0.2,
-                y: 2
+                x: 0.4,
+                y: 1
             }} onClick={jumpLink} className={cn(
                 "group p-3 border bg-zinc-900 border-zinc-800 rounded-2xl select-none",
                 (link ? "cursor-pointer" : "")
             )}>
                 <HoverMotion.Magnetic strength={{
-                    x: 1,
-                    y: 1
+                    x: 0.25,
+                    y: 0.25
                 }} className="relative flex gap-2 items-center">
                     <img className="pointer-events-none absolute h-full scale-150 w-auto top-0 -left-2 blur-lg opacity-0 transition-opacity group-hover:opacity-50" src={logo} />
                     <img className="relative w-14 h-14" src={logo} />
