@@ -2,6 +2,7 @@ import { LabCard } from "@/components/LabCard";
 import { ProjectCard } from "@/components/ProjectCard";
 import projectData from "@/data/projects/data.json";
 import labData from "@/data/labs/data.json";
+import { IconBrandX, IconBrandGithub, IconMail } from "@tabler/icons-react";
 
 const Layout: React.FC = () => {
     return (
@@ -31,9 +32,20 @@ const MineInfos = () => {
             <a target="_blank" href="https://github.com/oopserian" className="border border-zinc-50 block w-12 h-12 rounded-full overflow-hidden bg-gradient-to-t from-zinc-50 to-green-50">
                 <img className="w-full h-full object-cover" src="/logo.webp" />
             </a>
-            <div>
-                <h2 className="text-2xl font-bold">Web & software developer</h2>
-                <p className="text-md font-thin text-zinc-400">Building is My Passion!</p>
+            <div className="flex flex-col gap-2">
+                <h2 className="text-2xl font-bold leading-none">Web & software developer</h2>
+                <p className="text-md font-thin text-zinc-400 leading-none">Building is My Passion!</p>
+                <div className="flex items-center gap-2">
+                    <a href="https://x.com/oopserian" target="_blank">
+                        <IconBrandX size={20} />
+                    </a>
+                    <a href="https://github.com/oopserian" target="_blank">
+                        <IconBrandGithub size={20} />
+                    </a>
+                    <a href="mailto:oopserian@gmail.com" target="_blank">
+                        <IconMail size={20} />
+                    </a>
+                </div>
             </div>
         </div>
     )
