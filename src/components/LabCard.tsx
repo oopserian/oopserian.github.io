@@ -1,20 +1,21 @@
 import React, { lazy, Suspense } from "react";
 import { IconCode, IconBulb } from "@tabler/icons-react";
+import { Developing } from "./Developing";
 
 interface LabCardProps {
     data: Lab
 }
 
 export const LabCard: React.FC<LabCardProps> = ({ data }) => {
-    let { name, en_title, tags, origin_url } = data;
+    let { name, en_title, tags, origin_url, inDevelopment } = data;
     const Container = lazy(() => import(`@/data/labs/${name}/page.tsx`));
     const originCodeUrl = 'https://github.com/oopserian/oopserian.github.io/tree/main/src/data/labs/' + name;
 
     return (
         <Suspense>
-            <div id={name} className="relative flex flex-col gap-2 bg-zinc-950 border-zinc-800 border rounded-2xl overflow-hidden p-2 transition-[border-color] hover:border-zinc-700">
-                <div className="flex-1 min-h-12 rounded-xl bg-zinc-900">
-                    <Container />
+            <div id={name} className="relative flex flex-col gap-2 bg-zinc-950 border-zinc-800 border rounded-2xl overflow-hidden p-1.5 transition-[border-color] hover:border-zinc-700">
+                <div className="relative flex-1 min-h-12 rounded-xl bg-zinc-900">
+                    {inDevelopment ? <Developing /> : <Container />}
                 </div>
                 <div className="flex justify-between items-center">
                     <div className="flex flex-col gap-1 p-1 font-normal">

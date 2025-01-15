@@ -20,7 +20,7 @@ export const ProjectCard: React.FC<ProjectCardProps> = ({ logo, name, descriptio
                 x: 0.4,
                 y: 1
             }} onClick={jumpLink} className={cn(
-                "group p-3 border bg-zinc-900 border-zinc-800 rounded-2xl select-none",
+                "group p-2 border bg-zinc-900 border-zinc-800 rounded-2xl select-none",
                 (link ? "cursor-pointer" : "")
             )}>
                 <HoverMotion.Magnetic strength={{
