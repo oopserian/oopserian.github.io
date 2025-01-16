@@ -7,7 +7,8 @@ export default function CdWidget() {
     const [isPlay, setIsPlay] = useState<boolean>(false);
     return (
         <div className="flex items-center justify-center p-6">
-            <div className="relative flex flex-col w-48 h-48 overflow-hidden bg-zinc-300 rounded-3xl border border-zinc-600 shadow-lg">
+            <div className="relative flex flex-col w-48 h-48 overflow-hidden bg-zinc-300 rounded-3xl shadow-lg">
+                <div className="absolute pointer-events-none rounded-[inherit] z-10 top-0 left-0 w-full h-full border border-neutral-400/40"></div>
                 <div className="absolute w-full h-full blur-md opacity-30">
                     <img className="w-full h-full object-cover" src={cover} alt="jaychou" />
                 </div>

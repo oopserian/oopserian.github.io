@@ -19,7 +19,7 @@ export const LabCard: React.FC<LabCardProps> = ({ data }) => {
                 </div>
                 <div className="flex justify-between items-center">
                     <div className="flex flex-col gap-1 p-1 font-normal">
-                        <p className="text-zinc-200 text-sm">{en_title}</p>
+                        <p className="text-zinc-200 text-sm">{inDevelopment && '🚧'} {en_title}</p>
                         <div className="flex gap-1">
                             {
                                 tags.map(tag => (

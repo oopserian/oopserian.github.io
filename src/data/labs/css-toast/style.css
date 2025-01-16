@@ -9,6 +9,7 @@
     flex-direction: column;
     justify-content: center;
     align-items: center;
+    overflow: hidden;
     gap: 1rem;
     padding: 2rem 1rem;
 

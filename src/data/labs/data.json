@@ -46,9 +46,9 @@
     "css-toast": {
         "name": "css-toast",
         "inDevelopment": false,
-        "en_title": "CSS Toast 🚧",
+        "en_title": "CSS Toast",
         "origin_url": "",
-        "title": "css toast 🚧",
+        "title": "css toast",
         "tags": [
             "CSS"
         ]
@@ -56,9 +56,9 @@
     "dnd-stack": {
         "name": "dnd-stack",
         "inDevelopment": true,
-        "en_title": "Dnd Stack 🚧",
+        "en_title": "Dnd Stack",
         "origin_url": "",
-        "title": "拖放和堆叠 🚧",
+        "title": "拖放和堆叠",
         "tags": [
             "Tailwind",
             "Motion"

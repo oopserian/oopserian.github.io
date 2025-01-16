@@ -70,14 +70,14 @@ const Card: React.FC<CardProps> = ({ src, ...props }) => {
             transform: `perspective(500px) rotateX(${-y * 3}deg) rotateY(${x * 3}deg)`,
             transition: 'transform 0.2s ease-out',
             willChange: 'transform',
-        }} className={cn('group border border-zinc-700 rounded-xl overflow-hidden', props.className)}>
+        }} className={cn('group border border-neutral-400 rounded-xl overflow-hidden', props.className)}>
             <div style={{
                 transform: `translateX(${x * 4}px) translateY(${y * 4}px)`,
                 transition: 'transform 0.1s ease-out',
                 transitionProperty: 'transform,opacity',
                 willChange: 'transform',
             }} className="absolute top-0 left-0 w-full h-full pointer-events-none opacity-0 group-hover:opacity-100">
-                <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 inset-0 w-16 h-16 blur-lg bg-white/50 rounded-full"></div>
+                <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 inset-0 w-20 h-20 blur-lg bg-white/20 rounded-full"></div>
             </div>
             <img src={src} />
         </div>
