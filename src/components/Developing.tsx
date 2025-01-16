@@ -1,4 +1,5 @@
 export const Developing = () => {
+    const colors = ["#3f3f46", "#27272a"]
     return (
         <div className="h-56 rounded-[inherit] inset-0 overflow-hidden opacity-60">
             <svg width="100%" height="100%">
@@ -8,9 +9,12 @@ export const Developing = () => {
                         width="50"
                         height="50"
                         patternUnits="userSpaceOnUse"
-                    >
-                        <rect width="25" height="50" fill="#f5be41" />
-                        <rect x="25" width="25" height="50" fill="#efa139" />
+                    >   
+                    {
+                        colors.map((color,index)=>(
+                            <rect x={index * 25} width="25" height="50" fill={color} />
+                        ))
+                    }
                         <animateTransform
                             attributeName="patternTransform"
                             attributeType="XML"
