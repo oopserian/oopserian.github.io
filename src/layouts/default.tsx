@@ -20,7 +20,7 @@ const Layout: React.FC = () => {
 const Bg = () => {
     return (
         <div className="fixed w-[60vw] h-[60vw] left-1/4 -top-10 blur-2xl">
-            <p className="w-1/3 h-1/3 rounded-full bg-gradient-to-br from-sky-500 to-sky-400/2 opacity-40 blur-2xl"></p>
+            <p className="w-1/3 h-1/3 rounded-full bg-gradient-to-br from-sky-500 to-sky-400/2 opacity-40 blur-2xl animate-pulse"></p>
             <p style={{ transform: 'rotate3d(1,1,1,230deg)' }} className="absolute -top-1/3 -left-1/3 w-full h-full rounded-full border-[300px] border-sky-400 opacity-30"></p>
         </div>
     )

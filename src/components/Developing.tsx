@@ -12,7 +12,7 @@ export const Developing = () => {
                     >   
                     {
                         colors.map((color,index)=>(
-                            <rect x={index * 25} width="25" height="50" fill={color} />
+                            <rect key={index} x={index * 25} width="25" height="50" fill={color} />
                         ))
                     }
                         <animateTransform

@@ -27,8 +27,8 @@
         "origin_url": "https://x.com/sovpal/status/1828542375372656894",
         "title": "cd小组件",
         "tags": [
-            "Tailwind",
-            "Motion"
+            "Motion",
+            "Tailwind"
         ]
     },
     "3d-hover-card": {
@@ -38,9 +38,8 @@
         "origin_url": "",
         "title": "3d浮动卡片",
         "tags": [
-            "Tailwind",
             "Motion",
-            "TypeScript"
+            "Tailwind"
         ]
     },
     "css-toast": {
@@ -60,8 +59,8 @@
         "origin_url": "",
         "title": "拖放和堆叠",
         "tags": [
-            "Tailwind",
-            "Motion"
+            "Motion",
+            "Tailwind"
         ]
     }
 }
