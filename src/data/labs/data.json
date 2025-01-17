@@ -52,6 +52,17 @@
             "CSS"
         ]
     },
+    "hover-cursor": {
+        "name": "hover-cursor",
+        "inDevelopment": true,
+        "en_title": "Hover Cursor",
+        "origin_url": "",
+        "title": "悬停光标",
+        "tags": [
+            "Motion",
+            "Tailwind"
+        ]
+    },
     "dnd-stack": {
         "name": "dnd-stack",
         "inDevelopment": true,
