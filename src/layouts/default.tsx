@@ -33,8 +33,8 @@ const MineInfos = () => {
                 <img className="w-full h-full object-cover" src="/logo.webp" />
             </a>
             <div className="flex flex-col gap-2">
-                <h2 className="text-2xl font-bold leading-none">Web & software developer</h2>
-                <p className="text-md font-thin text-zinc-400 leading-none">Building is My Passion!</p>
+                <h2 className="text-2xl font-bold leading-none">Web & Software Developer</h2>
+                <p className="text-md font-thin text-zinc-400 leading-none">Build Stuff. Sometimes It Works.</p>
                 <div className="flex items-center gap-2">
                     <a className="opacity-50 hover:opacity-100 transition-opacity" href="https://x.com/oopserian" target="_blank">
                         <IconBrandX size={20} />

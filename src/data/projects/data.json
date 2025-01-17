@@ -8,7 +8,7 @@
   },
   "eterm": {
     "hide": false,
-    "name": "Eterm 🚧",
+    "name": "🚧 Eterm",
     "cover": "/appicons/eterm.png",
     "description": "A multi-control terminal software.",
     "url": "https://github.com/catcoal/ETerm"
