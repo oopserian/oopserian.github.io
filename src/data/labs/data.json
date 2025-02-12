@@ -54,7 +54,7 @@
     },
     "hover-cursor": {
         "name": "hover-cursor",
-        "inDevelopment": true,
+        "inDevelopment": false,
         "en_title": "Hover Cursor",
         "origin_url": "",
         "title": "悬停光标",

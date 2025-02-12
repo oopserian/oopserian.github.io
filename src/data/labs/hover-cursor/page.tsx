@@ -1,9 +1,9 @@
 import { cn } from "@/lib/utils";
 import { createContext, ReactNode, RefObject, useContext, useEffect, useRef, useState } from "react";
-import { IconSearch, IconRefresh } from "@tabler/icons-react";
+import { IconSearch, IconRefresh, IconAlertTriangle, IconRosetteDiscountCheck } from "@tabler/icons-react";
 import { AnimatePresence, motion, Variants } from "motion/react";
 
-type CursorType = "default" | "link" | "button";
+type CursorType = "default" | "link" | "button" | "alert" | "check";
 
 interface CursorTriggerProps extends React.HTMLAttributes<HTMLDivElement> {
     type: CursorType;
@@ -57,17 +57,17 @@ export default function HoverCursor() {
         <CursorProvider>
             <div className="cursor-wrapper relative w-full h-full overflow-hidden flex items-center justify-center p-5">
                 <div className="grid grid-cols-2 gap-5 items-center justify-center w-full h-full">
-                    <CursorTrigger type="button" className="w-full h-full bg-fuchsia-300 rounded-2xl p-5">
-                        <button>button - 1</button>
+                    <CursorTrigger type="button" className="w-full h-full bg-blue-300 rounded-2xl p-5">
+                        <button></button>
                     </CursorTrigger>
-                    <CursorTrigger type="link" className="w-full h-full bg-fuchsia-400 rounded-2xl p-5">
-                        <button>button - 2</button>
+                    <CursorTrigger type="link" className="w-full h-full bg-blue-400 rounded-2xl p-5">
+                        <button></button>
                     </CursorTrigger>
-                    <CursorTrigger type="default" className="w-full h-full bg-fuchsia-600 rounded-2xl p-5">
-                        <button>button - 3</button>
+                    <CursorTrigger type="alert" className="w-full h-full bg-blue-500 rounded-2xl p-5">
+                        <button></button>
                     </CursorTrigger>
-                    <CursorTrigger type="default" className="w-full h-full bg-fuchsia-700 rounded-2xl p-5">
-                        <button>button - 4</button>
+                    <CursorTrigger type="check" className="w-full h-full bg-blue-600 rounded-2xl p-5">
+                        <button></button>
                     </CursorTrigger>
                 </div>
             </div>
@@ -107,7 +107,9 @@ const Cursor = () => {
     const cursorConfig: Record<CursorType, ReactNode> = {
         'default': '',
         'link': <IconSearch className="w-full h-full" />,
-        'button': <IconRefresh className="w-full h-full" />
+        'button': <IconRefresh className="w-full h-full" />,
+        'alert': <IconAlertTriangle className="w-full h-full" />,
+        'check': <IconRosetteDiscountCheck className="w-full h-full" />
     };
 
     const variants: Variants = {
@@ -129,8 +131,21 @@ const Cursor = () => {
             borderRadius: 50,
             width: 48,
             height: 48,
-            background: "#22c55e",
+            background: "#666",
             color: "#fafafa"
+        },
+        alert: {
+            borderRadius: 50,
+            width: 48,
+            height: 48,
+            background: "#f43f5e",
+            color: "#fafafa"
+        },
+        check: {
+            borderRadius: 50,
+            width: 48,
+            height: 48,
+            background: "#22c55e",
         }
     };
 
