@@ -55,7 +55,7 @@ export default function HoverCursor() {
 
     return (
         <CursorProvider>
-            <div className="cursor-wrapper relative overflow-hidden flex items-center justify-center py-8">
+            <div className="cursor-wrapper relative overflow-hidden flex items-center justify-center py-4">
                 <div className="grid grid-cols-2 gap-3 items-center justify-center w-1/2 h-1/2 aspect-square">
                     <CursorTrigger type="button" className="w-full h-full bg-blue-300 rounded-lg p-5 transition-transform hover:scale-110">
                         <button></button>
