@@ -36,13 +36,13 @@ const MineInfos = () => {
                 <h2 className="text-2xl font-bold leading-none">Web & Software Developer</h2>
                 <p className="text-md font-thin text-zinc-400 leading-none">Build Stuff. Sometimes It Works.</p>
                 <div className="flex items-center gap-2">
-                    <a className="opacity-50 hover:opacity-100 transition-opacity" href="https://x.com/oopserian" target="_blank">
+                    <a className="opacity-50 hover:opacity-100 transition-[transform,opacity] hover:-rotate-12 hover:scale-110" href="https://x.com/oopserian" target="_blank">
                         <IconBrandX size={20} />
                     </a>
-                    <a className="opacity-50 hover:opacity-100 transition-opacity" href="https://github.com/oopserian" target="_blank">
+                    <a className="opacity-50 hover:opacity-100 transition-[transform,opacity] hover:rotate-6 hover:scale-110" href="https://github.com/oopserian" target="_blank">
                         <IconBrandGithub size={20} />
                     </a>
-                    <a className="opacity-50 hover:opacity-100 transition-opacity" href="mailto:oopserian@gmail.com" target="_blank">
+                    <a className="opacity-50 hover:opacity-100 transition-[transform,opacity] hover:-rotate-6 hover:scale-110" href="mailto:oopserian@gmail.com" target="_blank">
                         <IconMail size={20} />
                     </a>
                 </div>
