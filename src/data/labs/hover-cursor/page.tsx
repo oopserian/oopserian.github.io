@@ -55,18 +55,18 @@ export default function HoverCursor() {
 
     return (
         <CursorProvider>
-            <div className="cursor-wrapper relative w-full h-full overflow-hidden flex items-center justify-center p-5">
-                <div className="grid grid-cols-2 gap-5 items-center justify-center w-full h-full">
-                    <CursorTrigger type="button" className="w-full h-full bg-blue-300 rounded-2xl p-5">
+            <div className="cursor-wrapper relative overflow-hidden flex items-center justify-center py-8">
+                <div className="grid grid-cols-2 gap-3 items-center justify-center w-1/2 h-1/2 aspect-square">
+                    <CursorTrigger type="button" className="w-full h-full bg-blue-300 rounded-lg p-5 transition-transform hover:scale-110">
                         <button></button>
                     </CursorTrigger>
-                    <CursorTrigger type="link" className="w-full h-full bg-blue-400 rounded-2xl p-5">
+                    <CursorTrigger type="link" className="w-full h-full bg-blue-400 rounded-lg p-5 transition-transform hover:scale-110">
                         <button></button>
                     </CursorTrigger>
-                    <CursorTrigger type="alert" className="w-full h-full bg-blue-500 rounded-2xl p-5">
+                    <CursorTrigger type="alert" className="w-full h-full bg-blue-500 rounded-lg p-5 transition-transform hover:scale-110">
                         <button></button>
                     </CursorTrigger>
-                    <CursorTrigger type="check" className="w-full h-full bg-blue-600 rounded-2xl p-5">
+                    <CursorTrigger type="check" className="w-full h-full bg-blue-600 rounded-lg p-5 transition-transform hover:scale-110">
                         <button></button>
                     </CursorTrigger>
                 </div>

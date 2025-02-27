@@ -33,6 +33,7 @@ export default function Folder() {
                     </div>
                 </div>
             </div>
+            <p className="tip">Hover 👆</p>
         </div>
     )
 }
