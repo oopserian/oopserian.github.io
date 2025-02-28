@@ -1,4 +1,15 @@
 {
+    "blur-fade": {
+        "name": "blur-fade",
+        "inDevelopment": false,
+        "en_title": "Blur Fade",
+        "origin_url": "",
+        "title": "高斯模糊淡出",
+        "tags": [
+            "Motion",
+            "Tailwind"
+        ]
+    },
     "3d-hover-card": {
         "name": "3d-hover-card",
         "inDevelopment": false,
