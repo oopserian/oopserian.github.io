@@ -10,6 +10,14 @@
   body {
     @apply text-zinc-100 bg-zinc-950 w-screen h-screen;
   }
+
+  ::-webkit-scrollbar {
+    width: 0px;
+  }
+
+  ::-webkit-scrollbar-track {
+    background: transparent;
+  }
 }
 
 
