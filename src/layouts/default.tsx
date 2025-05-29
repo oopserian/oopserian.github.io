@@ -3,12 +3,15 @@ import { ProjectCard } from "@/components/ProjectCard";
 import projectData from "@/data/projects/data.json";
 import labData from "@/data/labs/data.json";
 import { IconBrandX, IconBrandGithub, IconMail } from "@tabler/icons-react";
+import { Gradient } from "@/lib/Gradient.js";
+import { useEffect } from "react";
 
 const Layout: React.FC = () => {
     return (
         <>
             <main className="flex flex-col gap-8 py-10 px-5 w-full max-w-screen-md mx-auto">
-                <Bg />
+                {/* <Bg /> */}
+                <GradientBg />
                 <MineInfos />
                 <Projects />
                 <Lab />
@@ -16,6 +19,25 @@ const Layout: React.FC = () => {
         </>
     )
 };
+
+const GradientBg = () => {
+    useEffect(() => {
+        const gradient = new Gradient();
+        gradient.initGradient('#gradient-canvas');
+    }, []);
+    const style: any = {
+        "--gradient-color-1": "#043D5D",
+        "--gradient-color-2": "#032E46",
+        "--gradient-color-3": "#23B684",
+        "--gradient-color-4": "#0F595E",
+    };
+    return (
+        <div className="fixed w-full h-2/3 top-0 left-0 opacity-40 pointer-events-none">
+            <span className="absolute w-full h-full top-0 left-0 bg-gradient-to-b from-transparent to-[#09090b]"></span>
+            <canvas style={style} className="w-full h-full" id="gradient-canvas"></canvas>
+        </div>
+    )
+}
 
 const Bg = () => {
     return (
@@ -28,7 +50,7 @@ const Bg = () => {
 
 const MineInfos = () => {
     return (
-        <div className="relative flex flex-col gap-8">
+        <div className="animation-fadeIn !animation-delay-100 relative flex flex-col gap-8">
             <a target="_blank" href="https://github.com/oopserian" className="border border-zinc-50 block w-12 h-12 rounded-full overflow-hidden bg-gradient-to-t from-zinc-50 to-green-50">
                 <img className="w-full h-full object-cover" src="/logo.webp" />
             </a>
@@ -54,7 +76,7 @@ const MineInfos = () => {
 const Projects = () => {
     const projectDataList = Object.values(projectData);
     return (
-        <div className="flex flex-col gap-2.5">
+        <div className="animation-fadeIn !animation-delay-200 flex flex-col gap-2.5">
             <h2 className="text-xl font-bold">Projects</h2>
             <div className="grid grid-cols-[repeat(auto-fill,minmax(250px,1fr))] gap-2.5">
                 {
@@ -70,7 +92,7 @@ const Projects = () => {
 const Lab = () => {
     const labDataList = Object.values(labData);
     return (
-        <div className="flex flex-col gap-2.5">
+        <div className="animation-fadeIn !animation-delay-300 flex flex-col gap-2.5">
             <h2 className="text-xl font-bold">Lab</h2>
             <div className="grid grid-cols-[repeat(auto-fill,minmax(250px,1fr))] gap-2.5">
                 {
