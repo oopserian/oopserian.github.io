@@ -1,4 +1,4 @@
-import{a as b,r as n,j as s,c as N}from"./index-mFr8tvye.js";import{M as z,u as X,P as $,a as _,b as D,L as A,m as T}from"./proxy-DeP1OBe-.js";/**
+import{a as b,r as n,j as s,c as N}from"./index-NhpGK2uY.js";import{M as z,u as X,P as $,a as _,b as D,L as A,m as T}from"./proxy-lxsMxDgu.js";/**
  * @license @tabler/icons-react v3.17.0 - MIT
  *
  * This source code is licensed under the MIT license.
