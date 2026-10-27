@@ -1,0 +1,110 @@
+---
+// 首屏：左边是标题和简介，右边是字符拼的头像，四周一圈字符的烟（scripts/ascii.ts）。
+// 字符画只是装饰，没有脚本、没有 canvas 时就是一块空白，文字照常。
+import avatar from '../assets/avatar.webp';
+import Icon from './Icon.astro';
+import { SITE } from '../site';
+---
+<section class="hero" data-hero data-src={avatar.src}>
+  <canvas class="ascii" aria-hidden="true"></canvas>
+  <div class="wrap grid">
+    <div class="text">
+      <p class="eyebrow rise" style="--d:0ms">Independent developer · Germany</p>
+      <h1 class="display rise" style="--size:64px; --d:80ms">Build stuff.<br><em>Sometimes it works.</em></h1>
+      <p class="lede rise" style="--d:200ms">
+        I’m {SITE.name}, a web and software developer working on my own.
+        Right now I’m building <a class="link" href="https://sooty.app">SOOTY</a>, a local-first asset manager for Mac, written in Rust.
+        The <a class="link" href="#lab">lab</a> below is where I try out interface ideas.
+      </p>
+      <ul class="links rise" style="--d:300ms">
+        <li><a href={SITE.github}><Icon name="github" /><span class="out">GitHub</span></a></li>
+        <li><a href={SITE.x}><Icon name="x" /><span class="out">X</span></a></li>
+        <li><a href={`mailto:${SITE.email}`}><Icon name="mail" /><span class="out">Email</span></a></li>
+      </ul>
+    </div>
+    <div class="portrait" data-anchor></div>
+  </div>
+</section>
+
+<style>
+  .hero {
+    position: relative;
+    overflow: hidden;
+    border-bottom: 1px solid var(--line);
+    touch-action: pan-y;
+  }
+  .ascii {
+    position: absolute;
+    inset: 0;
+    pointer-events: none;
+    --ascii-size: 8px;
+  }
+  .grid {
+    position: relative;
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) minmax(0, 460px);
+    align-items: center;
+    gap: 48px;
+    min-height: min(calc(100svh - var(--nav-h)), 720px);
+    padding-block: 64px 72px;
+  }
+  .text { max-width: 640px; }
+  .eyebrow { margin-bottom: 20px; }
+  h1 { margin-bottom: 28px; }
+  .lede {
+    font-size: 18px;
+    line-height: 1.6;
+    color: var(--fg-2);
+    max-width: 34em;
+    text-wrap: pretty;
+  }
+  .links {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px 24px;
+    margin-top: 28px;
+    font-family: var(--mono);
+    font-size: 14px;
+  }
+  .links a {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    color: var(--fg);
+    transition: color .15s;
+  }
+  .links a:hover { color: var(--accent); }
+  .portrait {
+    width: 100%;
+    aspect-ratio: 1;
+  }
+  @media (max-width: 860px) {
+    .grid {
+      grid-template-columns: 1fr;
+      gap: 8px;
+      min-height: 0;
+      padding-block: 24px 48px;
+    }
+    .portrait {
+      order: -1;
+      width: min(300px, 78vw);
+      justify-self: center;
+    }
+    .ascii { --ascii-size: 9px; }
+    h1 { --size: 38px !important; }
+    .lede { font-size: 17px; }
+  }
+</style>
+
+<script>
+  import { mount } from '../scripts/ascii';
+  const host = document.querySelector<HTMLElement>('[data-hero]')!;
+  const go = () => mount({
+    host,
+    canvas: host.querySelector('canvas')!,
+    anchor: host.querySelector<HTMLElement>('[data-anchor]')!,
+    src: host.dataset.src!,
+  });
+  // 不跟首屏的文字抢主线程：浏览器闲下来再挂
+  'requestIdleCallback' in window ? requestIdleCallback(go, { timeout: 600 }) : setTimeout(go, 200);
+</script>
