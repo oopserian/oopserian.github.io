@@ -1,0 +1,1 @@
+import{t as e}from"./jsx-runtime.Czoyw2hL.js";var t=e();function n(){return(0,t.jsx)(`div`,{className:`w-full min-h-48 flex items-center justify-center font-bold text-2xl`,children:`Dnd Stack 🚧`})}export{n as default};
