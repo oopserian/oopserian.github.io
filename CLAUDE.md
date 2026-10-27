@@ -14,5 +14,5 @@ Erian（laken）的个人网站 eooo.me，Astro 生成的纯静态页面，发�
 - 页面不带框架：只有实验是 React，经 `src/islands/LabDemo.tsx` 用 `client:visible` 按需挂。网站本身写 Astro 组件和普通 CSS，不写 Tailwind 类名（Tailwind 只扫 `src/labs/`）。
 - `global.css` 里网站的样式不在层里，优先级比 Tailwind 高，所以不写 `p`、`button` 这种裸标签的规则，会盖掉实验里的类名。
 - 直角、1px 细线、不用阴影，强调色只有一个炭火橙，值在 `global.css` 开头。字体、图标都放在仓库里，不从 CDN 拿。
-- 背景动画可以用字符（ASCII）风格，但一定要省：只重画变了的部分，看不见就停，「减弱动态效果」时不动。
+- 背景动画可以用字符（ASCII）风格，但一定要省：平时限帧，看不见就停，「减弱动态效果」和没有显卡（软件渲染）时只画一帧静止的。首屏的字符画照 React Bits 的 GradientASCII 写的，开头 `/*!` 的许可证别删，也别改成普通注释。
 - 改完用浏览器在 1440 和 390 两种宽度、浅色深色各看一遍：不能有横向滚动条，控制台不能有报错。改了首屏要重截 `public/og.png`（见 README 的「分享卡片」）。
