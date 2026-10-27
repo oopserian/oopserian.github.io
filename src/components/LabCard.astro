@@ -1,5 +1,5 @@
 ---
-// 实验卡片：上面是能直接玩的组件，下面是标题、标签和两个链接（源码、灵感来源）
+// 实验卡片：上面是能直接玩的组件，下面是标题、做出来的年月和标签、两个链接（源码、灵感来源）
 import type { CollectionEntry } from 'astro:content';
 import LabStage from './LabStage.astro';
 import Icon from './Icon.astro';
@@ -7,7 +7,8 @@ import { labSource } from '../site';
 
 interface Props { lab: CollectionEntry<'labs'> }
 const { lab } = Astro.props;
-const { title, tags, inspiration, wip, summary } = lab.data;
+const { title, tags, inspiration, wip, summary, date } = lab.data;
+const when = date.toLocaleDateString('en', { year: 'numeric', month: 'short', timeZone: 'UTC' }); // 做出来的年月，比如 Jan 2025
 ---
 <article class="card" id={lab.id}>
   <LabStage slug={lab.id} wip={wip} />
@@ -17,7 +18,7 @@ const { title, tags, inspiration, wip, summary } = lab.data;
         ? <h3 class="title">{title}</h3>
         : <h3 class="title"><a href={`/lab/${lab.id}/`}>{title}</a></h3>}
       <p class="summary">{summary}</p>
-      <p class="tags mono">{tags.join(' · ')}</p>
+      <p class="tags mono"><time datetime={date.toISOString().slice(0, 10)}>{when}</time> · {tags.join(' · ')}</p>
     </div>
     <div class="actions">
       {inspiration && <a href={inspiration} title="Inspired by" aria-label={`${title}: inspiration`}><Icon name="lightbulb" size={20} /></a>}

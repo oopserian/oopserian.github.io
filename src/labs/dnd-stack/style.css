@@ -1,0 +1,97 @@
+/* 卡片、亮圈、张数角标都是绝对定位在舞台左上角，位置用 translate 给（--x、--y 是 React 算的，--dx、--dy 是拖动时手写的） */
+.dnd-stack .card,
+.dnd-stack .ring,
+.dnd-stack .count {
+    position: absolute;
+    top: 0;
+    left: 0;
+}
+
+.dnd-stack .card {
+    width: 76px;
+    height: 96px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: space-between;
+    padding: 14px 6px 10px;
+    border-radius: var(--lab-r-md);
+    background: var(--lab-surface);
+    box-shadow: 0 0 0 1px var(--lab-line), var(--lab-shadow-1);
+    translate: calc(var(--x) + var(--dx, 0px)) calc(var(--y) + var(--dy, 0px));
+    rotate: var(--r);
+    /* 位置、角度、大小分开过渡：拖着时位置跟手不过渡，角度和放大照样有过渡 */
+    transition: translate 0.5s var(--lab-spring), rotate 0.4s var(--lab-ease), scale 0.2s var(--lab-ease), box-shadow 0.2s, opacity 0.3s;
+    touch-action: none;
+    -webkit-user-select: none;
+    user-select: none;
+    cursor: pointer;
+}
+.dnd-stack .card[data-drag] { cursor: grab; }
+@media (hover: hover) {
+    .dnd-stack .card[data-drag]:hover { scale: 1.03; }
+}
+.dnd-stack .card[data-dragging] {
+    rotate: 0deg;
+    scale: 1.08;
+    cursor: grabbing;
+    box-shadow: 0 0 0 1px var(--lab-line-strong), var(--lab-shadow-2);
+    transition: rotate 0.2s var(--lab-ease), scale 0.2s var(--lab-ease), box-shadow 0.2s;
+}
+.dnd-stack .card:focus-visible { outline-offset: 3px; }
+/* 摊开一叠时，别的叠淡下去 */
+.dnd-stack [data-dim] { opacity: 0.4; }
+
+.dnd-stack .art {
+    display: grid;
+    place-items: center;
+    width: 40px;
+    height: 40px;
+    border-radius: var(--lab-r-sm);
+    background: var(--lab-accent-soft);
+    color: var(--lab-accent);
+}
+.dnd-stack .label {
+    font-size: 12px;
+    font-weight: 500;
+    color: var(--lab-fg-2);
+}
+
+/* 松手会放进去的那一叠：底下一圈虚线 */
+.dnd-stack .ring {
+    width: 92px;
+    height: 112px;
+    margin: -8px 0 0 -8px;
+    border-radius: var(--lab-r-lg);
+    border: 1.5px dashed var(--lab-accent);
+    background: var(--lab-accent-soft);
+    translate: var(--x) var(--y);
+    opacity: 0;
+    scale: 0.9;
+    transition: opacity 0.2s, scale 0.25s var(--lab-spring), translate 0.25s var(--lab-ease);
+    pointer-events: none;
+}
+.dnd-stack .ring[data-shown] { opacity: 1; scale: 1; }
+
+.dnd-stack .count {
+    min-width: 20px;
+    height: 20px;
+    padding: 0 6px;
+    border-radius: 10px;
+    background: var(--lab-accent);
+    color: var(--lab-on-accent);
+    font: 500 11px/20px var(--mono);
+    text-align: center;
+    box-shadow: 0 0 0 2px var(--lab-surface);
+    translate: var(--x) var(--y);
+    scale: 0;
+    transition: translate 0.5s var(--lab-spring), scale 0.25s var(--lab-spring), opacity 0.3s;
+    pointer-events: none;
+}
+.dnd-stack .count[data-shown] { scale: 1; }
+
+.dnd-stack .reset {
+    position: absolute;
+    top: 12px;
+    right: 12px;
+}

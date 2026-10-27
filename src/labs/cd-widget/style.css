@@ -1,0 +1,136 @@
+.cd-widget .player {
+    position: relative;
+    width: 196px;
+    aspect-ratio: 1;
+    margin-bottom: 16px;
+    border-radius: var(--lab-r-xl);
+    overflow: hidden;
+    background: var(--lab-surface);
+    box-shadow: 0 0 0 1px var(--lab-line), var(--lab-shadow-2);
+    isolation: isolate;
+}
+
+/* 底色是封面糊开的一层，只画一次，不跟着转 */
+.cd-widget .backdrop {
+    position: absolute;
+    inset: -20px;
+    width: calc(100% + 40px);
+    height: calc(100% + 40px);
+    object-fit: cover;
+    filter: blur(18px) saturate(1.2);
+    opacity: 0.35;
+    z-index: -1;
+    pointer-events: none;
+}
+
+.cd-widget .disc {
+    position: absolute;
+    left: 0;
+    right: 0;
+    top: -40%;
+    aspect-ratio: 1;
+    border-radius: 50%;
+    overflow: hidden;
+    cursor: pointer;
+    box-shadow: var(--lab-shadow-2);
+    transition: transform 0.4s var(--lab-ease);
+}
+.cd-widget .disc:active { transform: scale(0.98); }
+
+/* 转：CSS 动画，暂停用 animation-play-state，停下就停在当时的角度，不会弹回去 */
+.cd-widget .spin {
+    position: absolute;
+    inset: 0;
+    animation: cd-spin 8s linear infinite paused;
+}
+.cd-widget [data-playing] .spin { animation-play-state: running; }
+@keyframes cd-spin { to { rotate: 1turn; } }
+
+.cd-widget .spin img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+}
+
+/* 中间的孔和几圈环，一个元素的径向渐变画完，转起来不用每帧重新模糊 */
+.cd-widget .hub {
+    position: absolute;
+    inset: 34%;
+    border-radius: 50%;
+    border: 1.5px dashed rgb(255 255 255 / 0.35);
+    background: radial-gradient(circle,
+        var(--lab-surface) 0 17%,
+        rgb(255 255 255 / 0.8) 18% 21%,
+        rgb(210 210 216 / 0.7) 22% 47%,
+        rgb(255 255 255 / 0.55) 48% 50%,
+        rgb(150 150 160 / 0.35) 51% 82%,
+        transparent 83%);
+}
+
+/* 不转的一层反光，盖在转的封面上，像光盘表面的光 */
+.cd-widget .sheen {
+    position: absolute;
+    inset: 0;
+    border-radius: 50%;
+    background: conic-gradient(from 20deg,
+        transparent, rgb(255 255 255 / 0.22) 8%, transparent 18%,
+        transparent 50%, rgb(255 255 255 / 0.16) 58%, transparent 68%);
+    box-shadow: inset 0 0 0 1px rgb(255 255 255 / 0.4);
+    pointer-events: none;
+}
+
+.cd-widget .info {
+    position: absolute;
+    left: 16px;
+    right: 10px;
+    bottom: 26px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 8px;
+}
+.cd-widget .meta {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+    min-width: 0;
+}
+.cd-widget .meta > * { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.cd-widget .meta b { font-weight: 600; }
+.cd-widget .meta span { font-size: 12px; color: var(--lab-fg-2); }
+
+.cd-widget .play {
+    flex: none;
+    display: grid;
+    place-items: center;
+    width: 36px;
+    height: 36px;
+    border-radius: 50%;
+    color: var(--lab-fg);
+    cursor: pointer;
+    transition: background-color 0.15s, transform 0.15s var(--lab-ease);
+}
+.cd-widget .play:hover { background: var(--lab-line); }
+.cd-widget .play:active { transform: scale(0.88); }
+
+/* 进度条：放的时候慢慢走满，也用 play-state 停 */
+.cd-widget .bar {
+    position: absolute;
+    left: 16px;
+    right: 16px;
+    bottom: 16px;
+    height: 3px;
+    border-radius: 2px;
+    overflow: hidden;
+    background: var(--lab-line-strong);
+}
+.cd-widget .bar span {
+    display: block;
+    height: 100%;
+    background: var(--lab-fg);
+    transform-origin: left;
+    scale: 0 1;
+    animation: cd-progress 40s linear infinite both paused;
+}
+.cd-widget [data-playing] .bar span { animation-play-state: running; }
+@keyframes cd-progress { from { scale: 0 1; } to { scale: 1 1; } }

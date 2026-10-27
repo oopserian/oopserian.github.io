@@ -5,7 +5,7 @@
 生成：
   src/assets/portrait.webp    首屏字符画用的：人物抠出来（透明底），线条加粗、肩膀和下面渐隐
   src/assets/avatar.webp      顶栏的小头像：原图裁到肩膀
-  public/favicon.png、public/apple-touch-icon.png  网站图标：原图裁头部
+  public/favicon.png、public/apple-touch-icon.png  网站图标：原图裁头部，浏览器标签上那个是圆的
 
 要先装：pip install "rembg[cpu]" scipy pillow numpy（第一次跑会下载 176 MB 的抠图模型）。
 抠图为什么用 rembg 的 isnet-anime 模型见 README 的「字符画」。
@@ -14,7 +14,7 @@ import sys
 from pathlib import Path
 
 import numpy as np
-from PIL import Image
+from PIL import Image, ImageDraw
 from rembg import new_session, remove
 from scipy import ndimage
 
@@ -55,8 +55,13 @@ print('portrait.webp', im.size)
 bust = src.crop((round(W * 0.08), 0, round(W * 0.86), round(H * 0.78)))
 bust.resize((256, 256), Image.LANCZOS).save(ROOT / 'src/assets/avatar.webp', quality=88, method=6)
 
-# 网站图标只有 16 到 64 像素，只裁头部，脸才认得出
+# 网站图标只有 16 到 64 像素，只裁头部，脸才认得出。浏览器标签上的是圆的（圆外透明，按 4 倍画圆再缩小，边是顺的）；
+# 苹果的主屏图标系统自己会切圆角，透明的地方会变黑，所以那张还是方的
 head = src.crop((round(W * 0.163), round(H * 0.028), round(W * 0.717), round(H * 0.582)))
 head.resize((180, 180), Image.LANCZOS).save(ROOT / 'public/apple-touch-icon.png', optimize=True)
-head.resize((64, 64), Image.LANCZOS).save(ROOT / 'public/favicon.png', optimize=True)
+mask = Image.new('L', (256, 256), 0)
+ImageDraw.Draw(mask).ellipse((0, 0, 255, 255), fill=255)
+icon = head.resize((64, 64), Image.LANCZOS).convert('RGBA')
+icon.putalpha(mask.resize((64, 64), Image.LANCZOS))
+icon.save(ROOT / 'public/favicon.png', optimize=True)
 print('avatar.webp, favicon.png, apple-touch-icon.png')

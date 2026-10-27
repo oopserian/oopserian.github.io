@@ -1,263 +1,80 @@
-import { cn } from "@/lib/utils";
-import { createContext, type ReactNode, type RefObject, useContext, useEffect, useRef, useState } from "react";
-import { IconSearch, IconRefresh, IconAlertTriangle, IconRosetteDiscountCheck } from "@tabler/icons-react";
-import { AnimatePresence, motion, type Variants } from "motion/react";
+import { useRef, useState, type FocusEvent, type PointerEvent } from "react";
+import { Icon, type IconName } from "../_kit/icons";
+import "./style.css";
 
-type CursorType = "default" | "link" | "button" | "alert" | "check";
+type Kind = "search" | "refresh" | "alert" | "check";
 
-interface CursorTriggerProps extends React.HTMLAttributes<HTMLDivElement> {
-    type: CursorType;
-    children: ReactNode;
-}
-
-interface CursorPosition {
-    relativeX: number;
-    relativeY: number;
-    offsetX: number;
-    offsetY: number;
-}
-
-
-interface CursorContextType extends CursorPosition {
-    relativeX: number;
-    relativeY: number;
-    offsetX: number;
-    offsetY: number;
-    cursorType: CursorType
-    ref: RefObject<HTMLDivElement | null> | null;
-    setCursorType: (type: CursorType) => void;
-}
-
-const CursorContext = createContext<CursorContextType>({
-    relativeX: 0,
-    relativeY: 0,
-    offsetX: 0,
-    offsetY: 0,
-    ref: null,
-    cursorType: "default",
-    setCursorType: () => { }
-});
+const TILES: { kind: Kind; icon: IconName; label: string }[] = [
+    { kind: "search", icon: "magnifying-glass", label: "Search" },
+    { kind: "refresh", icon: "arrows-clockwise", label: "Refresh" },
+    { kind: "alert", icon: "warning", label: "Delete" },
+    { kind: "check", icon: "seal-check", label: "Verify" },
+];
 
 export default function HoverCursor() {
-    useEffect(() => {
-        const style = document.createElement('style');
-        style.textContent = `
-            .cursor-wrapper, .cursor-wrapper * {
-                cursor: none !important;
-            }
-        `;
-        document.head.appendChild(style);
+    const root = useRef<HTMLDivElement>(null);
+    const cursor = useRef<HTMLDivElement>(null);
+    const [kind, setKind] = useState<Kind | null>(null);
+    const [shown, setShown] = useState(false);
+    // 光标里的图标：最后一个是当前的，前面的正在飞出去，飞完自己删掉
+    const seq = useRef(0);
+    const [glyphs, setGlyphs] = useState<{ key: number; kind: Kind; out?: boolean }[]>([]);
 
-        return () => {
-            document.head.removeChild(style);
-        };
-    }, []);
+    const become = (next: Kind | null) => {
+        setKind(next);
+        setGlyphs(prev => {
+            const old = prev.map(g => ({ ...g, out: true }));
+            return (next ? [...old, { key: seq.current++, kind: next }] : old).slice(-4);
+        });
+    };
+
+    // 位置直接写到光标的 transform 上，指针动一下不重画 React
+    const moveTo = (x: number, y: number) => {
+        const r = root.current!.getBoundingClientRect();
+        cursor.current!.style.transform = `translate3d(${x - r.left}px, ${y - r.top}px, 0)`;
+    };
+    const move = (e: PointerEvent) => {
+        moveTo(e.clientX, e.clientY);
+        if (!shown) setShown(true);
+    };
+    // 键盘移到哪块，光标就停到那块正中（鼠标点出来的焦点不算，不然一点光标就跳到正中）
+    const keyboard = useRef(false);
+    const focus = (e: FocusEvent<HTMLButtonElement>, k: Kind) => {
+        keyboard.current = e.currentTarget.matches(":focus-visible");
+        if (!keyboard.current) return;
+        const r = e.currentTarget.getBoundingClientRect();
+        moveTo(r.left + r.width / 2, r.top + r.height / 2);
+        setShown(true);
+        become(k);
+    };
 
     return (
-        <CursorProvider>
-            <div className="cursor-wrapper relative overflow-hidden flex items-center justify-center py-4">
-                <div className="grid grid-cols-2 gap-3 items-center justify-center w-1/2 h-1/2 aspect-square">
-                    <CursorTrigger type="button" className="w-full h-full bg-blue-300 rounded-lg p-5 transition-transform hover:scale-110">
-                        <button></button>
-                    </CursorTrigger>
-                    <CursorTrigger type="link" className="w-full h-full bg-blue-400 rounded-lg p-5 transition-transform hover:scale-110">
-                        <button></button>
-                    </CursorTrigger>
-                    <CursorTrigger type="alert" className="w-full h-full bg-blue-500 rounded-lg p-5 transition-transform hover:scale-110">
-                        <button></button>
-                    </CursorTrigger>
-                    <CursorTrigger type="check" className="w-full h-full bg-blue-600 rounded-lg p-5 transition-transform hover:scale-110">
-                        <button></button>
-                    </CursorTrigger>
+        <div className="lab-root hover-cursor" ref={root}
+            onPointerMove={move} onPointerDown={move}
+            onPointerLeave={() => { setShown(false); become(null); }}
+            onPointerUp={e => { if (e.pointerType !== "mouse") { setShown(false); become(null); } }}>
+            <div className="tiles">
+                {TILES.map(t => (
+                    <button key={t.kind} className="tile" data-kind={t.kind}
+                        onPointerEnter={() => become(t.kind)} onPointerLeave={() => become(null)}
+                        onFocus={e => focus(e, t.kind)}
+                        onBlur={() => { if (keyboard.current) { keyboard.current = false; setShown(false); become(null); } }}>
+                        <Icon name={t.icon} size={20} />
+                        <span>{t.label}</span>
+                    </button>
+                ))}
+            </div>
+            <div className="cursor" ref={cursor} data-shown={shown || undefined} aria-hidden="true">
+                <div className="dot" data-kind={kind ?? undefined}>
+                    {glyphs.map(g => (
+                        <span key={g.key} className={`glyph${g.out ? " out" : ""}`}
+                            onTransitionEnd={e => { if (g.out && e.target === e.currentTarget) setGlyphs(p => p.filter(x => x.key !== g.key)); }}>
+                            <Icon name={TILES.find(t => t.kind === g.kind)!.icon} size={20} />
+                        </span>
+                    ))}
                 </div>
             </div>
-        </CursorProvider>
-    )
-}
-
-
-export function CursorProvider({ children }: { children: ReactNode }) {
-    const ref = useRef<HTMLDivElement>(null);
-    const cursorLocation = usePointerMove(ref);
-    const [cursorType, setCursorType] = useState<CursorType>("default");
-
-    return (
-        <CursorContext.Provider value={{ ...cursorLocation, ref, cursorType, setCursorType }}>
-            <Cursor />
-            <div ref={ref} className="relative w-full h-full">
-                {children}
-            </div>
-        </CursorContext.Provider>
-    )
-}
-
-const Cursor = () => {
-    const { relativeX, relativeY, cursorType } = useContext(CursorContext);
-    const [index, setIndex] = useState<number>(0);
-    const [currentNode, setCurrentNode] = useState<ReactNode>(null);
-
-    useEffect(() => {
-        setIndex(index + 1);
-        // keep the last node
-        if (cursorType !== 'default') {
-            setCurrentNode(cursorConfig[cursorType]);
-        };
-    }, [cursorType]);
-
-    const cursorConfig: Record<CursorType, ReactNode> = {
-        'default': '',
-        'link': <IconSearch className="w-full h-full" />,
-        'button': <IconRefresh className="w-full h-full" />,
-        'alert': <IconAlertTriangle className="w-full h-full" />,
-        'check': <IconRosetteDiscountCheck className="w-full h-full" />
-    };
-
-    const variants: Variants = {
-        default: {
-            borderRadius: 50,
-            width: 16,
-            height: 16,
-            background: "#18181b",
-            color: "#18181b"
-        },
-        link: {
-            borderRadius: 50,
-            width: 48,
-            height: 48,
-            background: "#3b82f6",
-            color: "#fafafa"
-        },
-        button: {
-            borderRadius: 50,
-            width: 48,
-            height: 48,
-            background: "#666",
-            color: "#fafafa"
-        },
-        alert: {
-            borderRadius: 50,
-            width: 48,
-            height: 48,
-            background: "#f43f5e",
-            color: "#fafafa"
-        },
-        check: {
-            borderRadius: 50,
-            width: 48,
-            height: 48,
-            background: "#22c55e",
-        }
-    };
-
-    const contentVariants: Variants = {
-        initial: {
-            x: '-100%',
-            y: '100%',
-            opacity: 0
-        },
-        active: {
-            x: 0,
-            y: 0,
-            opacity: 1
-        },
-        exit: {
-            x: '100%',
-            y: '-100%',
-            opacity: 0
-        }
-    };
-
-    return (
-        <motion.div
-            className={cn("w-4 h-4 absolute shadow-[inset_0_0_0_1px_rgba(255,255,255,0.25)] z-50 top-0 left-0 overflow-hidden pointer-events-none")}
-            variants={variants}
-            animate={cursorType}
-            style={{
-                transform: `translate(${relativeX}px, ${relativeY}px) translate(-50%, -50%)`,
-                // 鼠标还没进来过时先藏着，不然停在左上角像个污点
-                opacity: relativeX || relativeY ? 1 : 0
-            }}>
-            <div className={cn("w-full h-full flex items-center justify-center")}>
-                <AnimatePresence initial={true} mode="popLayout">
-                    <motion.div
-                        key={index}
-                        variants={contentVariants}
-                        initial="initial"
-                        animate="active"
-                        exit="exit"
-                        className="w-1/2 h-1/2">
-                        {currentNode}
-                    </motion.div>
-                </AnimatePresence>
-            </div>
-        </motion.div>
-    )
-}
-
-const CursorTrigger = ({ type, children, ...props }: CursorTriggerProps) => {
-    const { setCursorType } = useContext(CursorContext);
-    return (
-        <div
-            {...props}
-            className={cn(props.className)}
-            onMouseEnter={() => setCursorType(type)}
-            onMouseLeave={() => setCursorType("default")}
-        >
-            {children}
+            <p className="lab-hint"><span className="for-mouse">Move over the tiles</span><span className="for-touch">Press a tile</span></p>
         </div>
-    )
+    );
 }
-
-const usePointerMove = (ref: RefObject<HTMLElement | null>): CursorPosition => {
-    const [location, setLocation] = useState<CursorPosition>({
-        relativeX: 0,
-        relativeY: 0,
-        offsetX: 0,
-        offsetY: 0
-    });
-
-    useEffect(() => {
-        const el = ref.current;
-        if (!el) return;
-        const handlePointerMove = ({ clientX, clientY }: MouseEvent) => {
-            const rect = el.getBoundingClientRect();
-            const centerX = rect.width / 2;
-            const centerY = rect.height / 2;
-
-            // 相对于元素左上角的坐标
-            const relativeX = clientX - rect.left;
-            const relativeY = clientY - rect.top;
-
-            // 相对于元素中心点的偏移量（可选，如果需要的话）
-            const offsetX = (relativeX - centerX) / 10 * 2;
-            const offsetY = (relativeY - centerY) / 10 * 2;
-
-            setLocation({
-                relativeX,
-                relativeY,
-                offsetX,
-                offsetY
-            });
-        };
-        const handlePointerLeave = () => {
-            setLocation(prev => {
-                return {
-                    ...prev,
-                    offsetX: 0,
-                    offsetY: 0
-                }
-            })
-        };
-        const destroyListener = () => {
-            el.removeEventListener("pointermove", handlePointerMove);
-            el.removeEventListener("pointerleave", handlePointerLeave);
-        };
-
-        el.addEventListener("pointerleave", handlePointerLeave);
-        el.addEventListener("pointermove", handlePointerMove);
-
-        return destroyListener;
-    }, []);
-
-    return location
-};

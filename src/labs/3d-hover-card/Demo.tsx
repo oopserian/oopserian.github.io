@@ -1,117 +1,70 @@
-import React, { type RefObject, useEffect, useRef, useState } from "react";
-import { motion, type Variants } from "motion/react";
+import { useRef, useState, type CSSProperties, type PointerEvent } from "react";
 import card01 from "./assets/card-01.svg?url";
 import card02 from "./assets/card-02.svg?url";
 import card03 from "./assets/card-03.svg?url";
 import card04 from "./assets/card-04.svg?url";
-import { cn } from "@/lib/utils";
+import "./style.css";
+
+const CARDS = [card01, card02, card03, card04];
+const MID = (CARDS.length - 1) / 2;
 
 export default function HoverCard3d() {
-    const cards = [card01, card02, card03, card04];
-    const centerIndex = (cards.length - 1) / 2;
-    const variants: Variants = {
-        initial: (index: number) => {
-            // 计算旋转角度
-            const rotation = (index - centerIndex) * 10;
-            return {
-                rotate: rotation,
-                // 计算X轴偏移，让卡牌横向分开
-                translateX: (index - centerIndex) * 30,
-                // 计算Y轴偏移，使卡牌呈弧形排列
-                translateY: Math.abs(rotation) * 0,
-                // 计算Z轴偏移，使卡牌有前后层次
-                translateZ: -Math.abs(rotation) * 2
-            }
-        },
-        hover: (index: number) => {
-            const rotation = (index - centerIndex) * 10;
-            const translateY = Math.abs(rotation) * 0;
-            const translateX = (index - centerIndex) * 30
-            return {
-                rotate: 0,
-                scale: 1,
-                translateY: translateY - 25,
-                translateX: translateX - 15,
-            }
-        }
-    }
+    // 指着、摸着或者键盘停在哪张上。只在换牌的时候改一次，指针在牌上移动不重画 React
+    const [active, setActive] = useState<number | null>(null);
 
     return (
-        <div className="w-full h-full min-h-60 flex items-center justify-center p-6">
-            {cards.map((src, index) => {
-                return (
-                    <motion.div
-                        className="absolute w-20"
-                        key={index}
-                        custom={index}
-                        variants={variants}
-                        initial="initial"
-                        whileHover="hover"
-                    >
-                        <Card src={src} />
-                    </motion.div>
-                );
-            })}
+        <div className="lab-root hover-card-3d" onPointerLeave={() => setActive(null)}>
+            <div className="hand">
+                {CARDS.map((src, i) => {
+                    const o = i - MID; // 离手牌正中差几张，左负右正
+                    // 拿起一张时，两边的牌各往外让一点
+                    const push = active === null || active === i ? 0 : i < active ? -1 : 1;
+                    return (
+                        <Card key={i} src={src} on={active === i}
+                            style={{ "--o": o, "--push": push, zIndex: active === i ? 10 : i } as CSSProperties}
+                            onEnter={() => setActive(i)} onLeave={() => setActive(a => a === i ? null : a)} />
+                    );
+                })}
+            </div>
+            <p className="lab-hint"><span className="for-mouse">Hover a card</span><span className="for-touch">Touch a card</span></p>
         </div>
     );
 }
 
+function Card({ src, on, style, onEnter, onLeave }: {
+    src: string; on: boolean; style: CSSProperties; onEnter: () => void; onLeave: () => void;
+}) {
+    const tilt = useRef<HTMLDivElement>(null);
 
-interface CardProps extends React.HTMLAttributes<HTMLDivElement> {
-    src: string
-}
-
-const Card: React.FC<CardProps> = ({ src, ...props }) => {
-    const ref = useRef<HTMLDivElement>(null);
-    let [x, y] = usePointer(ref);
+    // 指针在牌上的位置直接写成 CSS 变量，倾斜和反光都由 CSS 算，不经过 React
+    const track = (e: PointerEvent) => {
+        const el = tilt.current;
+        if (!el) return;
+        const r = el.getBoundingClientRect();
+        const x = Math.min(Math.max((e.clientX - r.left) / r.width, 0), 1) - 0.5;
+        const y = Math.min(Math.max((e.clientY - r.top) / r.height, 0), 1) - 0.5;
+        el.style.setProperty("--x", x.toFixed(3));
+        el.style.setProperty("--y", y.toFixed(3));
+    };
+    const reset = () => {
+        tilt.current?.style.setProperty("--x", "0");
+        tilt.current?.style.setProperty("--y", "0");
+    };
 
     return (
-        <div {...props} ref={ref} style={{
-            transform: `perspective(500px) rotateX(${-y * 3}deg) rotateY(${x * 3}deg)`,
-            transition: 'transform 0.2s ease-out',
-            willChange: 'transform',
-        }} className={cn('group border border-neutral-400 rounded-xl overflow-hidden', props.className)}>
-            <div style={{
-                transform: `translateX(${x * 4}px) translateY(${y * 4}px)`,
-                transition: 'transform 0.1s ease-out',
-                transitionProperty: 'transform,opacity',
-                willChange: 'transform',
-            }} className="absolute top-0 left-0 w-full h-full pointer-events-none opacity-0 group-hover:opacity-100">
-                <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 inset-0 w-20 h-20 blur-lg bg-white/20 rounded-full"></div>
+        // 外面这层只占着扇形里的位置、接指针，不动；动的是里面，所以牌抬起来不会从指针底下溜走、来回闪
+        <div className={`slot${on ? " on" : ""}`} style={style} tabIndex={0}
+            onPointerEnter={e => { onEnter(); track(e); }}
+            onPointerDown={e => { onEnter(); track(e); }}
+            onPointerMove={track}
+            onPointerLeave={() => { onLeave(); reset(); }}
+            onFocus={onEnter} onBlur={() => { onLeave(); reset(); }}>
+            <div className="lift">
+                <div className="tilt" ref={tilt}>
+                    <img src={src} alt="" draggable={false} />
+                    <span className="glare" />
+                </div>
             </div>
-            <img src={src} />
         </div>
-    )
-}
-
-
-const usePointer = (ref: RefObject<HTMLElement | null>): [number, number] => {
-    const [location, setLocation] = useState<[number, number]>([0, 0]);
-
-    useEffect(() => {
-        const el = ref.current;
-        if (!el) return;
-        const handlePointerMove = ({ clientX, clientY }: MouseEvent) => {
-            const { width, height, top, left } = el.getBoundingClientRect();
-            const offsetX = clientX - left;
-            const offsetY = clientY - top;
-            const x = (offsetX - width / 2) / 10 * 2;
-            const y = (offsetY - height / 2) / 10 * 2;
-            setLocation([x, y]);
-        };
-        const handlePointerLeave = () => {
-            setLocation([0, 0]);
-        };
-        const destroyListener = () => {
-            el.removeEventListener("pointermove", handlePointerMove);
-            el.removeEventListener("pointerleave", handlePointerLeave);
-        };
-
-        el.addEventListener("pointerleave", handlePointerLeave);
-        el.addEventListener("pointermove", handlePointerMove);
-
-        return destroyListener;
-    }, []);
-
-    return location
+    );
 }

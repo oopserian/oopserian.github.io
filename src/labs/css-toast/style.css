@@ -1,85 +1,98 @@
-.css-toast-wrap {
-    --border-color: #d1d5db;
-    --bg-color: #f3f4f6;
-    --font-color: #000;
-    width: 100%;
-    height: 100%;
-    min-height: 14rem;
-    display: flex;
-    flex-direction: column;
-    justify-content: center;
-    align-items: center;
-    overflow: hidden;
-    gap: 1rem;
-    padding: 2rem 1rem;
+.css-toast {
+    align-content: center;
+    gap: 14px;
+    padding-bottom: 28px;
 }
 
-.css-toast-wrap button {
-    background: var(--bg-color);
-    border: 1px solid var(--border-color);
-    border-radius: 0.5rem;
-    padding: 0.4rem 1rem;
-    cursor: pointer;
-    color: var(--font-color);
-    font-size: 0.75rem;
-    box-shadow: inset 0 -1px 1px rgba(255, 255, 255, 1), 0 3px 10px rgba(255, 255, 255, 0.3);
-    transition: .3s ease;
-    transition-property: box-shadow, transform;
-}
-
-.css-toast-wrap button:active {
-    transform: scale(0.98);
-    box-shadow: inset 0 -1px 1px rgba(255, 255, 255, 1), 0 3px 10px rgba(255, 255, 255, 0);
-}
-
-.css-toast-wrap .toast-list {
+/* 列表的高度够三张全展开，指针在展开的牌之间挪也不会离开列表、收回去 */
+.css-toast .toasts {
+    --h: 52px;
+    --gap: 6px;
     position: relative;
+    width: min(320px, 100% - 40px);
+    height: calc(var(--h) * 3 + var(--gap) * 2);
+    outline-offset: 6px;
+    border-radius: var(--lab-r-md);
+}
+
+/* 每张只知道自己排第几（--i，0 是最新的）。叠着时越旧越小、往上露一条边；展开时排成一列 */
+.css-toast li {
+    position: absolute;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    z-index: calc(10 - var(--i));
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    height: var(--h);
+    padding: 0 12px 0 10px;
+    background: var(--lab-surface);
+    border-radius: var(--lab-r-md);
+    box-shadow: 0 0 0 1px var(--lab-line), var(--lab-shadow-2);
+    transform: translateY(calc(var(--i) * -10px)) scale(calc(1 - var(--i) * 0.05));
+    transition: transform 0.45s var(--lab-ease), opacity 0.3s;
+}
+/* 新来的从底下滑上来 */
+@starting-style {
+    .css-toast li {
+        opacity: 0;
+        transform: translateY(70%) scale(0.96);
+    }
+}
+.css-toast li > * {
+    /* 叠在后面的只露个边，里面的字藏起来 */
+    opacity: calc(1 - min(var(--i), 1));
+    transition: opacity 0.25s;
+}
+
+.css-toast .toasts:hover li,
+.css-toast .toasts:focus-within li,
+.css-toast .toasts[data-open] li {
+    transform: translateY(calc(var(--i) * (var(--h) + var(--gap)) * -1));
+}
+.css-toast .toasts:hover li > *,
+.css-toast .toasts:focus-within li > *,
+.css-toast .toasts[data-open] li > * {
+    opacity: 1;
+}
+
+/* 挤出去的第四张：缩小、淡出，淡完从列表里删掉 */
+.css-toast li.out,
+.css-toast .toasts li.out {
+    opacity: 0;
+    transform: translateY(calc(var(--i) * -10px)) scale(0.8);
+}
+
+.css-toast .badge {
+    flex: none;
+    display: grid;
+    place-items: center;
+    width: 30px;
+    height: 30px;
+    border-radius: var(--lab-r-sm);
+}
+.css-toast .badge.accent { color: var(--lab-accent); background: var(--lab-accent-soft); }
+.css-toast .badge.success { color: var(--lab-success); background: color-mix(in srgb, var(--lab-success) 12%, transparent); }
+.css-toast .badge.danger { color: var(--lab-danger); background: color-mix(in srgb, var(--lab-danger) 12%, transparent); }
+
+.css-toast .text {
     display: flex;
     flex-direction: column;
-    gap: 0.5rem;
-    width: 80%;
-    height: 100%;
-    --gap: -80%;
+    gap: 2px;
+    min-width: 0;
+    flex: 1;
 }
-
-.css-toast-wrap .toast-list:hover {
-    --gap: 0.5rem;
+.css-toast .text > * {
+    overflow: hidden;
+    white-space: nowrap;
+    text-overflow: ellipsis;
 }
-
-.css-toast-wrap .toast-list:hover .show {
-    transform: translateY(calc(var(--index) * (100% + var(--gap)) * -1)) scale(1);
-}
-
-.css-toast-wrap .toast-list li {
-    position: absolute;
-    background: var(--bg-color);
-    color: var(--font-color);
-    width: 100%;
-    padding: 0.75rem 1rem;
-    bottom: 0;
-    left: 0;
-    gap: 1rem;
-    border-radius: 0.5rem;
-    border: 1px solid var(--border-color);
-    box-shadow: 0 0 1rem rgba(0, 0, 0, 0.5);
-    opacity: 0;
-    transform: perspective(1000px) translateY(50%) scale(1.1) rotateX(45deg);
-    transition: transform .5s ease, opacity .3s ease;
-    will-change: transform;
-    font-size: 0.75rem;
-}
-
-.css-toast-wrap .toast-list li span {
-    opacity: 0.5;
-}
-
-.css-toast-wrap .toast-list li.show {
-    opacity: 1;
-    transform: translateY(calc(var(--index) * (100% + var(--gap)) * -0.6)) scale(calc(1 - var(--index) * 0.05));
-}
-
-.css-toast-wrap .toast-list li.hide {
-    opacity: 0;
-    transform: scale(calc(1 - var(--index) * 0.05));
-    transition: 0.3s ease-in;
+.css-toast .text b { font-weight: 550; }
+.css-toast .text span { font-size: 12px; color: var(--lab-fg-2); }
+.css-toast time {
+    align-self: flex-start;
+    margin-top: 10px;
+    font: 11px/1 var(--mono);
+    color: var(--lab-fg-3);
 }

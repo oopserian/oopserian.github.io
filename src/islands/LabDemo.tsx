@@ -3,6 +3,7 @@
 // 每个实验单独打包，看哪个下哪个。舞台的大小由外面的 LabStage.astro 定好，组件出现时不挤动页面。
 // 组件到之前先放一个撑满舞台的空 div：client:visible 是看岛里面的子元素有没有进屏幕，一个子元素都没有就永远不挂。
 import { useEffect, useState, type ComponentType } from 'react';
+import '../labs/_kit/kit.css'; // 实验共用的颜色、圆角、阴影这些
 
 const demos = import.meta.glob<{ default: ComponentType }>('../labs/*/Demo.tsx');
 
