@@ -1,8 +1,10 @@
 // 首屏的字符画：头像用等宽字符拼出来，四周一圈淡淡的字符像烟一样慢慢流动。
+// 头像里的字一直在跳：随处一小串一小串地换成墨量差不多的字（浓淡不变，人还看得清），一眨眼再落回原样；
+// 每隔几秒从下往上扫过一道，扫到的字浓一下再落回来。
 // 鼠标划过会把字搅乱（变成强调色的乱码，松开后慢慢落回原样），点一下荡开一圈。
 //
 // 画法是 canvas 2D，没用 WebGL：先把要用的字画进一张小图（图集），之后每一格只是 drawImage 一小块。
-// 每一帧只重画变了的格子（被搅动的、闪一下的、烟里换了字的），一帧通常只有几十到几百格，主线程几乎不占。
+// 每一帧只重画变了的格子（被搅动的、跳了的、烟里换了字的），一帧通常只有几十到几百格，主线程几乎不占。
 // 不在屏幕上、切到别的标签页就停；系统开了「减弱动态效果」只画一帧静止的。
 //
 // 用法：mount({ host, canvas, anchor, src })。host 是铺字符的那块（首屏），canvas 盖满它，
@@ -18,14 +20,22 @@ interface Options {
 // 候选的字，按在这款字体里的墨量排好序后挑出一串由淡到浓的（见 buildAtlas）
 const CANDIDATES = ` .'\`,:;-~"^=+<>!/\\|()?ivxzo*%#&$@8B`;
 const LEVELS = 14;                 // 浓淡分几档
-const GAMMA = 1.2;                 // 亮度到浓淡的曲线，大于 1 时中间调偏淡
+// 亮度到浓淡的曲线：深色主题小于 1，把头发、衣服这些暗处提起来一点，跟最黑的线条分得开；
+// 浅色主题大于 1，中间调（皮肤）偏淡，五官的线才显得出来
+const GAMMA = { dark: 0.75, light: 1.2 };
 const NOISE = '!?/\\|()[]{}<>=+*#%&$@0123456789'; // 被搅乱时出现的字
+const JUMP = 'abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789'; // 跳的时候也能换成这些（墨量差不多的才换）
+const JUMP_RATE = 0.4;             // 头像里每秒大约有多少比例的字跳一下
+const RUN = [3, 10];               // 一次跳同一行连着的几格，像一段字在刷新，比零零散散地跳显眼
+const PULSE_MS = 5000;             // 每隔多久从下往上扫一道
+const SWEEP_MS = 2000;             // 扫一遍用多久
 const FPS = 30;                    // 开场、被搅动时的帧率
-const AMBIENT_FPS = 8;             // 平时（只有烟在飘、偶尔闪一下）的帧率：每画一帧整张 canvas 都要重新合成，平时没必要画那么勤
+const AMBIENT_FPS = 8;             // 平时（烟在飘、字在跳）的帧率：每画一帧整张 canvas 都要重新合成，平时没必要画那么勤
 const HEAT_DECAY = 0.88;           // 搅动的热度每帧衰减
 const HEAT_RADIUS = 7;             // 鼠标周围几格会被搅动（按列算）
 const INTRO_MS = 1300;             // 开场：头像从乱码里显出来用多久
 const RIPPLE_MS = 1100;
+const SMOKE_MIN = 0.08;            // 烟淡过这个就不画
 
 type Theme = { ink: string; hot: string; dark: boolean };
 
@@ -38,7 +48,9 @@ export function mount({ host, canvas, anchor, src }: Options) {
 
   // 网格和每一格的状态
   let W = 0, H = 0, dpr = 1, cw = 7, ch = 12, cols = 0, rows = 0;
-  let base: Uint8Array;        // 每格本来的字（ramp 里的档位，0 是空）
+  let base: Uint8Array;        // 每格本来的浓淡（ramp 里的档位，0 是空）
+  let glyph: Int16Array;       // 头像的格子现在用哪个字（图集序号，在这一档的 pools 里挑）
+  let backAt: Float32Array;    // 跳起来的格子什么时候落回原样（0 是没在跳）
   let baseA: Float32Array;     // 每格本来的不透明度
   let kind: Uint8Array;        // 0 空，1 头像，2 烟
   let heat: Float32Array;      // 被搅动的热度，0 到 1
@@ -51,13 +63,13 @@ export function mount({ host, canvas, anchor, src }: Options) {
   let fieldW: Float32Array;    // 烟在每格的浓度上限（离头像越远越淡）
   let portrait: Int32Array;    // 头像占的格子
   let hot: number[] = [];      // 正在发热的格子
-  let twinkles: { i: number; g: number; until: number }[] = [];
   let ripples: { x: number; y: number; t0: number }[] = [];
   let pc0 = 0, pr0 = 0, pcols = 0, prows = 0; // 头像所在的格子范围
 
   // 图集：每个字画两遍，一行墨色，一行强调色
   let atlas: HTMLCanvasElement | null = null;
   let ramp: number[] = [];     // 由淡到浓每一档对应的图集序号
+  let pools: number[][] = [];  // 每一档里墨量差不多、可以互相换着跳的字
   let noiseIdx: number[] = [];
 
   let theme: Theme = readTheme();
@@ -83,7 +95,7 @@ export function mount({ host, canvas, anchor, src }: Options) {
     ctx.font = f.css;
     cw = Math.max(4, Math.round(ctx.measureText('M').width));
     ch = Math.round(f.size * 1.18);
-    const all = Array.from(new Set(CANDIDATES + NOISE));
+    const all = Array.from(new Set(CANDIDATES + NOISE + JUMP));
     const gw = Math.ceil(cw * dpr), gh = Math.ceil(ch * dpr);
     atlas = document.createElement('canvas');
     atlas.width = gw * all.length;
@@ -105,15 +117,22 @@ export function mount({ host, canvas, anchor, src }: Options) {
     });
     const cand = Array.from(new Set(CANDIDATES)).map(c => all.indexOf(c)).sort((p, q) => ink[p] - ink[q]);
     const max = ink[cand[cand.length - 1]];
+    const target = (l: number) => (Math.min(LEVELS - 1, Math.max(0, l)) / (LEVELS - 1)) ** 1.15 * max;
     ramp = [];
     for (let l = 0; l < LEVELS; l++) {
-      const target = (l / (LEVELS - 1)) ** 1.15 * max;
       let best = cand[0];
-      for (const c of cand) if (Math.abs(ink[c] - target) < Math.abs(ink[best] - target)) best = c;
+      for (const c of cand) if (Math.abs(ink[c] - target(l)) < Math.abs(ink[best] - target(l))) best = c;
       ramp.push(best);
     }
     ramp[0] = all.indexOf(' ');
     noiseIdx = Array.from(NOISE).map(c => all.indexOf(c));
+    // 每一档能换着跳的字：墨量离这一档的字不超过到相邻两档距离的一半，换了浓淡看不出变化
+    pools = ramp.map((g, l) => {
+      if (l === 0) return [g];
+      const tol = (target(l + 1) - target(l - 1)) / 4;
+      const p = all.map((_, i) => i).filter(i => all[i] !== ' ' && Math.abs(ink[i] - ink[g]) <= tol);
+      return p.includes(g) ? p : [g, ...p];
+    });
   }
 
   function layout() {
@@ -130,6 +149,8 @@ export function mount({ host, canvas, anchor, src }: Options) {
     rows = Math.ceil(H / ch);
     const n = cols * rows;
     base = new Uint8Array(n);
+    glyph = new Int16Array(n);
+    backAt = new Float32Array(n);
     baseA = new Float32Array(n);
     kind = new Uint8Array(n);
     heat = new Float32Array(n);
@@ -139,7 +160,6 @@ export function mount({ host, canvas, anchor, src }: Options) {
     wantG = new Int16Array(n).fill(-1);
     resolveAt = new Float32Array(n);
     hot = [];
-    twinkles = [];
 
     const a = anchor.getBoundingClientRect();
     pc0 = Math.round((a.left - r.left) / cw);
@@ -195,11 +215,12 @@ export function mount({ host, canvas, anchor, src }: Options) {
       let v = (lum[k] - lo) / span;
       if (!theme.dark) v = 1 - v;
       v = Math.min(1, Math.max(0, v));
-      const dens = alpha[k] * (0.1 + 0.9 * v ** GAMMA);
+      const dens = alpha[k] * (0.1 + 0.9 * v ** (theme.dark ? GAMMA.dark : GAMMA.light));
       const level = Math.round(dens * (LEVELS - 1));
       const i = gy * cols + gx;
       kind[i] = 1;
       base[i] = level;
+      glyph[i] = ramp[level];
       baseA[i] = 0.9;
       resolveAt[i] = now + 150 + (y / prows) * INTRO_MS * 0.6 + Math.random() * INTRO_MS * 0.4;
       list.push(i);
@@ -218,7 +239,7 @@ export function mount({ host, canvas, anchor, src }: Options) {
       const dx = x - cx, dy = (y - cy) * (ch / cw);
       const dist = Math.sqrt(dx * dx + dy * dy) / reach;
       const k = Math.max(0, 1 - dist);
-      if (k <= 0.02) continue;
+      if (k * k < SMOKE_MIN) continue; // 再远的格子浓度上限不到门槛，永远是空的，不算
       kind[i] = 2;
       idx.push(i);
       w.push(k * k);
@@ -247,7 +268,6 @@ export function mount({ host, canvas, anchor, src }: Options) {
     if (shownG[i] === g && (g < 0 || (shownA[i] === qa && shownC[i] === color))) return;
     shownG[i] = g; shownA[i] = qa; shownC[i] = color;
     const x = (i % cols) * cw, y = Math.floor(i / cols) * ch;
-    ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
     ctx.clearRect(x, y, cw, ch);
     if (g < 0 || qa === 0) return;
     const gw = Math.ceil(cw * dpr), gh = Math.ceil(ch * dpr);
@@ -273,7 +293,7 @@ export function mount({ host, canvas, anchor, src }: Options) {
         else draw(i, ramp[0], 0, 0);
         return;
       }
-      draw(i, ramp[base[i]], baseA[i], 0);
+      draw(i, glyph[i], baseA[i], 0);
     } else if (kind[i] === 2) {
       draw(i, ramp[base[i]], baseA[i], 0);
     } else {
@@ -281,9 +301,12 @@ export function mount({ host, canvas, anchor, src }: Options) {
     }
   }
 
-  function stepField(now: number) {
+  // 烟飘得慢，每帧只算一半的格子（单双号轮着来），省一半的噪声计算；step 传 1 是全算
+  let fieldPhase = 0;
+  function stepField(now: number, step = 2) {
     const t = (now - t0) / 1000;
-    for (let j = 0; j < field.length; j++) {
+    fieldPhase = (fieldPhase + 1) % step;
+    for (let j = fieldPhase; j < field.length; j += step) {
       const i = field[j];
       const x = i % cols, y = (i / cols) | 0;
       // 三层噪声，整体慢慢往上飘（像炭上冒的烟），各层再横着错开一点
@@ -293,7 +316,7 @@ export function mount({ host, canvas, anchor, src }: Options) {
         + noise(x * 0.23, yy * 0.23 + t * 0.8) * 0.15;
       // 浓的地方字浓、也更不透明，边上是若有若无的点，没有硬边
       const v = Math.min(1, Math.max(0, (n - 0.42) / 0.38)) * fieldW[j];
-      base[i] = v < 0.08 ? 0 : 1 + Math.min(2, Math.floor(v * 3));
+      base[i] = v < SMOKE_MIN ? 0 : 1 + Math.min(2, Math.floor(v * 3));
       baseA[i] = 0.1 + 0.5 * v;
       if (heat[i] <= 0.04) settle(i, now);
     }
@@ -348,19 +371,38 @@ export function mount({ host, canvas, anchor, src }: Options) {
     ringPrev = new Set(ring.keys());
   }
 
-  function stepTwinkles(now: number) {
-    twinkles = twinkles.filter(tw => {
-      if (now < tw.until) return true;
-      settle(tw.i, now);
-      return false;
-    });
-    const n = Math.max(1, Math.round(portrait.length * 0.008));
-    for (let k = 0; k < n; k++) {
-      const i = portrait[(Math.random() * portrait.length) | 0];
-      if (i === undefined || base[i] === 0 || heat[i] > 0.04 || now < resolveAt[i]) continue;
-      const g = ramp[Math.max(1, Math.min(LEVELS - 1, base[i] + (Math.random() < 0.5 ? -1 : 1)))];
-      draw(i, g, baseA[i], 0);
-      twinkles.push({ i, g, until: now + 180 + Math.random() * 320 });
+  // 字跳一下：换成 level 那一档里随便哪个字，hold 毫秒后落回本来的字
+  function jump(i: number, level: number, alpha: number, until: number) {
+    glyph[i] = rand(pools[level]);
+    backAt[i] = until;
+    draw(i, glyph[i], alpha, 0);
+  }
+  function calm(i: number, now: number) {
+    return base[i] > 0 && heat[i] <= 0.04 && now >= resolveAt[i];
+  }
+  function stepJump(now: number) {
+    // 扫过的一道：一半的字换成浓两档的，像一道波走过去
+    const p = ((now - t0) % PULSE_MS) / SWEEP_MS;
+    const band = p < 1 ? pr0 + (prows + 6) * (1 - p) - 3 : -1e9;
+    for (let j = 0; j < portrait.length; j++) {
+      const i = portrait[j];
+      if (!calm(i, now)) continue;
+      if (Math.abs(((i / cols) | 0) - band) < 3 && Math.random() < 0.5) {
+        jump(i, Math.min(LEVELS - 1, base[i] + 2), 1, now + 250 + Math.random() * 700);
+      } else if (backAt[i] && now >= backAt[i]) {
+        backAt[i] = 0;
+        glyph[i] = ramp[base[i]];
+        draw(i, glyph[i], baseA[i], 0);
+      }
+    }
+    // 平时：随手挑几处，每处跳同一行连着的一小串
+    for (let n = portrait.length * JUMP_RATE / AMBIENT_FPS; n > 0;) {
+      const i0 = portrait[(Math.random() * portrait.length) | 0];
+      const len = RUN[0] + ((Math.random() * (RUN[1] - RUN[0] + 1)) | 0);
+      const end = Math.min(i0 + len, (((i0 / cols) | 0) + 1) * cols);
+      const until = now + 150 + Math.random() * 450;
+      for (let i = i0; i < end; i++) if (kind[i] === 1 && !backAt[i] && calm(i, now)) jump(i, base[i], baseA[i], until);
+      n -= len;
     }
   }
 
@@ -393,11 +435,11 @@ export function mount({ host, canvas, anchor, src }: Options) {
       }
       introPending = left > 0;
     }
-    // 烟和闪烁按平时的帧率走，被搅动时也不跟着变快
+    // 烟和跳字按平时的帧率走，被搅动时也不跟着变快
     if (now - lastAmbient >= 1000 / AMBIENT_FPS - 2) {
       lastAmbient = now;
       stepField(now);
-      stepTwinkles(now);
+      if (!introPending) stepJump(now);
     }
     stepRipples(now);
     stepHeat(now);
@@ -410,8 +452,9 @@ export function mount({ host, canvas, anchor, src }: Options) {
   // 一帧静止的：开场直接跳过，烟定在一个样子
   function still() {
     const now = performance.now();
+    ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
     for (let j = 0; j < portrait.length; j++) resolveAt[portrait[j]] = 0;
-    stepField(now);
+    stepField(now, 1);
     for (let j = 0; j < portrait.length; j++) settle(portrait[j], now);
   }
 
