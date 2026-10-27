@@ -1,0 +1,53 @@
+---
+// 「Projects」：一行一个项目，整行是链接
+import { Image } from 'astro:assets';
+import { getCollection } from 'astro:content';
+
+const projects = (await getCollection('projects', p => !p.data.hidden)).sort((a, b) => a.data.order - b.data.order);
+const host = (url: string) => new URL(url).host.replace(/^www\./, '') + (new URL(url).host === 'github.com' ? new URL(url).pathname.replace(/\/$/, '') : '');
+---
+<ol class="list">
+  {projects.map(({ data: p }) => (
+    <li>
+      <a href={p.url}>
+        <Image src={p.icon} alt="" width={40} height={40} densities={[1, 2]} />
+        <span class="name">{p.name}</span>
+        <span class="summary">{p.summary}</span>
+        <span class="meta mono">{p.status ? `${p.kind} · ${p.status}` : p.kind}</span>
+        <span class="where mono"><span class="out">{host(p.url)}</span></span>
+      </a>
+    </li>
+  ))}
+</ol>
+
+<style>
+  .list { border-top: 1px solid var(--line); }
+  li { border-bottom: 1px solid var(--line); }
+  a {
+    display: grid;
+    grid-template-columns: 40px 140px minmax(0, 1fr) auto;
+    grid-template-areas: "icon name summary meta" "icon name summary where";
+    align-items: center;
+    column-gap: 20px;
+    padding: 16px 8px;
+    transition: background-color .15s;
+  }
+  a:hover { background: var(--bg-2); }
+  img { grid-area: icon; width: 40px; height: 40px; object-fit: contain; }
+  .name { grid-area: name; font-family: var(--serif); font-size: 26px; line-height: 1; }
+  .summary { grid-area: summary; color: var(--fg-2); }
+  .meta { grid-area: meta; color: var(--fg-3); font-size: 12px; text-align: right; }
+  .where { grid-area: where; color: var(--fg-2); font-size: 12px; text-align: right; }
+  a:hover .where { color: var(--accent); }
+  @media (max-width: 680px) {
+    a {
+      grid-template-columns: 40px minmax(0, 1fr);
+      grid-template-areas: "icon name" "icon summary" "icon meta";
+      row-gap: 4px;
+      padding: 16px 0;
+    }
+    a:hover { background: none; }
+    .meta { text-align: left; }
+    .where { display: none; }
+  }
+</style>
