@@ -1,0 +1,10 @@
+---
+// 放在 <head> 最前面，页面画出来之前就定好浅色还是深色，不闪。
+// 手动选过的记在 localStorage 的 theme 里；没选过就跟随系统（global.css 里的 prefers-color-scheme）。
+---
+<script is:inline>
+try {
+  const t = localStorage.getItem('theme');
+  if (t === 'light' || t === 'dark') document.documentElement.dataset.theme = t;
+} catch {}
+</script>

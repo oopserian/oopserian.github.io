@@ -1,0 +1,49 @@
+---
+// 「Contact」：一行一种联系方式
+import Icon from './Icon.astro';
+import { SITE } from '../site';
+
+const rows = [
+  { icon: 'mail', label: 'Email', value: SITE.email, href: `mailto:${SITE.email}` },
+  { icon: 'github', label: 'GitHub', value: '@oopserian', href: SITE.github },
+  { icon: 'x', label: 'X', value: '@oopserian', href: SITE.x },
+] as const;
+---
+<p class="intro">Email is the best way to reach me.</p>
+<ul class="list">
+  {rows.map(r => (
+    <li>
+      <a href={r.href}>
+        <Icon name={r.icon} />
+        <span class="label mono">{r.label}</span>
+        <span class="value"><span class="out">{r.value}</span></span>
+      </a>
+    </li>
+  ))}
+</ul>
+
+<style>
+  .intro {
+    color: var(--fg-2);
+    max-width: 34em;
+    margin-bottom: 24px;
+  }
+  .list { border-top: 1px solid var(--line); }
+  li { border-bottom: 1px solid var(--line); }
+  a {
+    display: grid;
+    grid-template-columns: 20px 120px minmax(0, 1fr);
+    align-items: center;
+    gap: 16px;
+    padding: 14px 8px;
+    color: var(--fg-2);
+    transition: background-color .15s, color .15s;
+  }
+  a:hover { background: var(--bg-2); color: var(--fg); }
+  .label { color: var(--fg-3); }
+  .value { color: var(--fg); font-size: 17px; overflow-wrap: anywhere; }
+  a:hover .value { color: var(--accent); }
+  @media (max-width: 680px) {
+    a { grid-template-columns: 20px 64px minmax(0, 1fr); padding-inline: 0; }
+  }
+</style>

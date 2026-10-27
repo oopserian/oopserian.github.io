@@ -1,0 +1,30 @@
+---
+// 「Lab」：全部实验排成两列，格子之间是 1px 的线
+import { getCollection } from 'astro:content';
+import LabCard from './LabCard.astro';
+
+const labs = (await getCollection('labs')).sort((a, b) => a.data.order - b.data.order);
+---
+<p class="intro">Small interface experiments, each one a single component you can play with right here. The source of every one is on GitHub.</p>
+<div class="grid">
+  {labs.map(lab => <LabCard lab={lab} />)}
+</div>
+
+<style>
+  .intro {
+    color: var(--fg-2);
+    max-width: 34em;
+    margin-bottom: 28px;
+    text-wrap: pretty;
+  }
+  .grid {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 1px;
+    background: var(--line);
+    border: 1px solid var(--line);
+  }
+  @media (max-width: 680px) {
+    .grid { grid-template-columns: 1fr; }
+  }
+</style>

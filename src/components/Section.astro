@@ -1,0 +1,35 @@
+---
+// 首页的一节：左边一栏是小节名（宽屏上跟着滚动停在顶上），右边是内容。手机上小节名在内容上面。
+interface Props { id: string; label: string; class?: string }
+const { id, label, class: cls } = Astro.props;
+---
+<section id={id} class:list={['sec', cls]}>
+  <div class="wrap grid">
+    <h2 class="eyebrow label">{label}</h2>
+    <div class="body"><slot /></div>
+  </div>
+</section>
+
+<style>
+  .sec + .sec { border-top: 1px solid var(--line); }
+  .grid {
+    display: grid;
+    grid-template-columns: var(--label) minmax(0, 1fr);
+    gap: 32px;
+    padding-block: 64px;
+  }
+  .label {
+    position: sticky;
+    top: calc(var(--nav-h) + 24px);
+    align-self: start;
+    color: var(--fg-3);
+  }
+  @media (max-width: 860px) {
+    .grid {
+      grid-template-columns: 1fr;
+      gap: 24px;
+      padding-block: 44px;
+    }
+    .label { position: static; }
+  }
+</style>

@@ -1,0 +1,200 @@
+/* 全站共用的样式：配色、字体、排版的基础，和几个到处用的小类。各组件自己的样式写在组件的 <style> 里。
+
+   Tailwind 只给实验（src/labs/）用：那些组件是用 Tailwind 的类名写的。只扫 src/labs/，网站本身不写 Tailwind 类名。
+   preflight 顺便当整站的样式重置。网站自己的样式不放进层里，比 Tailwind 的几层都优先，
+   所以这里不写 p、button 这种裸标签的规则（会盖掉实验里的类名），要写就挂在类名下面。 */
+@layer theme, base, components, utilities;
+@import "tailwindcss/theme.css" layer(theme);
+@import "tailwindcss/preflight.css" layer(base);
+@import "tailwindcss/utilities.css" layer(utilities) source(none);
+@source "../labs";
+
+@font-face {
+  font-family: "Instrument Serif";
+  src: url("/fonts/instrument-serif-latin-400-normal.woff2") format("woff2");
+  font-weight: 400;
+  font-style: normal;
+  font-display: swap;
+}
+@font-face {
+  font-family: "Instrument Serif";
+  src: url("/fonts/instrument-serif-latin-400-italic.woff2") format("woff2");
+  font-weight: 400;
+  font-style: italic;
+  font-display: swap;
+}
+@font-face {
+  font-family: "DM Mono";
+  src: url("/fonts/dm-mono-latin-400-normal.woff2") format("woff2");
+  font-weight: 400;
+  font-display: swap;
+}
+@font-face {
+  font-family: "DM Mono";
+  src: url("/fonts/dm-mono-latin-500-normal.woff2") format("woff2");
+  font-weight: 500;
+  font-display: swap;
+}
+
+/* 配色。浅色是默认；深色两处写：跟随系统（没手动选过浅色时），和手动选了深色。
+   灰是略带暖的中性灰，强调色只有一个：钴蓝，只给链接、当前位置和字符画里被搅动的字。 */
+:root {
+  --bg: #F7F7F5;
+  --bg-2: #EEEEEB;      /* 实验的舞台、代码块 */
+  --fg: #141414;
+  --fg-2: #5C5C58;      /* 正文里次要的字，对比度 6.3 */
+  --fg-3: #6B6B66;      /* 标签、日期这些小字，对比度 5.0 */
+  --line: #E0E0DC;
+  --accent: #2F4BE8;    /* 对比度 6.0 */
+  --accent-soft: rgb(47 75 232 / 0.1);
+  --ascii: #141414;     /* 字符画的字 */
+  --ascii-hot: #3355FF; /* 字符画里被鼠标搅动的字 */
+
+  --serif: "Instrument Serif", ui-serif, Georgia, "Times New Roman", serif;
+  --mono: "DM Mono", ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  --sans: -apple-system, BlinkMacSystemFont, "Segoe UI", system-ui, "PingFang SC", "Microsoft YaHei", sans-serif;
+
+  --wrap: 1200px;
+  --gutter: 32px;
+  --label: 220px;       /* 左边小节名那一栏 */
+  --nav-h: 56px;
+
+  color-scheme: light;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --bg: #0B0B0B;
+    --bg-2: #141413;
+    --fg: #EDEDEA;
+    --fg-2: #A3A3A0;
+    --fg-3: #7A7A76;
+    --line: #242422;
+    --accent: #8597FF;
+    --accent-soft: rgb(133 151 255 / 0.12);
+    --ascii: #EDEDEA;
+    --ascii-hot: #8597FF;
+    color-scheme: dark;
+  }
+}
+:root[data-theme="dark"] {
+  --bg: #0B0B0B;
+  --bg-2: #141413;
+  --fg: #EDEDEA;
+  --fg-2: #A3A3A0;
+  --fg-3: #7A7A76;
+  --line: #242422;
+  --accent: #8597FF;
+  --accent-soft: rgb(133 151 255 / 0.12);
+  --ascii: #EDEDEA;
+  --ascii-hot: #8597FF;
+  color-scheme: dark;
+}
+
+@media (max-width: 760px) {
+  :root { --gutter: 16px; }
+}
+
+html {
+  background: var(--bg);
+  color: var(--fg);
+  font-family: var(--sans);
+  font-size: 16px;
+  line-height: 1.6;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  text-rendering: optimizeLegibility;
+  scroll-padding-top: calc(var(--nav-h) + 16px);
+}
+body {
+  background: var(--bg);
+  min-height: 100dvh;
+  display: flex;
+  flex-direction: column;
+  overflow-x: clip;
+}
+body > main { flex: 1; }
+::selection { background: var(--accent); color: var(--bg); }
+
+:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+
+/* 页面的宽度和两边的留白 */
+.wrap {
+  width: 100%;
+  max-width: calc(var(--wrap) + var(--gutter) * 2);
+  margin-inline: auto;
+  padding-inline: var(--gutter);
+}
+
+/* 大标题：Instrument Serif 字面小，字号写 --size，这里放大 */
+.display {
+  font-family: var(--serif);
+  font-weight: 400;
+  font-size: calc(var(--size, 40px) * 1.3);
+  line-height: 1;
+  letter-spacing: -0.01em;
+  font-synthesis: none;
+  text-wrap: balance;
+}
+.display em { font-style: italic; }
+
+/* 小节名、标签、日期这些等宽的小字 */
+.mono {
+  font-family: var(--mono);
+  font-size: 13px;
+  line-height: 1.5;
+  letter-spacing: 0;
+  font-variant-ligatures: none;
+}
+.eyebrow {
+  font-family: var(--mono);
+  font-size: 12px;
+  line-height: 1.5;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--fg-3);
+}
+
+/* 正文里的链接：强调色，下划线淡，悬停时实 */
+.link {
+  color: var(--accent);
+  text-decoration: underline;
+  text-decoration-color: color-mix(in srgb, var(--accent) 35%, transparent);
+  text-underline-offset: 3px;
+  text-decoration-thickness: 1px;
+  transition: text-decoration-color .15s;
+}
+.link:hover { text-decoration-color: currentColor; }
+
+/* 往外跳的小箭头 */
+.out::after {
+  content: "↗";
+  display: inline-block;
+  margin-left: 0.2em;
+  font-family: var(--mono);
+  font-size: 0.85em;
+  transition: transform .15s;
+}
+a:hover > .out::after, .out:hover::after { transform: translate(1px, -1px); }
+
+.sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
+}
+
+/* 开场：内容淡入上移，只动 opacity 和 translate。--d 是每样东西的延迟 */
+@media (prefers-reduced-motion: no-preference) {
+  .rise {
+    animation: rise .7s cubic-bezier(.2, .7, .2, 1) both;
+    animation-delay: var(--d, 0ms);
+  }
+  @keyframes rise {
+    from { opacity: 0.01; translate: 0 12px; }
+  }
+}

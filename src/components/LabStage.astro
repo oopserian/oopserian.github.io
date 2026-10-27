@@ -1,0 +1,38 @@
+---
+// 实验的舞台：一块固定高度的底色，组件挂在里面。还没做完的实验（wip）画一块斜条纹，不挂组件。
+import LabDemo from '../islands/LabDemo';
+
+interface Props { slug: string; wip?: boolean; size?: 'card' | 'page' }
+const { slug, wip, size = 'card' } = Astro.props;
+---
+<div class:list={['stage', size, { wip }]}>
+  {wip
+    ? <p class="mono soon">Under construction</p>
+    : <LabDemo slug={slug} client:visible={{ rootMargin: '300px' }} />}
+</div>
+
+<style>
+  .stage {
+    position: relative;
+    display: grid;
+    background: var(--bg-2);
+    overflow: hidden;
+    isolation: isolate;
+  }
+  /* 实验的根元素撑满舞台：astro-island 默认是 display: contents，换成撑满的块，实验里 h-full 这种才有参照 */
+  .stage > :global(astro-island) {
+    display: block;
+    width: 100%;
+    height: 100%;
+    min-width: 0;
+  }
+  .card { height: 280px; }
+  .page { height: clamp(320px, 52vh, 480px); }
+  .wip {
+    place-items: center;
+    background:
+      repeating-linear-gradient(-45deg, transparent 0 14px, color-mix(in srgb, var(--fg) 6%, transparent) 14px 15px),
+      var(--bg-2);
+  }
+  .soon { color: var(--fg-3); }
+</style>
