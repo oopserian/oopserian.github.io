@@ -1,0 +1,106 @@
+---
+// 顶栏：左边头像和名字回首页，右边三个锚点和换主题的按钮。没有底色，只有模糊和一道淡线。
+import { Image } from 'astro:assets';
+import Icon from './Icon.astro';
+import avatar from '../assets/avatar.webp';
+import { SITE } from '../site';
+
+const links = [
+  { href: '/#work', label: 'Work' },
+  { href: '/#lab', label: 'Lab' },
+  { href: '/#contact', label: 'Contact' },
+];
+---
+<header class="nav">
+  <div class="wrap row">
+    <a class="brand" href="/" aria-label={`${SITE.name}, home`}>
+      <Image src={avatar} alt="" width={28} height={28} densities={[1, 2]} loading="eager" />
+      <span>{SITE.name}</span>
+    </a>
+    <nav aria-label="Main">
+      {links.map(l => <a class="mono" href={l.href}>{l.label}</a>)}
+      <button class="theme" type="button" aria-label="Switch between light and dark">
+        <Icon name="sun" class="sun" />
+        <Icon name="moon" class="moon" />
+      </button>
+    </nav>
+  </div>
+</header>
+
+<style>
+  .nav {
+    position: sticky;
+    top: 0;
+    z-index: 20;
+    height: var(--nav-h);
+    backdrop-filter: blur(12px);
+    -webkit-backdrop-filter: blur(12px);
+    background: color-mix(in srgb, var(--bg) 70%, transparent);
+    border-bottom: 1px solid color-mix(in srgb, var(--line) 60%, transparent);
+  }
+  .row {
+    height: 100%;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+  }
+  .brand {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    font-family: var(--serif);
+    font-size: 24px;
+    line-height: 1;
+  }
+  .brand img {
+    width: 28px;
+    height: 28px;
+    border-radius: 50%;
+    background: var(--bg-2);
+  }
+  nav {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+  }
+  nav a {
+    padding: 6px 10px;
+    color: var(--fg-2);
+    transition: color .15s;
+  }
+  nav a:hover { color: var(--fg); }
+  .theme {
+    display: grid;
+    place-items: center;
+    width: 36px;
+    height: 36px;
+    margin-left: 4px;
+    color: var(--fg-2);
+    cursor: pointer;
+    transition: color .15s;
+  }
+  .theme:hover { color: var(--fg); }
+  /* 浅色时显示月亮（点了换深色），深色时显示太阳 */
+  .theme :global(.sun) { display: none; }
+  :global(:root[data-theme="dark"]) .theme :global(.sun) { display: block; }
+  :global(:root[data-theme="dark"]) .theme :global(.moon) { display: none; }
+  @media (prefers-color-scheme: dark) {
+    :global(:root:not([data-theme="light"])) .theme :global(.sun) { display: block; }
+    :global(:root:not([data-theme="light"])) .theme :global(.moon) { display: none; }
+  }
+  @media (max-width: 420px) {
+    nav a { padding: 6px 7px; }
+  }
+</style>
+
+<script>
+  // 换主题：记进 localStorage，页面上的字符画听 data-theme 的变化自己重画
+  const root = document.documentElement;
+  const dark = matchMedia('(prefers-color-scheme: dark)');
+  document.querySelector('.theme')?.addEventListener('click', () => {
+    const now = root.dataset.theme ?? (dark.matches ? 'dark' : 'light');
+    const next = now === 'dark' ? 'light' : 'dark';
+    root.dataset.theme = next;
+    try { localStorage.setItem('theme', next); } catch {}
+  });
+</script>

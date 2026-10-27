@@ -1,0 +1,27 @@
+---
+// 页脚：版权和这个网站是怎么做的
+import { SITE } from '../site';
+const year = new Date().getFullYear();
+---
+<footer class="foot">
+  <div class="wrap row mono">
+    <p>© {year} {SITE.name}</p>
+    <p>Set in Instrument Serif and DM Mono. Built with Astro. <a class="link" href={SITE.repo}>Source<span class="out"></span></a></p>
+  </div>
+</footer>
+
+<style>
+  .foot {
+    border-top: 1px solid var(--line);
+    margin-top: 96px;
+  }
+  .row {
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: space-between;
+    gap: 8px 24px;
+    padding-block: 28px 40px;
+    color: var(--fg-3);
+  }
+  .link { color: var(--fg-2); }
+</style>
