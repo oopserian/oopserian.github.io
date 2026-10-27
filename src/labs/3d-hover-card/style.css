@@ -1,0 +1,65 @@
+.hover-card-3d .hand {
+    position: relative;
+    width: 92px;
+    aspect-ratio: 85 / 140;
+    margin-bottom: 20px;
+}
+
+/* 扇形：每张牌绕着手牌下方很远的一个点转，越靠边转得越多，自然排成一道弧 */
+.hover-card-3d .slot {
+    position: absolute;
+    inset: 0;
+    border-radius: 8px;
+    transform-origin: 50% 200%;
+    transform: translateX(calc(var(--push) * 18px)) rotate(calc(var(--o) * 8deg));
+    transition: transform 0.45s var(--lab-spring);
+    touch-action: pan-y; /* 竖着划还能滚页面，横着划是在牌上倾斜 */
+    cursor: pointer;
+}
+.hover-card-3d .slot:focus-visible { outline: none; }
+.hover-card-3d .slot:focus-visible .tilt {
+    outline: 2px solid var(--lab-accent);
+    outline-offset: 3px;
+}
+
+/* 拿起来：往上抬、转正、放大一点 */
+.hover-card-3d .lift {
+    width: 100%;
+    height: 100%;
+    transition: transform 0.45s var(--lab-spring);
+}
+.hover-card-3d .on .lift {
+    transform: translateY(-22px) rotate(calc(var(--o) * -8deg)) scale(1.06);
+}
+
+/* 跟着指针倾斜：--x、--y 是指针在牌上的位置，-0.5 到 0.5 */
+.hover-card-3d .tilt {
+    position: relative;
+    width: 100%;
+    height: 100%;
+    border-radius: 8px;
+    overflow: hidden;
+    box-shadow: var(--lab-shadow-1);
+    transform: perspective(600px) rotateX(calc(var(--y, 0) * -16deg)) rotateY(calc(var(--x, 0) * 16deg));
+    transition: transform 0.2s ease-out, box-shadow 0.3s;
+}
+.hover-card-3d .on .tilt { box-shadow: var(--lab-shadow-2); }
+
+.hover-card-3d img {
+    display: block;
+    width: 100%;
+    height: 100%;
+    user-select: none;
+}
+
+/* 反光：一团比牌大一倍的白色渐变，跟着指针挪，只动 transform */
+.hover-card-3d .glare {
+    position: absolute;
+    inset: -50%;
+    background: radial-gradient(circle, rgb(255 255 255 / 0.5), transparent 35%);
+    transform: translate(calc(var(--x, 0) * 50%), calc(var(--y, 0) * 50%));
+    opacity: 0;
+    transition: opacity 0.3s, transform 0.2s ease-out;
+    pointer-events: none;
+}
+.hover-card-3d .on .glare { opacity: 1; }

@@ -1,11 +1,11 @@
 ---
-title: 3D Hover Card
-summary: A fanned hand of cards. Hover one and it straightens, lifts and tilts toward the pointer.
-tags: [Motion, Tailwind]
+title: Hand of Cards
+summary: Four cards fanned out in a hand. Pick one up and it tilts toward your pointer.
+tags: [React, CSS]
 date: 2025-01-10
 order: 2
 ---
 
-The fan comes from Motion variants: each card's rotation and offset is worked out from its distance to the middle of the hand. On hover the card's variant flips to a straight, raised pose.
+Each card is rotated around a point far below the hand, 8° per step from the middle, so the fan falls into an arc by itself. Picking one up raises it, turns it upright and nudges its neighbours aside, all with CSS transitions on a slightly springy curve.
 
-Inside, the card tilts with `rotateX` and `rotateY` under a 500px perspective, following the pointer's offset from its centre. A blurred white spot follows the pointer to fake a reflection.
+The pointer's position on the card goes straight into two CSS variables, without a React render. CSS turns them into `rotateX` and `rotateY` under a 600px perspective, and slides a soft highlight across the card the same way. The card that moves sits inside a wrapper that stays put, so lifting it never slips it out from under the pointer.
