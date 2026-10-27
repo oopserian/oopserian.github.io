@@ -44,12 +44,12 @@ const CANDIDATES = ` .'\`,:;-~"^=+<>!/\\|()?ivxzo*%#&$@8B`;
 const LEVELS = 14;                 // 浓淡分几档
 const NOISE = '!?/\\|()[]{}<>=+*#%&$@0123456789'; // 解码、被搅乱时出现的字
 const ATLAS_W = 60, ATLAS_H = 100, ATLAS_COLUMNS = 16, FONT_SCALE = 0.78; // 图集里一格多大（字号是格高的 0.78），格子宽高比也照它
-const GLYPH_HZ = 9;                // 每格的字每秒换几次（各格错开节拍）
+const GLYPH_HZ = 4;                // 每格的字每秒换几次（各格错开节拍；9 次 laken 嫌太快）
 const FLICKER = 0.5;               // 换的时候浓淡上下晃多少，晃过档就换成邻档的字
 const GLOW = { dark: 0.35, light: 0.08 }; // 字的光晕（浅色主题上是一圈淡淡的灰，少一点）
 const GHOST = { dark: 0.07, light: 0.035 }; // 字底下淡淡的一层头像，远看更像人
 const GRAIN = 0.04;                // 颗粒
-const IDLE_FPS = 24;               // 平时（烟在飘、字在跳）的帧率；开场、被鼠标搅动时跟着屏幕刷新
+const IDLE_FPS = 15;               // 平时（烟在飘、字在跳）的帧率；开场、被鼠标搅动时跟着屏幕刷新
 const INTRO_SECONDS = 2.2;
 const MAX_TRAIL = 24, TRAIL_LIFE = 0.7, TRAIL_STEP = 6; // 鼠标拖过留下的一串点（间距按 CSS 像素）
 const SCRAMBLE_RADIUS = 34;        // 每个点搅乱多大一片（CSS 像素）
@@ -586,7 +586,7 @@ export function mount({ host, canvas, anchor, src }: Options) {
     glyphTime += dt;
     if (intro < 1) intro = Math.min(1, intro + dt / INTRO_SECONDS);
     grainClock += dt;
-    if (grainClock > 1 / 24) { grainClock = 0; frameSeed = (frameSeed + 1) % 97; }
+    if (grainClock > 1 / IDLE_FPS) { grainClock = 0; frameSeed = (frameSeed + 1) % 97; }
     updateInput(dt);
     draw();
     schedule();
