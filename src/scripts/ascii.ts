@@ -28,7 +28,7 @@
    OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
    SOFTWARE. */
 
-// 用法：mount({ host, canvas, anchor, src })。host 是铺字符的那块（首屏），canvas 盖满它，
+// 用法：mount({ host, canvas, anchor, src })。host 是首屏，canvas 是它里面绝对定位的画布（位置大小由这里按头像定），
 // anchor 是头像要放的位置（一个空元素，由 CSS 排版），src 是头像图（透明底、灰度，tools/portrait.py 生成）。
 // 浏览器没有 WebGL2 时什么都不画，首屏只有文字。
 
@@ -44,16 +44,17 @@ const CANDIDATES = ` .'\`,:;-~"^=+<>!/\\|()?ivxzo*%#&$@8B`;
 const LEVELS = 14;                 // 浓淡分几档
 const NOISE = '!?/\\|()[]{}<>=+*#%&$@0123456789'; // 解码、被搅乱时出现的字
 const ATLAS_W = 60, ATLAS_H = 100, ATLAS_COLUMNS = 16, FONT_SCALE = 0.78; // 图集里一格多大（字号是格高的 0.78），格子宽高比也照它
-const GLYPH_HZ = 9;                // 每格的字每秒换几次（各格错开节拍）
+const GLYPH_HZ = 4;                // 每格的字每秒换几次（各格错开节拍；9 次 laken 嫌太快）
 const FLICKER = 0.5;               // 换的时候浓淡上下晃多少，晃过档就换成邻档的字
 const GLOW = { dark: 0.35, light: 0.08 }; // 字的光晕（浅色主题上是一圈淡淡的灰，少一点）
 const GHOST = { dark: 0.07, light: 0.035 }; // 字底下淡淡的一层头像，远看更像人
 const GRAIN = 0.04;                // 颗粒
-const IDLE_FPS = 24;               // 平时（烟在飘、字在跳）的帧率；开场、被鼠标搅动时跟着屏幕刷新
+const IDLE_FPS = 15;               // 平时（烟在飘、字在跳）的帧率；开场、被鼠标搅动时跟着屏幕刷新
 const INTRO_SECONDS = 2.2;
 const MAX_TRAIL = 24, TRAIL_LIFE = 0.7, TRAIL_STEP = 6; // 鼠标拖过留下的一串点（间距按 CSS 像素）
 const SCRAMBLE_RADIUS = 34;        // 每个点搅乱多大一片（CSS 像素）
 const MAX_CLICKS = 4, CLICK_LIFE = 1.2;
+const MARGIN = 0.3;                // 画布比头像四周各宽出头像长边的几成（烟就在这一圈里）
 
 const VERTEX = `#version 300 es
 out vec2 vUv;
@@ -80,7 +81,7 @@ uniform vec2 uCellCss;
 uniform float uLod;
 uniform vec4 uRect;
 uniform vec2 uCenter;
-uniform float uReach;
+uniform vec2 uReach;
 uniform sampler2D uPortrait;
 uniform float uTime;
 uniform float uIntro;
@@ -137,7 +138,7 @@ void main() {
   float n = noise(q + vec2(t * 0.05, t * 0.32)) * 0.55
     + noise(q * 2.2 + vec2(-t * 0.08, t * 0.5)) * 0.3
     + noise(q * 5.0 + vec2(0.0, t * 0.8)) * 0.15;
-  float k = clamp(1.0 - length(px - uCenter) / uReach, 0.0, 1.0);
+  float k = clamp(1.0 - length((px - uCenter) / uReach), 0.0, 1.0);
   float smoke = smoothstep(0.46, 0.72, n) * k * k * 0.24;
 
   // 开场：从上往下、带点参差地显出来
@@ -180,12 +181,11 @@ uniform float uGlyphTime;
 uniform vec3 uInk;
 uniform vec3 uHot;
 ${COMMON}
-float sampleGlyph(float index, vec2 local, vec2 coord) {
+float sampleGlyph(float index, vec2 local, vec2 gradX, vec2 gradY) {
   float column = mod(index, uAtlasGrid.x);
   float row = floor(index / uAtlasGrid.x);
   vec2 atlasUv = vec2((column + local.x) / uAtlasGrid.x, (row + local.y) / uAtlasGrid.y);
-  vec2 continuous = coord / uAtlasGrid;
-  return textureGrad(uAtlas, atlasUv, dFdx(continuous), dFdy(continuous)).a;
+  return textureGrad(uAtlas, atlasUv, gradX, gradY).a;
 }
 // 场在这一处的纹理坐标（连续的，给垫在字底下的那层头像用）
 vec2 fieldUv(vec2 frag) {
@@ -197,10 +197,13 @@ vec4 glyphAt(vec2 frag) {
   vec2 coord = px / uCellPx;
   vec2 cell = floor(coord);
   vec2 local = coord - cell;
+  vec2 gradX = dFdx(coord / uAtlasGrid), gradY = dFdy(coord / uAtlasGrid);
   ivec2 texel = clamp(ivec2(cell.x, uGrid.y - 1.0 - cell.y), ivec2(0), ivec2(uGrid) - 1);
   vec4 field = texelFetch(uField, texel, 0);
   vec4 aux = texelFetch(uAux, texel, 0);
   float value = field.r;
+  // 空格子（大半个画布）不出字，后面取字、算节拍都省了
+  if (value < 0.03 && aux.g * field.g <= 0.05) return vec4(0.0);
   float pick = hash12(cell + 7.31);
   float level = hash12(cell * 1.73 + 4.1);
   float tick = floor(uGlyphTime * ${GLYPH_HZ}.0 + level * ${GLYPH_HZ}.0);
@@ -219,7 +222,7 @@ vec4 glyphAt(vec2 frag) {
     }
   }
   float present = step(pick, mix(1.0, 0.3 + tone * 1.1, 0.55));
-  float coverage = sampleGlyph(index, local, coord);
+  float coverage = sampleGlyph(index, local, gradX, gradY);
   float alpha = present * shown * coverage * mix(1.0, 0.35 + 0.65 * level, 0.3);
   vec3 color = mix(uInk, uHot, smoothstep(0.15, 0.5, hot));
   return vec4(color * alpha, alpha);
@@ -406,10 +409,10 @@ export function mount({ host, canvas, anchor, src }: Options) {
   const software = softwareGL(gl);
   let still = motion.matches || software;
 
-  // 尺寸按 CSS 像素；格子 cellW、cellH 按画布的像素，cols、rows 是铺满首屏要几列几行；lod 是在头像图上取点用的 mipmap 级别
-  const view = { width: 1, height: 1, ratio: 1, cellW: 4.8, cellH: 8, cols: 1, rows: 1, lod: 0 };
+  // 画布在首屏里的位置和大小按 CSS 像素；格子 cellW、cellH 按画布的像素，cols、rows 是铺满画布要几列几行；lod 是在头像图上取点用的 mipmap 级别
+  const view = { x: 0, y: 0, width: 1, height: 1, ratio: 1, cellW: 4.8, cellH: 8, cols: 1, rows: 1, lod: 0 };
   const rect = new Float32Array(4), center = new Float32Array(2);
-  let reach = 1;
+  const reach = new Float32Array(2);
   const trail: { x: number; y: number; age: number }[] = [];
   const clicks: { x: number; y: number; age: number }[] = [];
   const trailData = new Float32Array(MAX_TRAIL * 4), clickData = new Float32Array(MAX_CLICKS * 4);
@@ -430,11 +433,18 @@ export function mount({ host, canvas, anchor, src }: Options) {
     };
   }
 
-  // 尺寸、头像的位置（按 contain 放进 anchor）、烟的范围
+  // 尺寸、头像的位置（按 contain 放进 anchor）、烟的范围。
+  // 画布只盖头像四周一圈（头像长边的 MARGIN 倍），不盖整个首屏：左边那一大片文字底下本来就没有字，不用逐像素算
   function resize() {
     const r = host.getBoundingClientRect(), a = anchor.getBoundingClientRect();
-    view.width = Math.max(1, r.width);
-    view.height = Math.max(1, r.height);
+    const m = Math.max(a.width, a.height) * MARGIN;
+    const left = Math.max(0, a.left - r.left - m), top = Math.max(0, a.top - r.top - m);
+    const right = Math.min(r.width, a.right - r.left + m), bottom = Math.min(r.height, a.bottom - r.top + m);
+    view.x = left;
+    view.y = top;
+    view.width = Math.max(1, right - left);
+    view.height = Math.max(1, bottom - top);
+    Object.assign(canvas.style, { left: `${left}px`, top: `${top}px`, width: `${view.width}px`, height: `${view.height}px` });
     view.ratio = Math.min(devicePixelRatio || 1, 2);
     const cell = parseFloat(getComputedStyle(canvas).getPropertyValue('--ascii-cell')) || 8;
     canvas.width = Math.round(view.width * view.ratio);
@@ -445,9 +455,9 @@ export function mount({ host, canvas, anchor, src }: Options) {
     view.rows = Math.ceil(canvas.height / view.cellH);
     const s = Math.min(a.width / imageW, a.height / imageH);
     const w = imageW * s, h = imageH * s;
-    rect.set([a.left - r.left + (a.width - w) / 2, a.top - r.top + (a.height - h) / 2, w, h]);
+    rect.set([a.left - r.left - left + (a.width - w) / 2, a.top - r.top - top + (a.height - h) / 2, w, h]);
     center.set([rect[0] + w / 2, rect[1] + h / 2]);
-    reach = Math.max(a.width, a.height) * 1.15;
+    reach.set([a.width / 2 + m, a.height / 2 + m]); // 烟到画布边上正好淡完
     // 每格取 3×4 个点，一个点管原图上多大一片，就取那么模糊的一级
     view.lod = Math.max(0, Math.log2(Math.sqrt((cell * cell * (ATLAS_W / ATLAS_H)) / 12) / s));
     sizeTarget(gl!, fieldTarget, view.cols, view.rows);
@@ -500,7 +510,7 @@ export function mount({ host, canvas, anchor, src }: Options) {
     g.uniform1f(fu.uLod, view.lod);
     g.uniform4fv(fu.uRect, rect);
     g.uniform2fv(fu.uCenter, center);
-    g.uniform1f(fu.uReach, reach);
+    g.uniform2fv(fu.uReach, reach);
     g.uniform1f(fu.uTime, time);
     g.uniform1f(fu.uIntro, intro);
     g.uniform1f(fu.uLight, theme.light ? 1 : 0);
@@ -576,7 +586,7 @@ export function mount({ host, canvas, anchor, src }: Options) {
     glyphTime += dt;
     if (intro < 1) intro = Math.min(1, intro + dt / INTRO_SECONDS);
     grainClock += dt;
-    if (grainClock > 1 / 24) { grainClock = 0; frameSeed = (frameSeed + 1) % 97; }
+    if (grainClock > 1 / IDLE_FPS) { grainClock = 0; frameSeed = (frameSeed + 1) % 97; }
     updateInput(dt);
     draw();
     schedule();
@@ -585,10 +595,10 @@ export function mount({ host, canvas, anchor, src }: Options) {
     if (!raf && visible && !still) raf = requestAnimationFrame(frame);
   }
 
-  // 鼠标、手指（坐标按 CSS 像素，从首屏左上角算）
+  // 鼠标、手指（坐标按 CSS 像素，从画布左上角算；画布外头、首屏里头也算，拖进来是连着的）
   const locate = (e: PointerEvent) => {
     const r = host.getBoundingClientRect();
-    return { x: e.clientX - r.left, y: e.clientY - r.top };
+    return { x: e.clientX - r.left - view.x, y: e.clientY - r.top - view.y };
   };
   host.addEventListener('pointermove', e => {
     if (still) return;

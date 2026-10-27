@@ -33,11 +33,13 @@ import { SITE } from '../site';
     border-bottom: 1px solid var(--line);
     touch-action: pan-y;
   }
+  /* 只盖头像四周一圈，位置和大小由 scripts/ascii.ts 按头像算好写进 style */
   .ascii {
     position: absolute;
-    inset: 0;
-    width: 100%;
-    height: 100%;
+    top: 0;
+    left: 0;
+    width: 0;
+    height: 0;
     pointer-events: none;
     --ascii-cell: 8px; /* 字符画一格多高，宽是它的 0.6 */
   }
