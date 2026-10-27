@@ -1,0 +1,78 @@
+---
+// 实验卡片：上面是能直接玩的组件，下面是标题、标签和两个链接（源码、灵感来源）
+import type { CollectionEntry } from 'astro:content';
+import LabStage from './LabStage.astro';
+import Icon from './Icon.astro';
+import { labSource } from '../site';
+
+interface Props { lab: CollectionEntry<'labs'> }
+const { lab } = Astro.props;
+const { title, tags, inspiration, wip, summary } = lab.data;
+---
+<article class="card" id={lab.id}>
+  <LabStage slug={lab.id} wip={wip} />
+  <div class="foot">
+    <div class="text">
+      {wip
+        ? <h3 class="title">{title}</h3>
+        : <h3 class="title"><a href={`/lab/${lab.id}/`}>{title}</a></h3>}
+      <p class="summary">{summary}</p>
+      <p class="tags mono">{tags.join(' · ')}</p>
+    </div>
+    <div class="actions">
+      {inspiration && <a href={inspiration} title="Inspired by" aria-label={`${title}: inspiration`}><Icon name="lightbulb" size={20} /></a>}
+      {!wip && <a href={labSource(lab.id)} title="Source code" aria-label={`${title}: source code`}><Icon name="code" size={20} /></a>}
+    </div>
+  </div>
+</article>
+
+<style>
+  .card {
+    display: flex;
+    flex-direction: column;
+    background: var(--bg);
+  }
+  .foot {
+    display: flex;
+    justify-content: space-between;
+    gap: 16px;
+    padding: 16px 16px 18px;
+    border-top: 1px solid var(--line);
+    flex: 1;
+  }
+  .title {
+    font-family: var(--serif);
+    font-size: 24px;
+    line-height: 1.1;
+    font-weight: 400;
+  }
+  .title a { background: linear-gradient(currentColor, currentColor) 0 100% / 0 1px no-repeat; transition: background-size .25s; }
+  .title a:hover { background-size: 100% 1px; }
+  .summary {
+    margin-top: 6px;
+    color: var(--fg-2);
+    font-size: 14px;
+    line-height: 1.5;
+    text-wrap: pretty;
+  }
+  .tags {
+    margin-top: 10px;
+    color: var(--fg-3);
+    font-size: 12px;
+  }
+  .actions {
+    display: flex;
+    gap: 2px;
+    align-self: flex-start;
+    margin: -6px -6px 0 0;
+  }
+  .actions a {
+    display: grid;
+    place-items: center;
+    width: 34px;
+    height: 34px;
+    color: var(--fg-3);
+    transition: color .15s;
+  }
+  .actions a:hover { color: var(--accent); }
+</style>

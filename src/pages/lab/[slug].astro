@@ -1,0 +1,104 @@
+---
+// 一个实验一页：大一点的舞台，下面是做法的说明（src/labs/<slug>/index.md 的正文），最后是上一个、下一个
+import { getCollection, render, type CollectionEntry } from 'astro:content';
+import Base from '../../layouts/Base.astro';
+import LabStage from '../../components/LabStage.astro';
+import Icon from '../../components/Icon.astro';
+import { labSource } from '../../site';
+
+export async function getStaticPaths() {
+  const labs = (await getCollection('labs', l => !l.data.wip)).sort((a, b) => a.data.order - b.data.order);
+  return labs.map((lab, i) => ({
+    params: { slug: lab.id },
+    props: { lab, prev: labs[i - 1], next: labs[i + 1] },
+  }));
+}
+
+interface Props { lab: CollectionEntry<'labs'>; prev?: CollectionEntry<'labs'>; next?: CollectionEntry<'labs'> }
+const { lab, prev, next } = Astro.props;
+const { title, summary, tags, date, inspiration } = lab.data;
+const { Content } = await render(lab);
+const when = date.toLocaleDateString('en', { year: 'numeric', month: 'long', timeZone: 'UTC' });
+---
+<Base title={title} description={summary}>
+  <article class="wrap lab">
+    <a class="back mono" href="/#lab"><Icon name="arrow-left" size={14} />Lab</a>
+    <header>
+      <h1 class="display" style="--size:52px">{title}</h1>
+      <p class="summary">{summary}</p>
+      <p class="meta mono">{when} · {tags.join(' · ')}</p>
+    </header>
+    <div class="frame"><LabStage slug={lab.id} size="page" /></div>
+    <div class="notes">
+      <div class="prose"><Content /></div>
+      <ul class="links mono">
+        <li><a href={labSource(lab.id)}><Icon name="code" size={16} /><span class="out">Source on GitHub</span></a></li>
+        {inspiration && <li><a href={inspiration}><Icon name="lightbulb" size={16} /><span class="out">Inspired by</span></a></li>}
+      </ul>
+    </div>
+    <nav class="pager" aria-label="More experiments">
+      {prev ? <a href={`/lab/${prev.id}/`}><span class="mono">Previous</span><span class="name">{prev.data.title}</span></a> : <span />}
+      {next ? <a class="next" href={`/lab/${next.id}/`}><span class="mono">Next</span><span class="name">{next.data.title}</span></a> : <span />}
+    </nav>
+  </article>
+</Base>
+
+<style>
+  .lab { padding-top: 40px; }
+  .back {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    color: var(--fg-3);
+    transition: color .15s;
+  }
+  .back:hover { color: var(--fg); }
+  header { margin: 28px 0 32px; max-width: 720px; }
+  .summary { margin-top: 16px; font-size: 18px; color: var(--fg-2); text-wrap: pretty; }
+  .meta { margin-top: 12px; color: var(--fg-3); font-size: 12px; }
+  .frame { border: 1px solid var(--line); }
+  .notes {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) 220px;
+    gap: 48px;
+    margin-top: 40px;
+  }
+  .prose { max-width: 38em; color: var(--fg-2); }
+  .prose :global(p + p) { margin-top: 1em; }
+  .prose :global(code) {
+    font-family: var(--mono);
+    font-size: 0.86em;
+    padding: 1px 5px;
+    background: var(--bg-2);
+    color: var(--fg);
+  }
+  .prose :global(em) { font-style: italic; }
+  .prose :global(sup) { font-size: .7em; }
+  .links { display: flex; flex-direction: column; gap: 10px; font-size: 13px; }
+  .links a { display: inline-flex; align-items: center; gap: 8px; color: var(--fg-2); transition: color .15s; }
+  .links a:hover { color: var(--accent); }
+  .pager {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    margin-top: 72px;
+    border-top: 1px solid var(--line);
+    border-bottom: 1px solid var(--line);
+  }
+  .pager a {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+    padding: 20px 0;
+    transition: color .15s;
+  }
+  .pager a:hover .name { color: var(--accent); }
+  .pager .next { text-align: right; align-items: flex-end; border-left: 1px solid var(--line); }
+  .pager .mono { color: var(--fg-3); font-size: 12px; }
+  .pager .name { font-family: var(--serif); font-size: 26px; line-height: 1.1; transition: color .15s; }
+  @media (max-width: 760px) {
+    .lab { padding-top: 24px; }
+    h1 { --size: 40px !important; }
+    .notes { grid-template-columns: 1fr; gap: 24px; }
+    .pager .name { font-size: 22px; }
+  }
+</style>
