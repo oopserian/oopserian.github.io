@@ -24,7 +24,7 @@ const when = date.toLocaleDateString('en', { year: 'numeric', month: 'long', tim
   <article class="wrap lab">
     <a class="back mono" href="/#lab"><Icon name="arrow-left" size={14} />Lab</a>
     <header>
-      <h1 class="display" style="--size:52px">{title}</h1>
+      <h1 class="display">{title}</h1>
       <p class="summary">{summary}</p>
       <p class="meta mono">{when} · {tags.join(' · ')}</p>
     </header>
@@ -54,6 +54,7 @@ const when = date.toLocaleDateString('en', { year: 'numeric', month: 'long', tim
   }
   .back:hover { color: var(--fg); }
   header { margin: 28px 0 32px; max-width: 720px; }
+  h1 { --size: 52px; }
   .summary { margin-top: 16px; font-size: 18px; color: var(--fg-2); text-wrap: pretty; }
   .meta { margin-top: 12px; color: var(--fg-3); font-size: 12px; }
   .frame { border: 1px solid var(--line); }
@@ -97,7 +98,7 @@ const when = date.toLocaleDateString('en', { year: 'numeric', month: 'long', tim
   .pager .name { font-family: var(--serif); font-size: 26px; line-height: 1.1; transition: color .15s; }
   @media (max-width: 760px) {
     .lab { padding-top: 24px; }
-    h1 { --size: 40px !important; }
+    h1 { --size: 40px; }
     .notes { grid-template-columns: 1fr; gap: 24px; }
     .pager .name { font-size: 22px; }
   }

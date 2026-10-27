@@ -4,7 +4,7 @@ import Base from '../layouts/Base.astro';
 <Base title="Not found" noindex>
   <section class="wrap nf">
     <p class="eyebrow">404</p>
-    <h1 class="display" style="--size:64px">Nothing here.<br><em>Sometimes it doesn’t work.</em></h1>
+    <h1 class="display">Nothing here.<br><em>Sometimes it doesn’t work.</em></h1>
     <p class="lede">This page doesn’t exist, or it moved when the site was rebuilt. Everything that’s left is on the <a class="link" href="/">home page</a>.</p>
   </section>
 </Base>
@@ -12,9 +12,10 @@ import Base from '../layouts/Base.astro';
 <style>
   .nf { padding-block: 120px 40px; }
   .eyebrow { margin-bottom: 20px; }
+  h1 { --size: 64px; }
   .lede { margin-top: 28px; font-size: 18px; color: var(--fg-2); max-width: 32em; }
   @media (max-width: 760px) {
     .nf { padding-block: 64px 24px; }
-    h1 { --size: 38px !important; }
+    h1 { --size: 38px; }
   }
 </style>

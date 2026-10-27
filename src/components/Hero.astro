@@ -10,7 +10,7 @@ import { SITE } from '../site';
   <div class="wrap grid">
     <div class="text">
       <p class="eyebrow rise" style="--d:0ms">Independent developer · Germany</p>
-      <h1 class="display rise" style="--size:64px; --d:80ms">Build stuff.<br><em>Sometimes it works.</em></h1>
+      <h1 class="display rise" style="--d:80ms">Build stuff.<br><em>Sometimes it works.</em></h1>
       <p class="lede rise" style="--d:200ms">
         I’m {SITE.name}, a web and software developer working on my own.
         Right now I’m building <a class="link" href="https://sooty.app">SOOTY</a>, a local-first asset manager for Mac, written in Rust.
@@ -50,7 +50,10 @@ import { SITE } from '../site';
   }
   .text { max-width: 640px; }
   .eyebrow { margin-bottom: 20px; }
-  h1 { margin-bottom: 28px; }
+  h1 { --size: 64px; margin-bottom: 28px; }
+  @media (max-width: 1180px) {
+    h1 { --size: 52px; }
+  }
   .lede {
     font-size: 18px;
     line-height: 1.6;
@@ -91,7 +94,7 @@ import { SITE } from '../site';
       justify-self: center;
     }
     .ascii { --ascii-size: 9px; }
-    h1 { --size: 38px !important; }
+    h1 { --size: 38px; }
     .lede { font-size: 17px; }
   }
 </style>
