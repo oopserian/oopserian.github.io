@@ -36,8 +36,10 @@ import { SITE } from '../site';
   .ascii {
     position: absolute;
     inset: 0;
+    width: 100%;
+    height: 100%;
     pointer-events: none;
-    --ascii-size: 7px;
+    --ascii-cell: 8px; /* 字符画一格多高，宽是它的 0.6 */
   }
   .grid {
     position: relative;
@@ -95,6 +97,7 @@ import { SITE } from '../site';
     }
     h1 { --size: 38px; }
     .lede { font-size: 17px; }
+    .ascii { --ascii-cell: 6px; } /* 头像只有 280px 宽，格子小一点五官才认得出 */
   }
 </style>
 
