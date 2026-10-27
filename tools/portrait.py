@@ -4,8 +4,8 @@
 
 生成：
   src/assets/portrait.webp    首屏字符画用的：人物抠出来（透明底），线条加粗、肩膀和下面渐隐
-  src/assets/avatar.webp      顶栏和项目列表里的小头像：原图裁头部
-  public/favicon.png、public/apple-touch-icon.png
+  src/assets/avatar.webp      顶栏的小头像：原图裁到肩膀
+  public/favicon.png、public/apple-touch-icon.png  网站图标：原图裁头部
 
 要先装：pip install "rembg[cpu]" scipy pillow numpy（第一次跑会下载 176 MB 的抠图模型）。
 抠图为什么用 rembg 的 isnet-anime 模型见 README 的「字符画」。
@@ -51,9 +51,12 @@ im.thumbnail((720, 960), Image.LANCZOS)
 im.save(ROOT / 'src/assets/portrait.webp', quality=90, method=6)
 print('portrait.webp', im.size)
 
-# 小头像：裁头部
+# 顶栏的小头像：裁到肩膀，人不要顶满整个圆
+bust = src.crop((round(W * 0.08), 0, round(W * 0.86), round(H * 0.78)))
+bust.resize((256, 256), Image.LANCZOS).save(ROOT / 'src/assets/avatar.webp', quality=88, method=6)
+
+# 网站图标只有 16 到 64 像素，只裁头部，脸才认得出
 head = src.crop((round(W * 0.163), round(H * 0.028), round(W * 0.717), round(H * 0.582)))
-head.resize((256, 256), Image.LANCZOS).save(ROOT / 'src/assets/avatar.webp', quality=88, method=6)
 head.resize((180, 180), Image.LANCZOS).save(ROOT / 'public/apple-touch-icon.png', optimize=True)
 head.resize((64, 64), Image.LANCZOS).save(ROOT / 'public/favicon.png', optimize=True)
 print('avatar.webp, favicon.png, apple-touch-icon.png')
