@@ -1,0 +1,88 @@
+/* 真光标只在这块舞台里藏起来，换成下面那个跟着指针走的圆 */
+@media (pointer: fine) {
+    .hover-cursor, .hover-cursor * { cursor: none; }
+}
+
+.hover-cursor .tiles {
+    display: grid;
+    grid-template-columns: repeat(2, 112px);
+    gap: 10px;
+    margin-bottom: 20px;
+}
+
+/* 每种目标一个颜色，光标变成什么样也看它 */
+.hover-cursor [data-kind="search"] { --tone: var(--lab-accent); --on-tone: var(--lab-on-accent); }
+.hover-cursor [data-kind="refresh"] { --tone: var(--lab-fg); --on-tone: var(--lab-surface); }
+.hover-cursor [data-kind="alert"] { --tone: var(--lab-danger); --on-tone: #FFFFFF; }
+.hover-cursor [data-kind="check"] { --tone: var(--lab-success); --on-tone: light-dark(#FFFFFF, #0B0B0B); }
+
+.hover-cursor .tile {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 6px;
+    height: 72px;
+    border-radius: var(--lab-r-md);
+    background: var(--lab-surface);
+    box-shadow: 0 0 0 1px var(--lab-line), var(--lab-shadow-1);
+    color: var(--tone);
+    transition: transform 0.25s var(--lab-ease), box-shadow 0.25s;
+}
+.hover-cursor .tile span {
+    font-size: 12px;
+    color: var(--lab-fg-2);
+}
+.hover-cursor .tile:hover,
+.hover-cursor .tile:focus-visible {
+    transform: translateY(-2px);
+    box-shadow: 0 0 0 1px var(--lab-line-strong), var(--lab-shadow-2);
+}
+.hover-cursor .tile:focus-visible { outline-offset: 3px; }
+
+/* 外层只管位置（JS 写 transform），里面的圆管大小和颜色，大小用 scale 变，不重新排版 */
+.hover-cursor .cursor {
+    position: absolute;
+    top: 0;
+    left: 0;
+    z-index: 10;
+    pointer-events: none;
+    opacity: 0;
+    transition: opacity 0.2s;
+}
+.hover-cursor .cursor[data-shown] { opacity: 1; }
+
+.hover-cursor .dot {
+    position: absolute;
+    left: -22px;
+    top: -22px;
+    width: 44px;
+    height: 44px;
+    border-radius: 50%;
+    overflow: hidden;
+    display: grid;
+    place-items: center;
+    background: var(--lab-fg);
+    box-shadow: inset 0 0 0 1px rgb(255 255 255 / 0.2);
+    scale: 0.27;
+    transition: scale 0.3s var(--lab-spring), background-color 0.2s;
+}
+.hover-cursor .dot[data-kind] {
+    background: var(--tone);
+    color: var(--on-tone);
+    scale: 1;
+}
+
+/* 图标从左下进来，往右上出去，前后两个同时在动，换目标时不会空一下 */
+.hover-cursor .glyph {
+    grid-area: 1 / 1;
+    display: grid;
+    transition: translate 0.3s var(--lab-ease), opacity 0.3s;
+}
+@starting-style {
+    .hover-cursor .glyph { translate: -100% 100%; opacity: 0; }
+}
+.hover-cursor .glyph.out {
+    translate: 100% -100%;
+    opacity: 0;
+}
