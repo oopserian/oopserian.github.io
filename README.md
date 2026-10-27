@@ -46,7 +46,7 @@ pnpm check      # 类型检查
    title: Folder
    summary: 卡片和详情页标题下的一句话
    tags: [CSS, SVG]
-   date: 2025-01-08
+   date: 2025-01-08         # 做出来的日子：卡片上显示年月（Jan 2025），详情页显示月份全称
    inspiration: https://…   # 照着谁的设计做的，没有就不写
    wip: true                # 还没做完：卡片上画斜条纹，不挂组件，不生成详情页
    order: 5                 # 越小越靠前
