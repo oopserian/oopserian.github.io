@@ -1,33 +1,36 @@
 import { useState } from "react";
 import cover from "./assets/cover.webp?url";
+import "./style.css";
 
+// 一层层叠起来的模糊：第 i 层模糊 2^(i+1) 像素，遮罩中间清楚的一圈每层往外扩 12%，越往边上叠得越厚
+const LAYERS = 6;
+const layers = Array.from({ length: LAYERS }, (_, i) => {
+    const mask = `radial-gradient(circle, transparent ${20 + i * 12}%, black ${32 + i * 12}%)`;
+    return { backdropFilter: `blur(${2 ** (i + 1)}px)`, WebkitBackdropFilter: `blur(${2 ** (i + 1)}px)`, mask, WebkitMask: mask };
+});
 
-export default function Blurfade() {
-    const [isActive, setIsActive] = useState<boolean>(false);
+export default function BlurFade() {
+    const [on, setOn] = useState(false);
+    // 模糊层很贵（每层都要把底下重新模糊一遍），所以只在开着、正在淡出的时候挂着；关上以后一层都不留
+    const [mounted, setMounted] = useState(false);
+
+    const toggle = () => {
+        if (on) return setOn(false);
+        setMounted(true);
+        requestAnimationFrame(() => requestAnimationFrame(() => setOn(true))); // 先挂上透明的，下一帧再淡入
+    };
+
     return (
-        <div onClick={() => setIsActive(!isActive)} className="relative w-full h-full flex flex-col gap-2 p-2 items-center justify-center">
-            <div className="relative cursor-pointer w-1/2 flex-1 min-h-0 overflow-hidden rounded-xl border-2 border-zinc-500/10">
-                <div className="relative w-full h-full rounded-xl overflow-hidden">
-                    <img src={cover} alt="placeholder" className="w-full h-full object-cover" />
-                </div>
-                <div className="absolute w-full h-full top-0 left-0 rounded-xl">
-                    {
-                        Array.from({ length: 10 }).map((_, index) => (
-                            <div key={index} className="absolute top-0 left-0 w-full h-full" style={{
-                                zIndex: index + 1,
-                                backdropFilter: isActive ? `blur(${Math.pow(2, index)}px)` : "blur(0px)",
-                                mask: `radial-gradient(circle, rgba(0, 0, 0, 0) ${21 + index * 8}%, rgba(0, 0, 0, 1) ${29 + index * 8}%)`,
-                                WebkitMask: `radial-gradient(circle, rgba(0, 0, 0, 0) ${21 + index * 8}%, rgba(0, 0, 0, 1) ${29 + index * 8}%)`,
-                                transition: "all 0.5s ease-in-out",
-                                transitionProperty: "backdrop-filter",
-                                willChange: "backdrop-filter",
-                                borderRadius: "inherit",
-                            }}></div>
-                        ))
-                    }
-                </div>
-            </div>
-            <p>Click It</p>
+        <div className="lab-root blur-fade">
+            <button className={`photo${on ? " on" : ""}`} onClick={toggle} aria-pressed={on} aria-label="Toggle the blur">
+                <img src={cover} alt="" draggable={false} />
+                {mounted && (
+                    <span className="layers" onTransitionEnd={e => { if (!on && e.target === e.currentTarget.lastChild) setMounted(false); }}>
+                        {layers.map((style, i) => <span key={i} style={style} />)}
+                    </span>
+                )}
+            </button>
+            <p className="lab-hint">{on ? "Click to clear" : "Click the photo"}</p>
         </div>
-    )
+    );
 }
