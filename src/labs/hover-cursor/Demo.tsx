@@ -173,7 +173,9 @@ const Cursor = () => {
             variants={variants}
             animate={cursorType}
             style={{
-                transform: `translate(${relativeX}px, ${relativeY}px) translate(-50%, -50%)`
+                transform: `translate(${relativeX}px, ${relativeY}px) translate(-50%, -50%)`,
+                // 鼠标还没进来过时先藏着，不然停在左上角像个污点
+                opacity: relativeX || relativeY ? 1 : 0
             }}>
             <div className={cn("w-full h-full flex items-center justify-center")}>
                 <AnimatePresence initial={true} mode="popLayout">
