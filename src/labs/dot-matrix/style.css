@@ -1,0 +1,67 @@
+/* 一块圆角的屏，铺满很淡的小圆点；底下留出一行提示的地方 */
+.dot-matrix {
+    padding: 16px 16px 36px;
+    grid-template-rows: minmax(0, 1fr);
+}
+
+.dot-matrix .screen {
+    position: relative;
+    width: 100%;
+    max-width: 640px;
+    height: 100%;
+    overflow: hidden;
+    border-radius: var(--lab-r-lg);
+    background: light-dark(var(--lab-surface), var(--lab-sunken)); /* 浅色是白底，白云靠底色衬出来；深色是最深的那层，像一块屏 */
+    box-shadow: 0 0 0 1px var(--lab-line), var(--lab-shadow-2);
+    transition: box-shadow 0.2s;
+}
+/* 拖着图悬在上面：描一圈强调色 */
+.dot-matrix .screen[data-over] {
+    box-shadow: 0 0 0 2px var(--lab-accent), var(--lab-shadow-2);
+}
+
+.dot-matrix .dots {
+    position: absolute;
+    inset: 0;
+    width: 100%;
+    height: 100%;
+    display: block;
+}
+
+/* 云待的那块：比屏小一圈。云本来就在中下部，不用专门给左上角的按钮让地方 */
+.dot-matrix .view {
+    position: absolute;
+    inset: 10px;
+    pointer-events: none;
+}
+
+/* 换场景：一小块半透明的底板，选中的那个浮起来 */
+.dot-matrix .tabs {
+    position: absolute;
+    top: 10px;
+    left: 10px;
+    z-index: 1;
+    display: flex;
+    gap: 2px;
+    padding: 3px;
+    border-radius: var(--lab-r-md);
+    background: color-mix(in srgb, var(--lab-surface) 72%, transparent);
+    box-shadow: 0 0 0 1px var(--lab-line);
+}
+.dot-matrix .tabs button {
+    height: 24px;
+    padding: 0 10px;
+    border-radius: var(--lab-r-sm);
+    font: 500 11px/1 var(--mono);
+    letter-spacing: 0.04em;
+    text-transform: uppercase;
+    color: var(--lab-fg-3);
+    cursor: pointer;
+    transition: color 0.15s, background-color 0.2s var(--lab-ease), box-shadow 0.2s var(--lab-ease);
+}
+.dot-matrix .tabs button:hover { color: var(--lab-fg-2); }
+.dot-matrix .tabs button[aria-selected="true"] {
+    color: var(--lab-fg);
+    background: var(--lab-surface);
+    box-shadow: 0 0 0 1px var(--lab-line), var(--lab-shadow-1);
+}
