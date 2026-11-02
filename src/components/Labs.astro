@@ -24,6 +24,8 @@ const labs = (await getCollection('labs')).sort((a, b) => a.data.order - b.data.
     background: var(--line);
     border: 1px solid var(--line);
   }
+  /* 实验是单数时最后一个占满一行，不然右下角空出一格，露出底下线的颜色 */
+  .grid > :global(:last-child:nth-child(odd)) { grid-column: 1 / -1; }
   @media (max-width: 680px) {
     .grid { grid-template-columns: 1fr; }
   }
