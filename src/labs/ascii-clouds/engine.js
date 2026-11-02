@@ -1,8 +1,10 @@
-/* 点阵动画：整块铺满很淡的小圆点（像一块 LED 屏），场景按颜色和明暗把点点亮，场景可以换；鼠标扫过能把主角打散。
+/* 字符画（ASCII）/ 点阵动画：整块按格铺满，场景按颜色和明暗给每格上色、挑一个字（或者画一个圆点），场景可以换；鼠标扫过能把主角打散。
 
      import { stage } from "./engine.js";
-     const s = stage(canvas, { scene: "day", box: viewEl, pointer: winEl, cell: 6, dot: 0.5, fps: 30, period: 12000 });
-     // cell 是相邻两个点的间距（CSS 像素），dot 是点的直径占间距的多少
+     const s = stage(canvas, { scene: "day", box: viewEl, pointer: winEl, cell: 8, glyphs: " .:-=+*#%@", fps: 30, period: 12000 });
+     // cell 是一格多宽（CSS 像素）。给了 glyphs（由淡到浓，第一个是空格）每格画一个字，字体用 --mono：
+     //   底格和天是最淡的「.」，天上给了 f.ink 的地方浓一些；主角按它有多少、颜色在调色板里多亮挑，越亮字越浓。
+     // 不给 glyphs 就画圆点，dot 是点的直径占一格的多少
      s.set("dusk");           // 换场景：新旧两幅一格一格错开换过去
      s.refresh();             // 颜色变了（换主题）以后调，重新读 CSS 变量、重画场景
      s.destroy();             // 不用了：停下、摘掉监听
@@ -20,7 +22,8 @@
        twinkle: 0.3             → 每格自己闪的幅度（按 f.m）
      });
    f 的单位都是格：f.cols、f.rows 是整块的格数，f.box = { x0, y0, x1, y1 } 是主角待的那块。
-   f.palette = [[r, g, b, 最亮时的不透明度], …]（最多 256 个），f.k 每格填下标；f.sky 是每格 4 个数（r, g, b, 不透明度）。
+   f.palette = [[r, g, b, 最亮时的不透明度], …]（最多 256 个），f.k 每格填下标；f.sky 是每格 4 个数（r, g, b, 不透明度），
+   f.ink 是天这一层每格的字有多浓（0~1，0 是「.」，只有字符模式用：太阳、倒影这种要显出来的地方给）。
    f.m 是每格跟着闪的程度（0~1）。随机数用 rng(种子)，每次一样；颗粒感用 noise / fbm；
    随时间变、一圈回到原样的噪声用 loop。
 
@@ -62,9 +65,9 @@ class Field {
     const n = cols * rows;
     Object.assign(this, { cols, rows, box });
     this.v = new Float32Array(n); this.k = new Uint8Array(n); this.m = new Float32Array(n);
-    this.sky = new Float32Array(n * 4);
+    this.sky = new Float32Array(n * 4); this.ink = new Float32Array(n);
   }
-  clear() { this.v.fill(0); this.k.fill(0); this.m.fill(0); this.sky.fill(0); this.palette = null; }
+  clear() { this.v.fill(0); this.k.fill(0); this.m.fill(0); this.sky.fill(0); this.ink.fill(0); this.palette = null; }
   in(c, r) { return c >= 0 && r >= 0 && c < this.cols && r < this.rows; }
   max(c, r, val, m = 0, k = 0) {
     if (!this.in(c, r)) return;
@@ -92,19 +95,21 @@ function rgba(css) {
 // ---------- 舞台 ----------
 /**
  * @param {HTMLCanvasElement} canvas
- * @param {{ scene?: string, box?: Element | null, pointer?: Element | null, cell?: number, dot?: number, fps?: number, period?: number, onResize?: Function }} [opts]
+ * @param {{ scene?: string, box?: Element | null, pointer?: Element | null, cell?: number, dot?: number, glyphs?: string, fps?: number, period?: number, onResize?: Function }} [opts]
  */
-function stage(canvas, { scene: first = Object.keys(scenes)[0], box: boxEl = null, pointer = null, cell = 6, dot = 0.5, fps = 30, period = 12000, onResize } = {}) {
+function stage(canvas, { scene: first = Object.keys(scenes)[0], box: boxEl = null, pointer = null, cell = 6, dot = 0.5, glyphs = "", fps = 30, period = 12000, onResize } = {}) {
   const f = new Field();
   const reduce = matchMedia("(prefers-reduced-motion: reduce)").matches;
   let name = first, state = null, last = -1e9, raf = 0, visible = true;
   let from = null, fromAt = 0;
   let ctx = null, dpr = 1, pd = 3, ox = 0, oy = 0, mask = null, small = null, sctx = null, img = null;
-  let dx, out, outK, tmp, tmpK, twk, twp, fromK, fromSky, mix = 1;
+  let dx, out, outK, tmp, tmpK, twk, twp, fromK, fromSky, fromInk, mix = 1;
   let col = { dot: [255, 255, 255, 0.07], sub: [255, 255, 255], a: 0.6, dark: true };
-  const PR = new Float32Array(256), PG = new Float32Array(256), PB = new Float32Array(256), PA = new Float32Array(256);
+  const PR = new Float32Array(256), PG = new Float32Array(256), PB = new Float32Array(256), PA = new Float32Array(256), PT = new Float32Array(256);
   // 打散：每格离原处多远（offX、offY，格）、正往哪边飞（velX、velY，格/秒）
   let offX, offY, velX, velY, scattered = false;
+  // 字符模式：atlas 是一排白字（每格一个，按 glyphs 的顺序由淡到浓），gmap 是整块画布上每格现在是哪个字，gi 记着每格的字有没有变
+  let atlas = null, gmap = null, gctx = null, gi = null;
   const hits = [];
 
   // 风：几个周期都整除 period 的正弦叠起来，所以一圈以后回到原样
@@ -125,10 +130,28 @@ function stage(canvas, { scene: first = Object.keys(scenes)[0], box: boxEl = nul
   function loadPalette() {
     const p = f.palette || [[...col.sub.slice(0, 3), col.a]];
     for (let j = 0; j < 256; j++) { const c = p[Math.min(j, p.length - 1)]; PR[j] = c[0]; PG[j] = c[1]; PB[j] = c[2]; PA[j] = c[3]; }
+    // 字符模式下每个颜色用多浓的字：调色板里最亮的那个 1，最暗的 0.45，中间按亮度排（只有一个颜色时都是 1）
+    const L = p.map((c) => 0.2126 * c[0] + 0.7152 * c[1] + 0.0722 * c[2]), on = L.filter((_, j) => p[j][3] > 0);
+    const lo = Math.min(...on), hi = Math.max(...on);
+    for (let j = 0; j < 256; j++) { const c = Math.min(j, p.length - 1); PT[j] = p[c][3] <= 0 ? 0 : hi > lo ? 0.45 + 0.55 * (L[c] - lo) / (hi - lo) : 1; }
   }
 
-  // 点的形状：画一次存起来，每帧拿它把点和点之间的缝抠掉
+  // 点的形状：画一次存起来，每帧拿它把点和点之间的缝抠掉。字符模式下换成一排字，每帧只重画换了字的格子
   function paintMask() {
+    if (glyphs) {
+      const fam = getComputedStyle(canvas).getPropertyValue("--mono").trim() || "ui-monospace, Menlo, monospace";
+      atlas = document.createElement("canvas");
+      atlas.width = pd * glyphs.length; atlas.height = pd;
+      const t = atlas.getContext("2d");
+      t.fillStyle = "#fff"; t.textAlign = "center"; t.textBaseline = "middle";
+      t.font = `500 ${Math.round(pd * 0.92)}px ${fam}`;
+      for (let k = 1; k < glyphs.length; k++) t.fillText(glyphs[k], pd * k + pd / 2, pd * 0.54);
+      gmap = document.createElement("canvas");
+      gmap.width = canvas.width; gmap.height = canvas.height;
+      gctx = gmap.getContext("2d");
+      gi = new Int8Array(f.cols * f.rows).fill(-1);
+      return;
+    }
     mask = document.createElement("canvas");
     mask.width = canvas.width; mask.height = canvas.height;
     // 先画一格：中间一个圆点；再拿它当花纹铺满
@@ -257,10 +280,24 @@ function stage(canvas, { scene: first = Object.keys(scenes)[0], box: boxEl = nul
     for (let i = 0, j = 0; i < out.length; i++, j += 4) {
       let r = dr, g = dg, b = db, a = da;
       // 换场景时天也一格一格换过去
-      const sky = from && hash(i, 7, 3) >= mix ? fromSky : f.sky, sa = sky[j + 3];
+      const old = from && hash(i, 7, 3) >= mix, sky = old ? fromSky : f.sky, sa = sky[j + 3];
       if (sa > 0) { const k = a * (1 - sa), oa = sa + k; r = (sky[j] * sa + r * k) / oa; g = (sky[j + 1] * sa + g * k) / oa; b = (sky[j + 2] * sa + b * k) / oa; a = oa; }
       const q = outK[i], as = clamp(out[i]) * PA[q];
       if (as > 0) { const k = a * (1 - as), oa = as + k; r = (PR[q] * as + r * k) / oa; g = (PG[q] * as + g * k) / oa; b = (PB[q] * as + b * k) / oa; a = oa; }
+      if (glyphs) {
+        // 挑字：底格和天是最淡的点，天上给了 f.ink 的地方（太阳、倒影）浓一些；主角按它有多少、颜色在调色板里多亮挑，越亮字越浓。
+        // 两层取浓的。不按和底色差多少挑：浅色界面上亮的云、太阳和白底差得少，会变成空洞
+        const n = glyphs.length - 1, ink = old ? fromInk[i] : f.ink[i];
+        const k = Math.min(n, Math.max(da > 0 || sa > 0 ? 1 + Math.round(ink * (n - 1)) : 0, Math.round(clamp(out[i]) * PT[q] * n)));
+        if (k !== gi[i]) {
+          const c = i % f.cols, x = ox + c * pd, y = oy + ((i - c) / f.cols) * pd;
+          gctx.clearRect(x, y, pd, pd);
+          if (k > 0) gctx.drawImage(atlas, k * pd, 0, pd, pd, x, y, pd, pd);
+          gi[i] = k;
+        }
+        // 字的笔画比一整格细，颜色要更不透明才看得出；只是一个点的格子（天）不用加那么多，不然满屏的点抢眼
+        a = Math.min(1, k > 1 ? a * 1.8 + 0.05 : a * 1.2);
+      }
       d[j] = r; d[j + 1] = g; d[j + 2] = b; d[j + 3] = a * 255;
     }
     sctx.putImageData(img, 0, 0);
@@ -270,7 +307,7 @@ function stage(canvas, { scene: first = Object.keys(scenes)[0], box: boxEl = nul
     ctx.imageSmoothingEnabled = false;
     ctx.drawImage(small, ox, oy, f.cols * pd, f.rows * pd);
     ctx.globalCompositeOperation = "destination-in";
-    ctx.drawImage(mask, 0, 0);
+    ctx.drawImage(glyphs ? gmap : mask, 0, 0);
     // 点和点之间铺一层很淡的底色（浅色界面用：白底上白云的点看不出来，靠这层把蓝天和白云分开）
     if (col.fill > 0) {
       ctx.globalCompositeOperation = "destination-over";
@@ -337,7 +374,7 @@ function stage(canvas, { scene: first = Object.keys(scenes)[0], box: boxEl = nul
   return {
     set(next) {
       if (next === name || !scenes[next]) return;
-      from = out ? out.slice() : null; fromK = outK ? outK.slice() : null; fromSky = f.sky.slice(); fromAt = performance.now();
+      from = out ? out.slice() : null; fromK = outK ? outK.slice() : null; fromSky = f.sky.slice(); fromInk = f.ink.slice(); fromAt = performance.now();
       name = next; build();
       draw(performance.now(), true);
     },

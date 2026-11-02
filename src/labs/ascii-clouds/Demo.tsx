@@ -15,14 +15,16 @@ const LABEL: Record<Sky, string> = {
     image: "Your image drifting gently",
 };
 
-// 底点的颜色：canvas 读不懂 light-dark()，所以按网站当前是浅色还是深色，在这里挑一套写进 CSS 变量，引擎从变量里读。
-// 浅色的 --dot-fill 是点和点之间铺的一层淡底色：白底上白云的点看不出来，靠它把蓝天和白云分开。
+// 底格「.」和拖进来的图的颜色：canvas 读不懂 light-dark()，所以按网站当前是浅色还是深色，在这里挑一套写进 CSS 变量，引擎从变量里读。
+// 云和天的颜色在 scenes.js 的色板里，深浅各一套。
 const THEME = {
-    dark: { "--dot": "rgb(255 255 255 / 0.07)", "--dot-fill": "0", "--subject": "#CDB8DA", "--subject-a": "0.6" },
-    light: { "--dot": "rgb(20 20 20 / 0.06)", "--dot-fill": "0.3", "--subject": "#7E5F8C", "--subject-a": "0.62" },
+    dark: { "--dot": "rgb(255 255 255 / 0.07)", "--subject": "#CDB8DA", "--subject-a": "0.6" },
+    light: { "--dot": "rgb(20 20 20 / 0.06)", "--subject": "#7E5F8C", "--subject-a": "0.62" },
 };
+// 由淡到浓：每格按明暗挑一个
+const GLYPHS = " .:-=+*#%@";
 
-export default function DotMatrix() {
+export default function AsciiClouds() {
     const screen = useRef<HTMLDivElement>(null);
     const canvas = useRef<HTMLCanvasElement>(null);
     const view = useRef<HTMLDivElement>(null);
@@ -38,15 +40,18 @@ export default function DotMatrix() {
             for (const [k, v] of Object.entries(THEME[dark ? "dark" : "light"])) el.style.setProperty(k, v);
         };
         paint();
-        const s = makeStage(canvas.current!, { scene: "day", box: view.current, pointer: el, cell: 7, dot: 0.45, fps: 30, period: 12000 });
+        const s = makeStage(canvas.current!, { scene: "day", box: view.current, pointer: el, cell: 8, glyphs: GLYPHS, fps: 30, period: 12000 });
         stage.current = s;
+        // 字是用网站的等宽字体画进一张小图的，字体晚到了要重画一遍
+        let alive = true;
+        document.fonts.load('500 16px "DM Mono"').then(() => { if (alive) s.relayout(); }, () => {});
         // 换主题：顶栏的按钮改 <html data-theme>，跟随系统时看 prefers-color-scheme
         const retheme = () => { paint(); s.refresh(); };
         const mo = new MutationObserver(retheme);
         mo.observe(document.documentElement, { attributes: true, attributeFilter: ["data-theme"] });
         const mq = matchMedia("(prefers-color-scheme: dark)");
         mq.addEventListener("change", retheme);
-        return () => { mo.disconnect(); mq.removeEventListener("change", retheme); s.destroy(); stage.current = null; };
+        return () => { alive = false; mo.disconnect(); mq.removeEventListener("change", retheme); s.destroy(); stage.current = null; };
     }, []);
 
     const pick = (next: Sky) => { stage.current?.set(next); setSky(next); };
@@ -76,12 +81,12 @@ export default function DotMatrix() {
     };
 
     return (
-        <div className="lab-root dot-matrix">
+        <div className="lab-root ascii-clouds">
             <div className="screen" ref={screen} data-over={over || undefined}
                 onDragOver={e => { e.preventDefault(); setOver(true); }}
                 onDragLeave={e => { if (!e.currentTarget.contains(e.relatedTarget as Node | null)) setOver(false); }}
                 onDrop={drop}>
-                <canvas className="dots" ref={canvas} role="img" aria-label={`${LABEL[sky]}, drawn in dots`} />
+                <canvas className="glyphs" ref={canvas} role="img" aria-label={`${LABEL[sky]}, drawn in ASCII characters`} />
                 <div className="tabs" role="tablist" aria-label="Sky" onKeyDown={arrows}>
                     {TABS.map((t, i) => (
                         <button key={t.id} role="tab" aria-selected={sky === t.id}
