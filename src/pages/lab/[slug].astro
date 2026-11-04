@@ -1,5 +1,6 @@
 ---
 // 一个实验一页：大一点的舞台，下面是 Prompt（src/labs/<slug>/index.md 头里的 prompt，带一个拷贝按钮）和源码地址，最后是上一个、下一个
+import fs from 'node:fs';
 import { getCollection, type CollectionEntry } from 'astro:content';
 import Base from '../../layouts/Base.astro';
 import LabStage from '../../components/LabStage.astro';
@@ -17,9 +18,12 @@ export async function getStaticPaths() {
 interface Props { lab: CollectionEntry<'labs'>; prev?: CollectionEntry<'labs'>; next?: CollectionEntry<'labs'> }
 const { lab, prev, next } = Astro.props;
 const { title, summary, tags, date, inspiration, prompt } = lab.data;
+// 分享图：tools/og.mjs 截的 public/og/lab/<slug>.png，还没截的用全站那张
+const og = `/og/lab/${lab.id}.png`;
+const image = fs.existsSync(`${process.cwd()}/public${og}`) ? og : undefined;   // 构建在仓库根目录跑
 const when = date.toLocaleDateString('en', { year: 'numeric', month: 'long', timeZone: 'UTC' });
 ---
-<Base title={title} description={summary}>
+<Base title={title} description={summary} image={image}>
   <article class="wrap lab">
     <a class="back mono" href="/#lab"><Icon name="arrow-left" size={14} />Lab</a>
     <header>
