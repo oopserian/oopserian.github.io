@@ -80,6 +80,7 @@ function makeDetail(n = 32) {   // 返回 { data, n }，传给显卡见 create()
 // ---------- 字的图集 ----------
 // 一行 9 格，一格 64 见方（字要转，格子得是正方形），由淡到浓：. : - = + * # % @。每个字按墨迹居中，横线稍微拉宽一点，再描一圈边，笔画粗一点
 const GLYPHS = [".", ":", "-", "=", "+", "*", "#", "%", "@"];
+const HOLES = 16;   // 同时最多几个拨开的洞
 const T = 64;
 function drawAtlas(c) {
   const g = c.getContext("2d");
@@ -143,8 +144,8 @@ const CLOUD_FS = /* glsl */ `
   uniform vec3 uSun, uSunCol, uZenith, uMid, uHorizon, uGlow, uAmbTop, uAmbBot;
   uniform float uDisc;
   uniform vec3 uDScale, uDOff;      // 细节噪声的缩放、这一刻的偏移（跟着风走，一圈正好整数个周期）
-  uniform vec4 uHole[8];            // 拨开的洞：从镜头看过去的方向 xyz，过了几秒（< 0 是没有）
-  uniform float uHoleR[8];          // 洞的半径（视线偏开多少弧度）
+  uniform vec4 uHole[${HOLES}];     // 拨开的洞：从镜头看过去的方向 xyz，过了几秒（< 0 是没有）
+  uniform float uHoleR[${HOLES}];   // 洞的半径（视线偏开多少弧度）
   const float BASE = 1.0, TOP = 2.6, TMAX = 70.0;
   ${NOISE}
   vec3 sky(vec3 rd) {
@@ -166,7 +167,7 @@ const CLOUD_FS = /* glsl */ `
     // 半径先一下子张开、再慢慢缩回去（JS 里算好传进来），像云又流回来
     float cut = 0.0, rag = -1.0;
     vec3 pn = normalize(p);
-    for (int i = 0; i < 8; i++) {
+    for (int i = 0; i < ${HOLES}; i++) {
       float r = uHoleR[i];
       if (uHole[i].w < 0.0 || r < 0.002) continue;
       float th = sqrt(2.0 * max(1.0 - dot(pn, uHole[i].xyz), 0.0));
@@ -292,7 +293,7 @@ function create(canvas, { period = 12000, cell = 8, fps = 30 } = {}) {
 
   // 拨开的洞：在天上的位置（跟着风飘），每帧换算成从镜头看过去的方向和过了几秒、半径
   const HOLE_LIFE = 3.6;   // 一个洞从张开到合上几秒
-  const holes = new Float32Array(32).fill(-1), holeR = new Float32Array(8).fill(0.1), holeAt = new Array(8).fill(-1e9), holeP = Array.from({ length: 8 }, () => [0, 0, 0]);
+  const holes = new Float32Array(HOLES * 4).fill(-1), holeR = new Float32Array(HOLES).fill(0.1), holeAt = new Array(HOLES).fill(-1e9), holeP = Array.from({ length: HOLES }, () => [0, 0, 0]);
   let sceneRT = null, cols = 1, rows = 1;
 
   const atlasCanvas = document.createElement("canvas");
@@ -326,21 +327,22 @@ function create(canvas, { period = 12000, cell = 8, fps = 30 } = {}) {
     const d = [0, 1, 2].map((i) => camF[i] + camR[i] * nx + camU[i] * ny), l = Math.hypot(...d);
     return d.map((v) => v / l);
   };
-  // 拨开一个洞：记下视线在云层中间的那一点，之后这一点跟着风飘，洞也跟着走。移动时每走 40px 或者每 120ms 一个，最多同时 8 个
+  // 拨开一个洞：记下视线在云层中间的那一点，之后这一点跟着风飘，洞也跟着走。移动时每走 56px 或者每 160ms 一个，最多同时 HOLES 个，
+  // 一口气划过整块舞台也够用，划过的沟不会从头上一下子合上
   let slot = 0, lastX = -1e9, lastY = -1e9, lastAt = -1e9;
   function part(x, y) {
     const d = ray(x, y);
     if (d[1] < 0.01) return;
     const t = Math.min(1.8 / d[1], 65);
     holeP[slot] = d.map((v) => v * t);
-    holeAt[slot] = performance.now(); slot = (slot + 1) % 8;
+    holeAt[slot] = performance.now(); slot = (slot + 1) % HOLES;
     paint(true);
   }
   const at = (e) => { const b = canvas.getBoundingClientRect(); return [e.clientX - b.left, e.clientY - b.top]; };
   const onMove = (e) => {
     if (still || !W) return;
     const [x, y] = at(e), now = performance.now(), moved = Math.hypot(x - lastX, y - lastY);
-    if (moved < 6 || (moved < 40 && now - lastAt < 120)) return;
+    if (moved < 6 || (moved < 56 && now - lastAt < 160)) return;
     lastX = x; lastY = y; lastAt = now;
     part(x, y);
   };
@@ -352,7 +354,7 @@ function create(canvas, { period = 12000, cell = 8, fps = 30 } = {}) {
     raf = 0;
     if (dead || !W || !sceneRT) return;
     let busy = false;
-    for (let k = 0; k < 8; k++) {
+    for (let k = 0; k < HOLES; k++) {
       const age = (now - holeAt[k]) / 1000, on = age >= 0 && age < HOLE_LIFE, p = holeP[k];
       if (on) {
         const x = p[0] + wind[0] * age, y = p[1], z = p[2] + wind[1] * age, l = Math.hypot(x, y, z);   // 洞跟着风飘
