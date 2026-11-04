@@ -1,4 +1,4 @@
-/* 字符画（ASCII）叠在 Three.js 画的海浪上。每帧两步：
+/* 用字符画（ASCII）画的海浪。Three.js 画的海只在离屏图里当底稿，屏幕上只有字。每帧两步：
 
      1. 海（scene）：画到一张离屏的图上（带 mipmap）。
         先画天：从地平线的雾白（夜里是深蓝）渐到天顶，前方低低的一个太阳（深色主题是月亮），外面一圈光晕。
@@ -6,20 +6,21 @@
         浪顶尖、浪谷平，波峰被挤到一起的地方（雅可比行列式变小）起白沫。
         每个像素再叠 8 道细碎的小波只改法线，太阳的倒影被打碎成一条闪光的路。
         颜色 = 海水本色（浪顶透一点青）和天的倒影按菲涅耳混合，越远越被雾吞掉。
-     2. 合成（composite）：Waves 模式直接显示海；ASCII 模式把画面切成 8×14 的格子，每格取海的平均亮度挑一个字
-        （. - ~ = + * # % @ 由淡到浓），字的颜色是这一格的颜色提亮，叠在海上，海本身只压暗一点，照样看得见。
-        两种模式换的时候从左往右扫过去。
+     2. 合成（composite）：把画面切成 6×10 的格子，每格取海的平均亮度挑一个字（. - ~ = + * # % @ 由淡到浓），
+        字带着这一格的颜色。画布是透明的，字以外露出网页自己的底色，所以铺满整块也跟网站接得上。
+        两种主题都是越亮的格子字越浓（太阳、月亮和反光那条路最浓），浅色主题把字的颜色压深：
+        跟 ASCII Clouds 一样按色调挑字，不按跟底色的对比挑，白底上的太阳才是一团字，而不是一个洞。
 
    鼠标、手指划过海面：从画面上那一点往海面投一条线，落点激起一圈往外扩的涟漪，两三秒后平下去。
 
    所有会动的都是 t（一圈 period 毫秒）的函数：每道波一圈正好走整数个周期（按深水的色散关系挑最近的整数），
    所以一圈以后海面正好回到原样，录出来的视频首尾接得上。
 
-   省着画：平时每秒 30 帧，有涟漪、换模式的那一会儿跟着屏幕刷新；滚出屏幕、切到别的标签页就停；
+   省着画：平时每秒 30 帧，有涟漪的那一会儿跟着屏幕刷新；滚出屏幕、切到别的标签页就停；
    系统开了「减弱动态效果」，或者显卡是 CPU 模拟的（没有能用的显卡、无头浏览器，画一帧要上百毫秒），只画一帧不动的，也不跟着鼠标动。
 
      const w = create(canvas, { period: 12000 });
-     w.setMode("ascii" | "waves");   // 从左往右扫过去
+     w.splash();                     // 在海面正中间激起一圈涟漪（键盘用）
      w.refresh();                    // 换了主题以后调：浅色是白天，深色是月夜
      w.destroy();                    // 不用了：停下、摘掉监听、释放显存 */
 import * as THREE from "three";
@@ -41,16 +42,17 @@ function softwareGL(gl) {
 // ---------- 两套光 ----------
 // 浅色主题是白天：太阳低低地挂在正前方偏右，海是深蓝，浪顶透青；深色主题是月夜：月亮偏左，天和海都压到很暗，只剩月光那条路
 const LOOKS = {
-  // ink：ASCII 那层怎么按亮度挑字。海上亮度 lo~hi 铺满由淡到浓的字；天上只有比 sky 还亮的地方（太阳、月亮和它的光晕）才有字
+  // ink：怎么按亮度挑字。海上亮度从 sea[0] 到 sea[1] 铺满由淡到浓的字，天上从 sky[0] 到 sky[1]（只有太阳、月亮那一圈够亮）；
+  // invert 是 1 时改成按「多暗」挑（现在两套都不用）；lift 是字的颜色往白里提多少（深色）或往深里压多少（浅色）
   day: {
     zenith: [0.3, 0.5, 0.74], horizon: [0.8, 0.84, 0.87], sun: [1.0, 0.93, 0.8], sunDir: [0.2, 0.075, -1],
     deep: [0.02, 0.13, 0.22], scatter: [0.06, 0.36, 0.42], foam: [0.92, 0.95, 0.96], disc: 0.99965, glow: 0.8,
-    ink: [0.06, 0.42, 0.86, 0.14],
+    ink: { invert: 0, sea: [0.05, 0.45], sky: [0.82, 1.0], lift: 0.45 },
   },
   night: {
     zenith: [0.015, 0.025, 0.06], horizon: [0.09, 0.115, 0.18], sun: [0.85, 0.9, 1.0], sunDir: [-0.24, 0.1, -1],
     deep: [0.004, 0.012, 0.024], scatter: [0.03, 0.09, 0.14], foam: [0.42, 0.48, 0.56], disc: 0.99978, glow: 0.6,
-    ink: [0.01, 0.16, 0.15, 0.5],
+    ink: { invert: 0, sea: [0.0, 0.12], sky: [0.13, 0.6], lift: 0.5 },
   },
 };
 
@@ -213,28 +215,24 @@ const COMP_FS = /* glsl */ `
   uniform sampler2D uScene, uAtlas;
   uniform vec2 uRes, uCell;         // 画布、一格，设备像素
   uniform float uLod, uN;
-  uniform vec4 uInk;                // 海上亮度 lo、hi，天上从多亮开始有字、到多亮最浓
-  uniform float uFrom, uTo, uP;     // 换模式：0 海、1 ASCII，uP 是扫到哪了（0~1）
-  uniform float uDark;
+  uniform vec4 uInk;                // 海上从 x 到 y 铺满由淡到浓的字，天上从 z 到 w
+  uniform float uInvert, uLift, uLight;
   float hash(vec2 p) { return fract(sin(dot(p, vec2(12.9898, 78.233))) * 43758.5453); }
   void main() {
     vec2 fc = vec2(gl_FragCoord.x, uRes.y - gl_FragCoord.y);     // 左上角是原点
-    vec3 base = texture(uScene, vUv).rgb;
     vec2 cell = floor(fc / uCell), c0 = (cell + 0.5) * uCell / uRes;
-    vec4 avg = textureLod(uScene, vec2(c0.x, 1.0 - c0.y), uLod);
+    vec4 avg = textureLod(uScene, vec2(c0.x, 1.0 - c0.y), uLod);  // 这一格海的平均色，a：1 是近处的海，0 是天
     vec3 col = avg.rgb;
     float lum = dot(col, vec3(0.299, 0.587, 0.114));
-    // 亮度挑字：海上按 lo~hi 铺满；天上（a 小）只有太阳、月亮那一圈有字，一大片天保持干净
-    float sea = (lum - uInk.x) / (uInk.y - uInk.x), sky = (lum - uInk.z) / uInk.w;
-    float lv = clamp(mix(sky, sea, avg.a) + (hash(cell) - 0.5) * 0.1, 0.0, 0.999);
+    float v = mix(lum, 1.0 - lum, uInvert);
+    float sea = (v - uInk.x) / (uInk.y - uInk.x), sky = (v - uInk.z) / (uInk.w - uInk.z);
+    float lv = clamp(mix(sky, sea, avg.a) + (hash(cell) - 0.5) * 0.08, 0.0, 0.999);   // 每格抖一点，字的分界不排成带子
     float gi = floor(lv * uN);
     vec2 loc = (fc - cell * uCell) / uCell;
     float ink = texture(uAtlas, vec2((gi + clamp(loc.x, 0.02, 0.98)) / uN, 1.0 - loc.y)).r;
-    // 字的颜色：这一格的颜色往白里提；海本身只压暗一点，照样看得见
-    vec3 gc = col + (1.0 - col) * mix(0.55, 0.62, uDark);
-    vec3 ascii = mix(base * mix(0.78, 0.72, uDark), gc, ink * 0.95);
-    float k = clamp((uP * 1.25 - vUv.x) / 0.25, 0.0, 1.0);
-    o = vec4(mix(base, ascii, mix(uFrom, uTo, k)), 1.0);
+    // 字的颜色：深色往白里提，浅色往深里压，在网页的底色上都看得清
+    vec3 gc = mix(col + (1.0 - col) * uLift, col * (1.0 - uLift), uLight);
+    o = vec4(gc * ink, ink);   // 预乘过的透明度：字以外是透明的
   }
 `;
 
@@ -243,10 +241,11 @@ const COMP_FS = /* glsl */ `
  * @param {HTMLCanvasElement} canvas
  * @param {{ period?: number, cell?: [number, number], fps?: number }} [opts]
  */
-function create(canvas, { period = 12000, cell = [8, 14], fps = 30 } = {}) {
+function create(canvas, { period = 12000, cell = [6, 10], fps = 30 } = {}) {
   // 没有 WebGL2 时 three 会抛错，交给调用的人接
-  const renderer = new THREE.WebGLRenderer({ canvas, antialias: false, alpha: false, powerPreference: "high-performance" });
+  const renderer = new THREE.WebGLRenderer({ canvas, antialias: false, alpha: true, premultipliedAlpha: true, powerPreference: "high-performance" });
   renderer.autoClear = false;
+  renderer.setClearColor(0x000000, 0);
   const software = softwareGL(renderer.getContext());
   const motion = matchMedia("(prefers-reduced-motion: reduce)");
   let still = motion.matches || software;
@@ -313,21 +312,20 @@ function create(canvas, { period = 12000, cell = [8, 14], fps = 30 } = {}) {
   atlas.minFilter = THREE.LinearMipmapLinearFilter; atlas.magFilter = THREE.LinearFilter; atlas.generateMipmaps = true;
   const compMat = new THREE.RawShaderMaterial({
     glslVersion: THREE.GLSL3, vertexShader: QUAD_VS, fragmentShader: COMP_FS, depthTest: false, depthWrite: false,
-    uniforms: { uScene: { value: null }, uAtlas: { value: atlas }, uInk: { value: new THREE.Vector4() }, uRes: { value: new THREE.Vector2(1, 1) }, uCell: { value: new THREE.Vector2(cell[0], cell[1]) },
-      uLod: { value: 3 }, uN: { value: GLYPHS.length }, uFrom: { value: 1 }, uTo: { value: 1 }, uP: { value: 1 }, uDark: { value: 1 } },
+    uniforms: { uScene: { value: null }, uAtlas: { value: atlas }, uInk: { value: new THREE.Vector4() }, uInvert: { value: 0 }, uLift: { value: 0.5 }, uLight: { value: 0 },
+      uRes: { value: new THREE.Vector2(1, 1) }, uCell: { value: new THREE.Vector2(cell[0], cell[1]) }, uLod: { value: 3 }, uN: { value: GLYPHS.length } },
   });
   const compScene = pass(compMat);
 
-  let W = 0, H = 0, dpr = 1, mode = "ascii", sw = { t0: -1e9, from: 1, to: 1 }, raf = 0, visible = true, last = -1e9, dead = false;
-  const SWEEP = 900;
+  let W = 0, H = 0, dpr = 1, raf = 0, visible = true, last = -1e9, dead = false;
 
   function readTheme() {
     const dark = getComputedStyle(canvas).colorScheme.includes("dark"), L = LOOKS[dark ? "night" : "day"];
     look.uZenith.value.fromArray(L.zenith); look.uHorizon.value.fromArray(L.horizon); look.uSun.value.fromArray(L.sun);
     look.uSunDir.value.fromArray(L.sunDir).normalize(); look.uDisc.value = L.disc; look.uGlow.value = L.glow;
     seaMat.uniforms.uDeep.value.fromArray(L.deep); seaMat.uniforms.uScatter.value.fromArray(L.scatter); seaMat.uniforms.uFoam.value.fromArray(L.foam);
-    compMat.uniforms.uDark.value = dark ? 1 : 0;
-    compMat.uniforms.uInk.value.fromArray(L.ink);
+    compMat.uniforms.uInk.value.set(L.ink.sea[0], L.ink.sea[1], L.ink.sky[0], L.ink.sky[1]);
+    compMat.uniforms.uInvert.value = L.ink.invert; compMat.uniforms.uLift.value = L.ink.lift; compMat.uniforms.uLight.value = dark ? 0 : 1;
   }
   function relayout() {
     W = canvas.clientWidth; H = canvas.clientHeight;
@@ -382,29 +380,19 @@ function create(canvas, { period = 12000, cell = [8, 14], fps = 30 } = {}) {
       rip[k].set(ripP[k][0], ripP[k][1], age, on ? 1 : 0);
       if (on) busy = true;
     }
-    const p = Math.min(1, Math.max(0, (now - sw.t0) / SWEEP)), e = p < 0.5 ? 4 * p * p * p : 1 - Math.pow(-2 * p + 2, 3) / 2;
-    if (p < 1) busy = true;
-    // 平时每秒 fps 帧；有涟漪、换模式时每帧都画，跟得上手
+    // 平时每秒 fps 帧；有涟漪时每帧都画，跟得上手
     if (!still && !busy && now - last < 1000 / fps - 2) { schedule(); return; }
     last = now;
     const u = still ? 0.05 : (((now % period) + period) % period) / period;   // 不动时停在跟封面差不多的那一刻
     uT.value = (u * period) / 1000;
-    compMat.uniforms.uFrom.value = sw.from; compMat.uniforms.uTo.value = sw.to; compMat.uniforms.uP.value = e;
     renderer.setRenderTarget(sceneRT); renderer.clear();
     renderer.render(skyScene, flat); renderer.render(seaScene, cam);
-    renderer.setRenderTarget(null); renderer.render(compScene, flat);
+    renderer.setRenderTarget(null); renderer.clear(); renderer.render(compScene, flat);
     if (!still || busy) schedule();
   }
   function schedule() { if (!raf && !dead && visible && !document.hidden) raf = requestAnimationFrame(frame); }
-  // force：马上画这一帧，不等限帧（尺寸、主题、模式变了）
+  // force：马上画这一帧，不等限帧（尺寸、主题变了）
   function paint(force = false) { if (force) last = -1e9; schedule(); }
-
-  function setMode(m, animate = true) {
-    if (m === mode && animate) return;
-    sw = { t0: animate && !still ? performance.now() : -1e9, from: mode === "ascii" ? 1 : 0, to: m === "ascii" ? 1 : 0 };
-    mode = m;
-    paint(true);
-  }
 
   const io = new IntersectionObserver(([en]) => { visible = en.isIntersecting; if (visible) paint(true); });
   io.observe(canvas);
@@ -422,9 +410,8 @@ function create(canvas, { period = 12000, cell = [8, 14], fps = 30 } = {}) {
 
   relayout();
   return {
-    setMode,
+    splash() { if (!still && W) splash(W * (0.3 + Math.random() * 0.4), H * (0.7 + Math.random() * 0.15)); },
     refresh() { readTheme(); paint(true); },
-    get mode() { return mode; },
     destroy() {
       dead = true; cancelAnimationFrame(raf); raf = 0;
       io.disconnect(); ro.disconnect();
