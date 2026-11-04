@@ -30,7 +30,7 @@
 import { context, program, fullscreen, target, canvasTexture, softwareGL } from "../_kit/gl.js";
 
 const TAU = Math.PI * 2;
-const TRAIL = 48, TRAIL_LIFE = 4;   // 尾迹最多几个点、一个点留几秒
+const TRAIL = 64, TRAIL_LIFE = 4;   // 尾迹最多几个点、一个点留几秒
 
 const NOISE = /* glsl */ `
   float h21(vec2 p) { p = fract(p * vec2(123.34, 456.21)); p += dot(p, p + 45.32); return fract(p.x * p.y); }
@@ -39,6 +39,20 @@ const NOISE = /* glsl */ `
     return mix(mix(h21(i), h21(i + vec2(1.0, 0.0)), f.x), mix(h21(i + vec2(0.0, 1.0)), h21(i + vec2(1.0, 1.0)), f.x), f.y);
   }
 `;
+
+// 尾迹的点满了：不扔最老的那个（快划时后面一截会一下子没了），而是去掉一个最不影响形状的中间点，
+// 就是跟前后两个点围出的三角形最小的那个（几乎在一条直线上）。一笔的头尾、最新的那个点不动；全是单个的点才扔最老的
+function thin(list, pos, isStart) {
+  let best = 0, least = Infinity;
+  for (let i = 1; i < list.length - 1; i++) {
+    if (isStart(list[i]) || isStart(list[i + 1])) continue;
+    const a = pos(list[i - 1]), b = pos(list[i]), c = pos(list[i + 1]);
+    const u = [b[0] - a[0], b[1] - a[1], b[2] - a[2]], v = [c[0] - a[0], c[1] - a[1], c[2] - a[2]];
+    const area = Math.hypot(u[1] * v[2] - u[2] * v[1], u[2] * v[0] - u[0] * v[2], u[0] * v[1] - u[1] * v[0]);
+    if (area < least) { least = area; best = i; }
+  }
+  list.splice(best, 1);
+}
 
 function rng(seed) { let s = (seed >>> 0) || 1; return () => ((s = (Math.imul(s, 1664525) + 1013904223) >>> 0) / 4294967296); }
 
@@ -119,18 +133,26 @@ const SEA_VS = /* glsl */ `
   // 一笔的尾迹：离这一笔最近的点在 d 米外，那一点是 a 秒前划过的，浪从那里往外推，跑在最前面的一道浪到了 c·a 米。
   // 划得快，c 跟着大，最前面那道浪连起来就是一个 V（船尾的尾迹），夹角跟速度无关；点一下（没划）就是一圈。
   // x 是这一点在最前面那道浪后面多远，浪头陡、往回渐弱；浪头的位置按噪声抖一点，不是一道规整的线
-  void wake(vec2 p, float d, float a, vec2 nd, vec2 ga, float c, float kind, float v, inout float H, inout vec2 G, inout float crest) {
-    if (a > ${TRAIL_LIFE}.0) return;
+  void wake(vec2 p, float d, float a, vec2 nd, vec2 ga, float c, float kind, float v, float cap, inout float H, inout vec2 G, inout float crest) {
+    if (a > ${TRAIL_LIFE}.0 || cap < 0.01) return;
     float x = d - c * a + 0.5 * (vnoise(p * 0.45 + kind * 7.3) - 0.5) * min(a, 1.0) * c;
     float life = exp(-a / 1.3) * smoothstep(0.0, 0.08, a) * (1.0 - smoothstep(${TRAIL_LIFE}.0 - 1.0, ${TRAIL_LIFE}.0, a));
     float lead = exp(-max(x, 0.0) * max(x, 0.0) / 0.08), back = exp(min(x, 0.0) / 1.6);
-    float A = (kind > 1.5 ? 0.5 : mix(0.28, 0.5, smoothstep(2.0, 14.0, v))) * life * lead * back;
+    float A = (kind > 1.5 ? 0.5 : mix(0.28, 0.5, smoothstep(2.0, 14.0, v))) * life * lead * back * cap;
     float k = 3.4, cs = cos(k * x), sn = sin(k * x);
     H += A * cs;
     G += -A * k * sn * (nd - c * ga);           // x 对位置的梯度：离这一笔的方向，减去「沿着这一笔越往后越老」
     // 最前面那道浪的浪尖上挂一线白沫（V 的两条边），一秒多淡掉；
     // 划得慢的地方几乎不挂（慢慢挪的船也没有白浪），点一下的水花挂一圈，到片元着色器里再按噪声打碎
-    crest += exp(-a / 1.2) * smoothstep(0.0, 0.1, a) * exp(-x * x / 0.3) * (kind > 1.5 ? 1.2 : smoothstep(2.0, 10.0, v));
+    crest += exp(-a / 1.2) * smoothstep(0.0, 0.1, a) * exp(-x * x / 0.3) * (kind > 1.5 ? 1.2 : smoothstep(2.0, 10.0, v)) * cap;
+  }
+  // 一笔两头：离这一笔最近的是最新那一点、又在它前面（还没划到的地方），浪几乎不往前推，不然停手时前面会冒出一个半圆；
+  // 开头那一点的后面也淡一些。只有一个点（点一下、刚开始划）的才是一整圈
+  float capOf(int bi, float bt, vec2 dir, vec2 nd, int s0, int last) {
+    if (dot(dir, dir) < 0.5) return 1.0;
+    if (bi == last && bt > 0.999) return 1.0 - 0.95 * smoothstep(0.0, 0.6, dot(nd, dir));
+    if (bi == s0 + 1 && bt < 0.001) return 1.0 - 0.7 * smoothstep(0.0, 0.6, -dot(nd, dir));
+    return 1.0;
   }
   void main() {
     vec2 p = position.xz;
@@ -150,32 +172,34 @@ const SEA_VS = /* glsl */ `
     // 尾迹：一笔一笔地算，每笔只看离这一点最近的那一段（这一笔上的 V 才是连着的一道），几笔叠起来
     float H = 0.0, crest = 0.0, near = 1e4, nearA = 99.0, nearK = 0.0;
     vec2 G = vec2(0.0);
-    float bd = 1e4, ba = 0.0, bc = 0.0, bv = 0.0, bk = 0.0;
-    vec2 bn = vec2(0.0), bg = vec2(0.0);
+    float bd = 1e4, ba = 0.0, bc = 0.0, bv = 0.0, bt = 0.0;
+    vec2 bn = vec2(0.0), bg = vec2(0.0), bdir = vec2(0.0);
     float kind = 0.0;
+    int bi = 0, s0 = 0;                      // 最近的那一段（终点的下标）、这一笔从第几个点开始
     for (int i = 0; i < ${TRAIL}; i++) {
       if (float(i) >= uTrailN) break;
       vec4 B = uTrail[i];
       float kb = floor(B.w / 100.0), sb = B.w - kb * 100.0;
       if (i > 0 && kb > 0.5) {               // 新的一笔：先把上一笔算完
-        wake(p, bd, ba, bn, bg, bc, kind, bv, H, G, crest);
+        wake(p, bd, ba, bn, bg, bc, kind, bv, capOf(bi, bt, bdir, bn, s0, i - 1), H, G, crest);
         if (bd < near) { near = bd; nearA = ba; nearK = kind; }
         bd = 1e4;
       }
-      if (i == 0 || kb > 0.5) kind = max(kb, 1.0);
+      if (i == 0 || kb > 0.5) { kind = max(kb, 1.0); s0 = i; }
       vec4 Aa = (i == 0 || kb > 0.5) ? B : uTrail[max(i - 1, 0)];
       float sa = Aa.w - floor(Aa.w / 100.0) * 100.0;
       vec2 ab = B.xy - Aa.xy; float l2 = dot(ab, ab);
       float t = l2 > 1e-6 ? clamp(dot(p - Aa.xy, ab) / l2, 0.0, 1.0) : 0.0;
       vec2 q = Aa.xy + ab * t, dq = p - q; float dd = length(dq);
-      if (dd < bd) {
+      if (dd <= bd) {                        // 一样近时取后面那段：开头那一点算在第一段的起点上，才知道往哪个方向划
         bd = dd; ba = mix(Aa.z, B.z, t); bn = dq / (dd + 1e-4);
         bg = (t > 0.0 && t < 1.0) ? (B.z - Aa.z) * ab / l2 : vec2(0.0);
         bv = mix(sa, sb, t); bc = kind > 1.5 ? 2.4 : clamp(0.36 * bv, 1.8, 7.0);
+        bi = i; bt = t; bdir = l2 > 1e-6 ? ab * inversesqrt(l2) : vec2(0.0);
       }
     }
     if (bd < 1e3) {
-      wake(p, bd, ba, bn, bg, bc, kind, bv, H, G, crest);
+      wake(p, bd, ba, bn, bg, bc, kind, bv, capOf(bi, bt, bdir, bn, s0, int(uTrailN) - 1), H, G, crest);
       if (bd < near) { near = bd; nearA = ba; nearK = kind; }
     }
     P.y += H; n.xz -= G;
@@ -396,7 +420,7 @@ function create(canvas, { period = 12000, cell = 8, fps = 30 } = {}) {
   }
 
   // 鼠标、手指：从画面上那一点往海面投一条线，落点记进尾迹。划的时候最新的一个点一直跟着手走，
-  // 离上一个记下的点 28px 或者 90ms 就再记一个；停下 250ms 以上、移出画面，再动就是新的一笔。
+  // 离上一个记下的点 28px 或者 90ms 就再记一个；停下 250ms 以上、移出画面、往回掉头，再动就是新的一笔。
   // 点一下单独记一个点（溅起水花），接着拖是从那里开始的新的一笔
   const toSea = (x, y) => {
     const ty = Math.tan((FOV * Math.PI) / 360), nx = ((x / W) * 2 - 1) * ty * (W / H), ny = (1 - (y / H) * 2) * ty;
@@ -406,7 +430,9 @@ function create(canvas, { period = 12000, cell = 8, fps = 30 } = {}) {
     return [EYE[0] + d[0] * t, EYE[2] + d[2] * t];
   };
   let head = null, lastX = 0, lastY = 0, lastAt = -1e9;   // head：这一笔最新的那个点（跟着手走，还没定下来）
-  function push(pt) { trail.push(pt); if (trail.length > TRAIL) trail.shift(); }
+  // 挑点按从镜头看过去的方向算（近处一米占的画面比远处大），远处的点不会因为隔得远就总留着
+  const view = (q) => { const d = [q.x - EYE[0], -EYE[1], q.z - EYE[2]], l = Math.hypot(...d); return d.map((v) => v / l); };
+  function push(pt) { trail.push(pt); if (trail.length > TRAIL) thin(trail, view, (q) => q.kind > 0); }
   function stroke(x, y, now, tap) {
     const q = toSea(x, y);
     if (!q) { head = null; return; }
@@ -418,6 +444,10 @@ function create(canvas, { period = 12000, cell = 8, fps = 30 } = {}) {
       const v = Math.hypot(q[0] - head.x, q[1] - head.z) / Math.max((now - head.t) / 1000, 0.008);
       const prev = trail.length > 1 && trail[trail.length - 1] === head ? trail[trail.length - 2] : null;
       if (Math.hypot(x - lastX, y - lastY) >= 28 || now - lastAt >= 90 || !prev) {   // 定下这一个，往前再开一个
+        // 来回划：掉头的地方断成新的一笔（那一点再记一次当开头），来回几道浪各算各的叠起来，
+        // 不然每处只看最近的那一道，几道之间会有一条接缝
+        const ux = head.x - (prev?.x ?? head.x), uz = head.z - (prev?.z ?? head.z), wx = q[0] - head.x, wz = q[1] - head.z;
+        if (ux * wx + uz * wz < -0.3 * Math.hypot(ux, uz) * Math.hypot(wx, wz)) push({ ...head, kind: 1 });
         head = { x: q[0], z: q[1], t: now, kind: 0, v: 0.6 * Math.min(v, 60) + 0.4 * (prev ? head.v : 0) };
         push(head); lastX = x; lastY = y; lastAt = now;
       } else {                                               // 还没走够，最新的点跟着手挪
