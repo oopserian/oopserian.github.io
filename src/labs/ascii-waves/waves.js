@@ -163,7 +163,7 @@ const SEA_VS = /* glsl */ `
         bd = 1e4;
       }
       if (i == 0 || kb > 0.5) kind = max(kb, 1.0);
-      vec4 Aa = (i == 0 || kb > 0.5) ? B : uTrail[i - 1];
+      vec4 Aa = (i == 0 || kb > 0.5) ? B : uTrail[max(i - 1, 0)];
       float sa = Aa.w - floor(Aa.w / 100.0) * 100.0;
       vec2 ab = B.xy - Aa.xy; float l2 = dot(ab, ab);
       float t = l2 > 1e-6 ? clamp(dot(p - Aa.xy, ab) / l2, 0.0, 1.0) : 0.0;

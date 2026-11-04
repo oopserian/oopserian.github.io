@@ -15,14 +15,16 @@
         浅色主题是白天：太阳在身后，蓝天白云，字照 ASCII Waves 的规矩按浓淡上墨，越浓墨越深，云是一团深蓝的字，不是白底上的洞。
         画布是透明的，字以外露出网页自己的底色，所以铺满整块也跟网站接得上。
 
-   鼠标、手指划过：从画面上那一点往天上打一条线，在它穿进云层的地方把云拨开一个洞，洞跟着风飘，三四秒后合上；划过去是一道沟。
+   鼠标、手指划过：从画面上那一点往天上打一条线，落在云层中间的点连成一笔，跟着风飘。这一笔把云拨开一道沟，跟着划的路线拐弯：
+   沟边参差，靠边留几块被打散的碎云，沟外一圈的云被推得更浓；合上时鼓起来的那一团团先长回来，一缕一缕地填满，四秒后看不出来。
+   点一下拨开的是一块不规则的。
 
    所有会动的都是 t（一圈 period 毫秒）的函数，录出来的视频首尾接得上。
-   省着画：平时每秒 30 帧，有洞的那一会儿跟着屏幕刷新；滚出屏幕、切到别的标签页就停；
+   省着画：平时每秒 30 帧，有沟的那一会儿跟着屏幕刷新；滚出屏幕、切到别的标签页就停；
    系统开了「减弱动态效果」，或者显卡是 CPU 模拟的（没有能用的显卡、无头浏览器），只画一帧不动的，也不跟着鼠标动。
 
      const c = create(canvas, { period: 12000 });
-     c.splash();                     // 在云上随便一处拨开一个洞（键盘用）
+     c.splash();                     // 在云上随便一处拨开一块（键盘用）
      c.refresh();                    // 换了主题以后调：白天、黄昏换过来
      c.destroy();                    // 不用了：停下、摘掉监听、释放显存 */
 import { context, program, fullscreen, target, canvasTexture, softwareGL } from "../_kit/gl.js";
@@ -80,7 +82,7 @@ function makeDetail(n = 32) {   // 返回 { data, n }，传给显卡见 create()
 // ---------- 字的图集 ----------
 // 一行 9 格，一格 64 见方（字要转，格子得是正方形），由淡到浓：. : - = + * # % @。每个字按墨迹居中，横线稍微拉宽一点，再描一圈边，笔画粗一点
 const GLYPHS = [".", ":", "-", "=", "+", "*", "#", "%", "@"];
-const HOLES = 16;   // 同时最多几个拨开的洞
+const GROOVE = 48, GROOVE_LIFE = 4;   // 拨开的沟最多记几个点、一个点留几秒
 const T = 64;
 function drawAtlas(c) {
   const g = c.getContext("2d");
@@ -144,9 +146,11 @@ const CLOUD_FS = /* glsl */ `
   uniform vec3 uSun, uSunCol, uZenith, uMid, uHorizon, uGlow, uAmbTop, uAmbBot;
   uniform float uDisc;
   uniform vec3 uDScale, uDOff;      // 细节噪声的缩放、这一刻的偏移（跟着风走，一圈正好整数个周期）
-  uniform vec4 uHole[${HOLES}];     // 拨开的洞：从镜头看过去的方向 xyz，过了几秒（< 0 是没有）
-  uniform float uHoleR[${HOLES}];   // 洞的半径（视线偏开多少弧度）
+  uniform vec4 uGroove[${GROOVE}];  // 拨开的沟：手划过的一串点，由旧到新。从镜头看过去的方向 xyz、过了几秒
+  uniform float uGrooveR[${GROOVE}]; // 那一点沟有多宽（视线偏开多少弧度）；负的是一笔的开头
+  uniform float uGrooveN;           // 有几个点
   const float BASE = 1.0, TOP = 2.6, TMAX = 70.0;
+  float gCut = 0.0, gRim = 0.0;     // 这条视线上的云被拨掉多少、沟边堆起来多少
   ${NOISE}
   vec3 sky(vec3 rd) {
     float e = clamp(rd.y, 0.0, 1.0);
@@ -163,23 +167,40 @@ const CLOUD_FS = /* glsl */ `
     if (fine) d -= (1.0 - texture(uDetail, p * uDScale + uDOff).r) * 0.34;
     d = clamp(d * 4.0, 0.0, 1.0);
     if (d <= 0.0) return 0.0;
-    // 拨开的洞：从镜头看过去，那个方向附近一圈的云都推开，透出后面的天。洞的边按细一点的噪声咬得参差，不是正圆；
-    // 半径先一下子张开、再慢慢缩回去（JS 里算好传进来），像云又流回来
-    float cut = 0.0, rag = -1.0;
-    vec3 pn = normalize(p);
-    for (int i = 0; i < ${HOLES}; i++) {
-      float r = uHoleR[i];
-      if (uHole[i].w < 0.0 || r < 0.002) continue;
-      float th = sqrt(2.0 * max(1.0 - dot(pn, uHole[i].xyz), 0.0));
-      if (th > r * 1.7) continue;
-      if (rag < 0.0) rag = 0.6 + 0.8 * texture(uDetail, (p * uDScale + uDOff) * 3.0).r;   // 离洞近才取，平时不多花
-      cut = max(cut, 1.0 - smoothstep(r * 0.5, r, th * rag));
-    }
-    return d * (1.0 - cut);
+    // 拨开的沟：每个像素算好一次（gCut、gRim，见 main），一条视线上处处一样
+    d *= (1.0 - gCut) * (1.0 + 0.9 * gRim);
+    return d;
   }
   void main() {
     vec2 ndc = vUv * 2.0 - 1.0;
     vec3 rd = normalize(uF + uR * ndc.x * uTan.x + uUp * ndc.y * uTan.y);
+    // 离最近那道沟多远：每一笔是一串点连成的折线（方向球面上），看这条视线离哪一段最近，按那里的宽度算（gRho，1 是沟边）
+    float gRho = 1e3, gAge = 0.0;
+    for (int i = 0; i < ${GROOVE}; i++) {
+      if (float(i) >= uGrooveN) break;
+      vec4 B = uGroove[i]; float rb = uGrooveR[i];
+      bool start = i == 0 || rb < 0.0;
+      vec4 A = start ? B : uGroove[max(i - 1, 0)];
+      float ra = abs(start ? rb : uGrooveR[max(i - 1, 0)]); rb = abs(rb);
+      vec3 ab = B.xyz - A.xyz; float l2 = dot(ab, ab);
+      float t = l2 > 1e-9 ? clamp(dot(rd - A.xyz, ab) / l2, 0.0, 1.0) : 0.0;
+      float r = mix(ra, rb, t);
+      if (r < 0.002) continue;
+      float rho = length(rd - normalize(A.xyz + ab * t)) / r;
+      if (rho < gRho) { gRho = rho; gAge = mix(A.w, B.w, t); }
+    }
+    // 沟边按两层噪声（大团的 nb、细碎的 nf）咬得参差，沟里靠边的地方留几块被打散的碎云；沟边外面一圈的云更浓，像被推到两边堆起来。
+    // 合上时不是沟边整齐地往里收，而是噪声高的（鼓起来的那一团团）先长回来，一缕一缕地填满。
+    // 噪声取视线穿过云层中间（1.8 公里高）那一点的，跟着风走；沿着视线取的话一条线上几十公里一平均，沟边就又是光滑的了
+    if (gRho < 2.2) {
+      vec3 dp = rd * min(1.8 / max(rd.y, 0.01), 65.0) * uDScale + uDOff;
+      float nb = texture(uDetail, dp * 0.7).r, nf = texture(uDetail, dp * 2.2).r, n = 0.55 * nb + 0.45 * nf;
+      float q = gRho * (0.45 + 0.8 * nb + 0.3 * nf);
+      float fill = 1.25 * smoothstep(0.8, ${GROOVE_LIFE}.0, gAge);
+      gCut = (1.0 - smoothstep(0.7, 1.0, q)) * (1.0 - smoothstep(1.0 - fill, 1.25 - fill, n));
+      gCut *= 1.0 - 0.9 * smoothstep(0.68, 0.82, nf) * smoothstep(0.35, 0.8, q);   // 碎云
+      gRim = exp(-(q - 1.12) * (q - 1.12) / 0.04) * (1.0 - fill / 1.25) * smoothstep(0.0, 0.3, gAge);
+    }
     vec3 col = vec3(0.0); float Tr = 1.0;
     if (rd.y > 0.002) {
       float t0 = BASE / rd.y, t1 = min(TOP / rd.y, TMAX);
@@ -291,9 +312,8 @@ function create(canvas, { period = 12000, cell = 8, fps = 30 } = {}) {
   gl.texParameteri(gl.TEXTURE_3D, gl.TEXTURE_MIN_FILTER, gl.LINEAR);
   gl.texParameteri(gl.TEXTURE_3D, gl.TEXTURE_MAG_FILTER, gl.LINEAR);
 
-  // 拨开的洞：在天上的位置（跟着风飘），每帧换算成从镜头看过去的方向和过了几秒、半径
-  const HOLE_LIFE = 3.6;   // 一个洞从张开到合上几秒
-  const holes = new Float32Array(HOLES * 4).fill(-1), holeR = new Float32Array(HOLES).fill(0.1), holeAt = new Array(HOLES).fill(-1e9), holeP = Array.from({ length: HOLES }, () => [0, 0, 0]);
+  // 拨开的沟：手划过的一串点，记的是视线在云层中间（1.8 公里高）的那一点，之后跟着风飘；每帧换算成从镜头看过去的方向、过了几秒、沟有多宽
+  const groove = [], grooveU = new Float32Array(GROOVE * 4), grooveR = new Float32Array(GROOVE);
   let sceneRT = null, cols = 1, rows = 1;
 
   const atlasCanvas = document.createElement("canvas");
@@ -327,45 +347,46 @@ function create(canvas, { period = 12000, cell = 8, fps = 30 } = {}) {
     const d = [0, 1, 2].map((i) => camF[i] + camR[i] * nx + camU[i] * ny), l = Math.hypot(...d);
     return d.map((v) => v / l);
   };
-  // 拨开一个洞：记下视线在云层中间的那一点，之后这一点跟着风飘，洞也跟着走。移动时每走 56px 或者每 160ms 一个，最多同时 HOLES 个，
-  // 一口气划过整块舞台也够用，划过的沟不会从头上一下子合上
-  let slot = 0, lastX = -1e9, lastY = -1e9, lastAt = -1e9;
-  function part(x, y) {
-    const d = ray(x, y);
-    if (d[1] < 0.01) return;
-    const t = Math.min(1.8 / d[1], 65);
-    holeP[slot] = d.map((v) => v * t);
-    holeAt[slot] = performance.now(); slot = (slot + 1) % HOLES;
+  // 鼠标、手指：划的时候最新的一个点一直跟着手走，离上一个记下的点 40px 或者 120ms 就再记一个，连成一道沟；
+  // 停下 250ms 以上、移出画面，再动就是新的一笔。点一下单独记一个点，拨开的是一块（宽一点）
+  let head = null, lastX = 0, lastY = 0, lastAt = -1e9;
+  const inCloud = (x, y) => { const d = ray(x, y); if (d[1] < 0.01) return null; const t = Math.min(1.8 / d[1], 65); return d.map((v) => v * t); };
+  function push(pt) { groove.push(pt); if (groove.length > GROOVE) groove.shift(); }
+  function part(x, y, now, tap) {
+    const p = inCloud(x, y);
+    if (!p) { head = null; return; }
+    const r0 = (tap ? 0.13 : 0.085) * (0.85 + 0.3 * Math.random());   // 每一点宽窄差一点，沟边不是两条平行线
+    if (tap) { push({ p, t: now, r0, start: true }); head = null; }
+    else if (!head || now - head.t > 250) { head = { p, t: now, r0, start: true }; push(head); lastX = x; lastY = y; lastAt = now; }
+    else if (Math.hypot(x - lastX, y - lastY) >= 40 || now - lastAt >= 120 || groove[groove.length - 1] !== head || head.start) {
+      head = { p, t: now, r0, start: false }; push(head); lastX = x; lastY = y; lastAt = now;
+    } else Object.assign(head, { p, t: now });
     paint(true);
   }
   const at = (e) => { const b = canvas.getBoundingClientRect(); return [e.clientX - b.left, e.clientY - b.top]; };
-  const onMove = (e) => {
-    if (still || !W) return;
-    const [x, y] = at(e), now = performance.now(), moved = Math.hypot(x - lastX, y - lastY);
-    if (moved < 6 || (moved < 56 && now - lastAt < 160)) return;
-    lastX = x; lastY = y; lastAt = now;
-    part(x, y);
-  };
-  const onDown = (e) => { if (still || !W) return; const [x, y] = at(e); lastX = x; lastY = y; lastAt = performance.now(); part(x, y); };
+  const onMove = (e) => { if (still || !W) return; const [x, y] = at(e); part(x, y, performance.now(), false); };
+  const onDown = (e) => { if (still || !W) return; const [x, y] = at(e); part(x, y, performance.now(), true); };
+  const onLeave = () => { head = null; };
   canvas.addEventListener("pointermove", onMove);
   canvas.addEventListener("pointerdown", onDown);
+  canvas.addEventListener("pointerleave", onLeave);
 
   function frame(now) {
     raf = 0;
     if (dead || !W || !sceneRT) return;
-    let busy = false;
-    for (let k = 0; k < HOLES; k++) {
-      const age = (now - holeAt[k]) / 1000, on = age >= 0 && age < HOLE_LIFE, p = holeP[k];
-      if (on) {
-        const x = p[0] + wind[0] * age, y = p[1], z = p[2] + wind[1] * age, l = Math.hypot(x, y, z);   // 洞跟着风飘
-        holes.set([x / l, y / l, z / l, age], k * 4);
-        // 0.3 秒张开到半径 7°，停一会儿，再用两秒多慢慢合上
-        const open = Math.min(1, age / 0.3) ** 0.5, t = Math.min(1, Math.max(0, (age - 1.1) / (HOLE_LIFE - 1.1)));
-        holeR[k] = 0.125 * open * (1 - t * t * (3 - 2 * t));
-        busy = true;
-      } else holes[k * 4 + 3] = -1;
-    }
-    // 平时每秒 fps 帧；有洞时每帧都画，跟得上手
+    // 沟：过了 GROOVE_LIFE 秒的点扔掉，剩下的跟着风飘，换算成方向传给着色器。
+    // 宽度 0.2 秒张开，之后沟边只往里收一点，真正合上靠着色器里一缕一缕地长回来
+    while (groove.length && (now - groove[0].t) / 1000 >= GROOVE_LIFE) groove.shift();
+    if (!groove.length) head = null;
+    groove.forEach((g, i) => {
+      const age = Math.max(0, (now - g.t) / 1000), x = g.p[0] + wind[0] * age, y = g.p[1], z = g.p[2] + wind[1] * age, l = Math.hypot(x, y, z);
+      const s = Math.min(1, Math.max(0, (age - 1.2) / (GROOVE_LIFE - 1.2)));
+      const r = g.r0 * Math.min(1, age / 0.2) ** 0.5 * (1 - 0.3 * s * s * (3 - 2 * s));
+      grooveU.set([x / l, y / l, z / l, age], i * 4);
+      grooveR[i] = i === 0 || g.start ? -Math.max(r, 1e-4) : r;
+    });
+    const busy = groove.length > 0;
+    // 平时每秒 fps 帧；有沟时每帧都画，跟得上手
     if (!still && !busy && now - last < 1000 / fps - 2) { schedule(); return; }
     last = now;
     const u = still ? 0.3 : (((now % period) + period) % period) / period;   // 不动时停在云多一点的那一刻
@@ -378,7 +399,7 @@ function create(canvas, { period = 12000, cell = 8, fps = 30 } = {}) {
       uF: camF, uR: camR, uUp: camU, uTan: [tanY * (cols / rows), tanY],
       uSun: sunDir(), uSunCol: sky.sunCol, uZenith: sky.zenith, uMid: sky.mid, uHorizon: sky.horizon, uGlow: sky.glow,
       uAmbTop: sky.ambTop, uAmbBot: sky.ambBot, uDisc: sky.disc,
-      uDScale: dScale, uDOff: [-DRIFT[0] * u * dScale[0], 0, -DRIFT[1] * u * dScale[2]], uHole: holes, uHoleR: holeR,
+      uDScale: dScale, uDOff: [-DRIFT[0] * u * dScale[0], 0, -DRIFT[1] * u * dScale[2]], uGroove: grooveU, uGrooveR: grooveR, uGrooveN: groove.length,
     });
     tri.draw();
     sceneRT.mip();
@@ -414,13 +435,14 @@ function create(canvas, { period = 12000, cell = 8, fps = 30 } = {}) {
 
   relayout();
   return {
-    splash() { if (!still && W) part(W * (0.25 + Math.random() * 0.5), H * (0.2 + Math.random() * 0.5)); },
+    splash() { if (!still && W) part(W * (0.25 + Math.random() * 0.5), H * (0.2 + Math.random() * 0.5), performance.now(), true); },
     refresh() { readTheme(); paint(true); },
     destroy() {
       dead = true; cancelAnimationFrame(raf); raf = 0;
       io.disconnect(); ro.disconnect();
       canvas.removeEventListener("pointermove", onMove);
       canvas.removeEventListener("pointerdown", onDown);
+      canvas.removeEventListener("pointerleave", onLeave);
       document.removeEventListener("visibilitychange", onVis);
       motion.removeEventListener("change", onMotion);
       covRT.dispose(); sceneRT?.dispose(); gl.deleteTexture(detail); atlas.dispose(); tri.dispose();
