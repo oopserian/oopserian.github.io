@@ -1,36 +1,30 @@
-/* 一块圆角的屏，整块是草（WebGL 画的）；左上角换图层，右上角写着有多少根草；底下留出一行提示的地方 */
-.ascii-grass {
+/* 一块圆角的屏，整块是海（WebGL 画的）；左上角换图层；底下留出一行提示的地方 */
+.ascii-waves {
     padding: 16px 16px 36px;
     grid-template-rows: minmax(0, 1fr);
 }
 
-.ascii-grass .screen {
+.ascii-waves .screen {
     position: relative;
     width: 100%;
     max-width: 640px;
     height: 100%;
     overflow: hidden;
     border-radius: var(--lab-r-lg);
-    background: light-dark(var(--lab-surface), var(--lab-sunken)); /* 浅色时 ASCII 那层的底就是这个颜色（引擎读它） */
+    background: light-dark(var(--lab-surface), var(--lab-sunken)); /* 画出来之前露的底 */
     box-shadow: 0 0 0 1px var(--lab-line), var(--lab-shadow-2);
-    transition: box-shadow 0.2s;
 }
-/* 拖着图悬在上面：描一圈强调色 */
-.ascii-grass .screen[data-over] {
-    box-shadow: 0 0 0 2px var(--lab-accent), var(--lab-shadow-2);
-}
-
-.ascii-grass .field {
+.ascii-waves .sea {
     position: absolute;
     inset: 0;
     width: 100%;
     height: 100%;
     display: block;
-    touch-action: pan-y; /* 上下划还是滚页面，左右划拨草 */
+    touch-action: pan-y; /* 上下划还是滚页面，左右划起涟漪 */
     cursor: crosshair;
 }
 
-.ascii-grass .fallback {
+.ascii-waves .fallback {
     position: absolute;
     inset: 0;
     display: grid;
@@ -40,7 +34,7 @@
 }
 
 /* 换图层：一小块半透明的底板，选中的那个浮起来（跟 ASCII Clouds 一样） */
-.ascii-grass .tabs {
+.ascii-waves .tabs {
     position: absolute;
     top: 10px;
     left: 10px;
@@ -52,7 +46,7 @@
     background: color-mix(in srgb, var(--lab-surface) 72%, transparent);
     box-shadow: 0 0 0 1px var(--lab-line);
 }
-.ascii-grass .tabs button {
+.ascii-waves .tabs button {
     height: 24px;
     padding: 0 10px;
     border-radius: var(--lab-r-sm);
@@ -63,29 +57,9 @@
     cursor: pointer;
     transition: color 0.15s, background-color 0.2s var(--lab-ease), box-shadow 0.2s var(--lab-ease);
 }
-.ascii-grass .tabs button:hover { color: var(--lab-fg-2); }
-.ascii-grass .tabs button[aria-selected="true"] {
+.ascii-waves .tabs button:hover { color: var(--lab-fg-2); }
+.ascii-waves .tabs button[aria-selected="true"] {
     color: var(--lab-fg);
     background: var(--lab-surface);
     box-shadow: 0 0 0 1px var(--lab-line), var(--lab-shadow-1);
-}
-
-.ascii-grass .count {
-    position: absolute;
-    top: 10px;
-    right: 10px;
-    z-index: 1;
-    display: flex;
-    align-items: center;
-    height: 30px;
-    padding: 0 10px;
-    border-radius: var(--lab-r-md);
-    background: color-mix(in srgb, var(--lab-surface) 72%, transparent);
-    box-shadow: 0 0 0 1px var(--lab-line);
-    font: 400 11px/1 var(--mono);
-    letter-spacing: 0.02em;
-    font-variant-numeric: tabular-nums;
-    color: var(--lab-fg-2);
-    white-space: nowrap;
-    pointer-events: none;
 }
