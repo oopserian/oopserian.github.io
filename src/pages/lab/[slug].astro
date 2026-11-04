@@ -1,6 +1,6 @@
 ---
-// 一个实验一页：大一点的舞台，下面是做法的说明（src/labs/<slug>/index.md 的正文），最后是上一个、下一个
-import { getCollection, render, type CollectionEntry } from 'astro:content';
+// 一个实验一页：大一点的舞台，下面是 Prompt（src/labs/<slug>/index.md 头里的 prompt，带一个拷贝按钮）和源码地址，最后是上一个、下一个
+import { getCollection, type CollectionEntry } from 'astro:content';
 import Base from '../../layouts/Base.astro';
 import LabStage from '../../components/LabStage.astro';
 import Icon from '../../components/Icon.astro';
@@ -16,8 +16,7 @@ export async function getStaticPaths() {
 
 interface Props { lab: CollectionEntry<'labs'>; prev?: CollectionEntry<'labs'>; next?: CollectionEntry<'labs'> }
 const { lab, prev, next } = Astro.props;
-const { title, summary, tags, date, inspiration } = lab.data;
-const { Content } = await render(lab);
+const { title, summary, tags, date, inspiration, prompt } = lab.data;
 const when = date.toLocaleDateString('en', { year: 'numeric', month: 'long', timeZone: 'UTC' });
 ---
 <Base title={title} description={summary}>
@@ -30,7 +29,15 @@ const when = date.toLocaleDateString('en', { year: 'numeric', month: 'long', tim
     </header>
     <div class="frame"><LabStage slug={lab.id} size="page" /></div>
     <div class="notes">
-      <div class="prose"><Content /></div>
+      <section class="prompt" aria-labelledby="prompt-h">
+        <div class="bar">
+          <h2 id="prompt-h" class="eyebrow">Prompt</h2>
+          <button type="button" class="copy mono" data-copy>
+            <Icon name="copy" size={14} class="i-copy" /><Icon name="check" size={14} class="i-check" /><span class="label">Copy</span>
+          </button>
+        </div>
+        <p class="text mono">{prompt}</p>
+      </section>
       <ul class="links mono">
         <li><a href={labSource(lab.id)}><Icon name="code" size={16} /><span class="out">Source on GitHub</span></a></li>
         {inspiration && <li><a href={inspiration}><Icon name="lightbulb" size={16} /><span class="out">Inspired by</span></a></li>}
@@ -64,17 +71,35 @@ const when = date.toLocaleDateString('en', { year: 'numeric', month: 'long', tim
     gap: 48px;
     margin-top: 40px;
   }
-  .prose { max-width: 38em; color: var(--fg-2); }
-  .prose :global(p + p) { margin-top: 1em; }
-  .prose :global(code) {
-    font-family: var(--mono);
-    font-size: 0.86em;
-    padding: 1px 5px;
-    background: var(--bg-2);
-    color: var(--fg);
+  .prompt { border: 1px solid var(--line); min-width: 0; }
+  .bar {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 16px;
+    padding: 6px 6px 6px 16px;
+    border-bottom: 1px solid var(--line);
   }
-  .prose :global(em) { font-style: italic; }
-  .prose :global(sup) { font-size: .7em; }
+  .copy {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    padding: 4px 10px;
+    color: var(--fg-2);
+    cursor: pointer;
+    transition: color .15s, background-color .15s;
+  }
+  .copy:hover { color: var(--fg); background: var(--bg-2); }
+  /* 图标在 Icon 组件里，作用域的样式够不着，用 :global */
+  .copy :global(.i-check), .copy[data-done] :global(.i-copy) { display: none; }
+  .copy[data-done] :global(.i-check) { display: block; }
+  .copy[data-done] { color: var(--accent); }
+  .text {
+    padding: 16px;
+    color: var(--fg-2);
+    line-height: 1.7;
+    overflow-wrap: anywhere;
+  }
   .links { display: flex; flex-direction: column; gap: 10px; font-size: 13px; }
   .links a { display: inline-flex; align-items: center; gap: 8px; color: var(--fg-2); transition: color .15s; }
   .links a:hover { color: var(--accent); }
@@ -103,3 +128,25 @@ const when = date.toLocaleDateString('en', { year: 'numeric', month: 'long', tim
     .pager .name { font-size: 22px; }
   }
 </style>
+
+<script>
+  // Prompt 旁边的拷贝按钮：拷进剪贴板，按钮变成「Copied」两秒；拷不了（不是 https 这类）就把那段字选中，让人自己拷
+  for (const btn of document.querySelectorAll<HTMLButtonElement>('[data-copy]')) {
+    const text = btn.closest('.prompt')?.querySelector<HTMLElement>('.text');
+    const label = btn.querySelector('.label');
+    if (!text || !label) continue;
+    let timer = 0;
+    btn.addEventListener('click', async () => {
+      try {
+        await navigator.clipboard.writeText(text.textContent ?? '');
+      } catch {
+        getSelection()?.selectAllChildren(text);
+        return;
+      }
+      btn.dataset.done = '';
+      label.textContent = 'Copied';
+      clearTimeout(timer);
+      timer = window.setTimeout(() => { delete btn.dataset.done; label.textContent = 'Copy'; }, 2000);
+    });
+  }
+</script>

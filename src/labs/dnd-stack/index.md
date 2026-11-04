@@ -4,8 +4,11 @@ summary: Drag cards from pile to pile, or onto empty space to start a new one. C
 tags: [React, Pointer Events, CSS]
 date: 2026-10-27
 order: 8
+prompt: >-
+  Build React card piles you can drag cards between. Position every card absolutely and move it with the
+  translate property. While dragging, write the offset into two CSS variables with the transition off, so the
+  card sticks to the pointer; on release, work out where the card belongs, clear the offset in the same frame,
+  and let the transition carry it there from where it was dropped. Light up the nearest pile within 56px of the
+  card's centre as the drop target; dropping on empty space starts a new pile. Keep pile positions as fractions
+  of the stage so they survive resizes. Clicking a pile fans it out in front and dims the rest.
 ---
-
-Every card is absolutely positioned and moved with the `translate` property. While you drag, the offset goes straight into two CSS variables and the transition is off, so the card sticks to the pointer. On release React works out where the card belongs, the offset is cleared in the same frame, and the transition carries it there from wherever you let go.
-
-The nearest pile within 56px of the card's centre lights up as the drop target. Piles keep their position as a fraction of the stage, so they stay in place when it resizes. A fanned-out pile comes to the front and dims the rest, and any of its cards can be dragged.
