@@ -4,10 +4,16 @@ summary: Cumulus clouds drawn entirely in ASCII characters, from a sky raymarche
 tags: [WebGL, Shaders]
 date: 2026-11-02
 order: 9
+prompt: >-
+  Build an ASCII-art sky in raw WebGL2 (no 3D library) as a React component that fills its container. Offscreen,
+  raymarch a layer of cumulus between 1 and 2.6 km, seen from the ground with the horizon just below the frame:
+  a 2D fbm coverage map drifting toward the camera (crossfade two offset copies so it loops every 12 seconds),
+  flat bases, tops that climb where the cloud is thicker, edges eroded by a tiling 3D Worley texture, 48 steps
+  with three light samples toward the sun, and haze in the distance. Render it at two pixels per 8px cell. Then
+  draw one character per cell from . : - = + * # % @ by brightness, the sky only . : - and the clouds the rest,
+  turned along the brightness contours. Dark theme is dusk, the sun just under the horizon and the cloud edges
+  gold and pink, each character in the colour of its cloud; light theme is midday, with denser characters in
+  darker navy ink. Keep the canvas transparent. Sweeping the pointer parts a ragged hole that drifts with the
+  wind and closes within a few seconds. Run at 30fps, stop off-screen, and draw one still frame under reduced
+  motion or software rendering.
 ---
-
-Underneath the characters is a real 3D cloudscape, raymarched by hand-written WebGL2 shaders into an offscreen image that never reaches the screen. The camera stands on the ground and looks up and ahead, with the horizon just below the bottom edge, so the whole frame is sky. A small map of layered value noise says how much cloud hangs over each patch of ground for 60 kilometres around. The clouds drift toward you on the wind, and the map crossfades between two offset copies of itself, so the sky reshapes like a time-lapse and still loops. Each pixel sends a ray up into a cloud layer between 1 and 2.6 kilometres high and takes 48 steps through it. The clouds have flat bases and rounded tops that climb higher where the cloud is thicker, and a tiling 3D Worley noise bites their edges into billows. At every step three more samples toward the sun work out how much light gets through, sky light is added on top, and distant clouds fade into the haze at the horizon. The image is only two pixels per character cell, which is all the characters can show anyway.
-
-The stage is cut into 8 × 8 pixel cells and every cell gets a character from `. : - = + * # % @`, none left blank. The sky only uses the faint `. : -`, and the clouds use `= + * # % @`, denser where they are brighter. The characters turn to follow the contours of brightness, so around each cloud they wrap along its outline, the same trick as the crests in ASCII Waves. On a dark page it is dusk: the sun sits just under the horizon, the cloud edges facing it glow gold and pink, the shaded sides go purple, and each character takes the colour of the cloud beneath it. On a light page it is midday with the sun high behind you, and denser characters take darker ink, so the clouds are masses of navy characters rather than holes in the page. Everything between the characters is transparent, so the page shows through and the sky fills the stage edge to edge.
-
-Sweeping the cursor across the sky casts a ray into the clouds and parts them in a ragged hole that drifts with the wind and closes again within a few seconds, so a quick stroke leaves a channel; a tap does the same, and so does Enter when the sky has keyboard focus. The whole sky loops seamlessly every 12 seconds. It runs at 30 frames a second, at full rate only while a hole is open, stops when it scrolls out of view, and draws a single still frame when reduced motion is on or the GPU is emulated in software.

@@ -27,7 +27,7 @@ pnpm check      # 类型检查
 | `src/components/` | 顶栏 `Nav`、页脚 `Footer`、首屏 `Hero`，首页的几节（`Sooty`、`Projects`、`Labs`、`Contact`）和它们用的小组件 |
 | `src/site.ts` | 名字、简介、邮箱、GitHub 和 X 的地址，改一处到处跟着变 |
 | `src/content/projects/` | 「Projects」里的项目，一个一个 `.md`，字段见 `src/content.config.ts` |
-| `src/labs/<slug>/` | 一个实验一个目录：`index.md` 是标题、标签和做法说明，`Demo.tsx` 是组件，样式和图片也放这里 |
+| `src/labs/<slug>/` | 一个实验一个目录：`index.md` 是标题、标签和 prompt，`Demo.tsx` 是组件，样式和图片也放这里 |
 | `src/labs/_kit/` | 实验共用的样子（`kit.css`）、图标（`icons.tsx`），见「实验的样子」；WebGL2 的样板（`gl.js`），见「选型」 |
 | `src/islands/LabDemo.tsx` | 页面上唯一的 React 入口，把实验挂到舞台上 |
 | `src/scripts/ascii.ts` | 首屏的字符画 |
@@ -51,12 +51,14 @@ pnpm check      # 类型检查
    inspiration: https://…   # 照着谁的设计做的，没有就不写
    wip: true                # 还没做完：卡片上画斜条纹，不挂组件，不生成详情页
    order: 5                 # 越小越靠前
+   prompt: >-               # 详情页上的 Prompt：拷给 AI 就能照着做出这个实验的一段话，英文，折成 110 字宽
+     Build a React folder that opens and fans out the photos inside. …
    ---
-
-   正文是详情页上「怎么做的」那几段，用 Markdown。
    ```
 
-卡片上的「源码」链接指向 GitHub 上的 `src/labs/<slug>/`，不用另外填。首页的实验排成两列，个数是单数时最后一张占满一行。`index.md` 里的标题、一句话和做法说明照代码实际怎么做的写，改了做法要跟着改。
+   只写头，不写正文：详情页舞台下面只放 Prompt（右上角一个拷贝按钮）和源码地址，不放做法说明（2026-11-04 laken 定的）。
+
+卡片上的「源码」链接指向 GitHub 上的 `src/labs/<slug>/`，不用另外填。首页的实验排成两列，个数是单数时最后一张占满一行。`index.md` 里的标题、一句话和 prompt 照代码实际怎么做的写：prompt 写清用什么做、怎么画、怎么玩、深浅两种主题和省电的做法，照着它能做出差不多的东西；改了做法要跟着改。
 
 ## 实验的样子
 

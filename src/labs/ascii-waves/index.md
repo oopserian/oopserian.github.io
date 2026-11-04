@@ -4,10 +4,15 @@ summary: Ocean waves drawn entirely in ASCII characters, from a 3D sea rendered 
 tags: [WebGL, Shaders]
 date: 2026-11-04
 order: 10
+prompt: >-
+  Build an ASCII-art sea in raw WebGL2 (no 3D library) as a React component that fills its container. Offscreen,
+  render a 3D ocean seen from 11m up, looking 40° down so there is no sky: a 300×400 grid, dense near the camera
+  and sparse far away, moved by ten Gerstner waves, plus eight small waves that only bend the normals. Store per
+  pixel the water's brightness, the crest's direction on screen as a double-angle vector, and foam: clumps along
+  the crests of the three biggest waves that trail off behind them and flare up and die on their own. Give every
+  wave a whole number of cycles in 12 seconds so the loop is seamless. Then cut the screen into 8px cells: foam
+  cells get an upright . : * o @, water cells get - ~ = by brightness, turned along the crest. Dark theme runs
+  deep to pale blue with white foam; light theme runs grey-blue to navy with the darkest ink for foam. Keep the
+  canvas transparent. Moving the pointer casts a ray onto the sea and sends out a ring of ripples. Run at 30fps,
+  stop off-screen, and draw one still frame under reduced motion or software rendering.
 ---
-
-Underneath the characters is a real 3D sea, drawn by hand-written WebGL2 shaders into an offscreen image that never reaches the screen. The camera hangs 11 metres up and looks steeply down, so the whole frame is water and there is no sky. A grid runs from just under the camera into the distance, dense nearby and sparse far away. Ten Gerstner waves move each vertex, so the crests come up sharp and the troughs stay flat. Eight finer waves only bend the surface normals, which breaks the light into glints. That image keeps three things for each pixel: how bright the water is, with crests above troughs and lit faces and glints brighter still; which way the crest runs across the screen; and how much foam there is. Foam only breaks on the three biggest waves, in clumps along each crest that trail off behind it, and every clump flares up and dies away on its own, with a little more where crests pile into each other.
-
-The stage is cut into 8 × 8 pixel cells and every cell gets a character, none left blank. Where there is enough foam the cell gets a foam character from `. : * o @`, thicker foam a bigger one, upright and white, and a few stray dots around the edges read as spray. Everywhere else is water: the brightness picks from `- ~ =`, its colour slides along a ramp from deep blue to pale blue, and the character turns to lie along the crest it sits on, so the rows of characters trace the swell. On a light page the water runs from pale grey-blue to navy and the foam takes the darkest ink, so denser always means stronger ink, the same rule as ASCII Clouds. The crest direction is averaged over a few cells, and flat patches where it can't be told stay level. Everything between the characters is transparent, so the page shows through and the waves fill the stage edge to edge.
-
-Moving over the water casts a ray from the cursor onto the sea, and where it lands a ring of foam ripples outward, the water characters turning around it, then fades within a few seconds; a tap does the same, and so does Enter when the sea has keyboard focus. Every wave completes a whole number of cycles in 12 seconds, so the sea loops seamlessly. It runs at 30 frames a second, at full rate only while ripples spread, stops when it scrolls out of view, and draws a single still frame when reduced motion is on or the GPU is emulated in software.

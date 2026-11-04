@@ -5,8 +5,10 @@ tags: [React, CSS]
 date: 2025-01-16
 inspiration: https://sonner.emilkowal.ski/
 order: 3
+prompt: >-
+  Build a React toast stack that behaves like Sonner's, with CSS doing the layout. Each toast only gets its
+  place in the stack as --i: older ones shrink 5% per step, peek out 10px above the newest and hide their text.
+  Hovering, focusing or tapping the list moves each toast up by --i toast heights, so the stack spreads into a
+  column. New toasts slide in from below with @starting-style. Keep three; a fourth makes the oldest shrink and
+  fade, and it is removed when its transition ends.
 ---
-
-Each toast only knows its place in the stack, passed in as `--i`. CSS does the rest: older ones shrink by 5% a step, peek out 10px above the newest and hide their text. Hovering the list, focusing it or tapping it moves each toast up by `--i` toast heights, and the stack spreads into a column.
-
-New toasts slide in from below with `@starting-style`, no JavaScript timing involved. Three fit; the fourth shrinks and fades away, and is taken out of the list when its fade ends.
