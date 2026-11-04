@@ -52,14 +52,26 @@ pnpm check      # 类型检查
    inspiration: https://…   # 照着谁的设计做的，没有就不写
    wip: true                # 还没做完：卡片上画斜条纹，不挂组件，不生成详情页
    order: 5                 # 越小越靠前
-   prompt: >-               # 详情页上的 Prompt：拷给 AI 就能照着做出这个实验的一段话，英文，折成 110 字宽
-     Build a React folder that opens and fans out the photos inside. …
+   prompt: |-               # 详情页上的 Prompt，英文，分段，保留换行（所以是 |-，不是 >-）
+     Add a folder to my project that opens and fans out the photos inside when you point at it. …
+
+     0. Start from what exists
+     - Find where the folder goes, …
+
+     1. Shapes and colours
+     - …
+
+     4. Done when
+     - …
+     - You tell me every file you added or changed.
    ---
    ```
 
-   只写头，不写正文：详情页舞台下面只放 Prompt（右上角一个拷贝按钮）和源码地址，不放做法说明（2026-11-04 laken 定的）。
+   只写头，不写正文：详情页舞台下面只放 Prompt（右上角一个拷贝按钮，超过 360px 高先折起来）和源码地址，不放做法说明（2026-11-04 laken 定的）。
 
-卡片上的「源码」链接指向 GitHub 上的 `src/labs/<slug>/`，不用另外填。首页的实验排成两列，个数是单数时最后一张占满一行。`index.md` 里的标题、一句话和 prompt 照代码实际怎么做的写：prompt 写清用什么做、怎么画、怎么玩、深浅两种主题和省电的做法，照着它能做出差不多的东西；改了做法要跟着改。
+   prompt 是给读者拷进自己项目里用的，不是只复刻我们这个 demo（2026-11-04 laken 定，参考了别人那种分步骤的长 prompt）。照现有几个的样子写：开头一两句说要做什么、用什么做、放进「我」现有的框架和设计系统里；`0. Start from what exists` 先让 AI 看项目里已有的组件和设计变量；中间几段按这个实验的门道分（结构、交互、动效、主题、性能和无障碍）；最后 `Done when` 列做完要满足什么，最后一条是「告诉我改了哪些文件」。数字、曲线、时长都照代码写，写之前对一遍。
+
+卡片上的「源码」链接指向 GitHub 上的 `src/labs/<slug>/`，不用另外填。首页的实验排成两列，个数是单数时最后一张占满一行。`index.md` 里的标题、一句话和 prompt 照代码实际怎么做的写，改了做法要跟着改。
 
 ## 实验的样子
 
