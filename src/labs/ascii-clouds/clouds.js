@@ -29,6 +29,20 @@
      c.destroy();                    // 不用了：停下、摘掉监听、释放显存 */
 import { context, program, fullscreen, target, canvasTexture, softwareGL } from "../_kit/gl.js";
 
+// 沟的点满了：不扔最老的那个（快划时后面一截会一下子合上），而是去掉一个最不影响形状的中间点，
+// 就是跟前后两个点围出的三角形最小的那个（几乎在一条直线上）。一笔的头尾、最新的那个点不动；全是单个的点才扔最老的
+function thin(list, pos, isStart) {
+  let best = 0, least = Infinity;
+  for (let i = 1; i < list.length - 1; i++) {
+    if (isStart(list[i]) || isStart(list[i + 1])) continue;
+    const a = pos(list[i - 1]), b = pos(list[i]), c = pos(list[i + 1]);
+    const u = [b[0] - a[0], b[1] - a[1], b[2] - a[2]], v = [c[0] - a[0], c[1] - a[1], c[2] - a[2]];
+    const area = Math.hypot(u[1] * v[2] - u[2] * v[1], u[2] * v[0] - u[0] * v[2], u[0] * v[1] - u[1] * v[0]);
+    if (area < least) { least = area; best = i; }
+  }
+  list.splice(best, 1);
+}
+
 function rng(seed) { let s = (seed >>> 0) || 1; return () => ((s = (Math.imul(s, 1664525) + 1013904223) >>> 0) / 4294967296); }
 
 // 天和光，两套。sun 是太阳的方向（镜头朝 -z 看），disc 是太阳画不画出来。
@@ -82,7 +96,7 @@ function makeDetail(n = 32) {   // 返回 { data, n }，传给显卡见 create()
 // ---------- 字的图集 ----------
 // 一行 9 格，一格 64 见方（字要转，格子得是正方形），由淡到浓：. : - = + * # % @。每个字按墨迹居中，横线稍微拉宽一点，再描一圈边，笔画粗一点
 const GLYPHS = [".", ":", "-", "=", "+", "*", "#", "%", "@"];
-const GROOVE = 48, GROOVE_LIFE = 4;   // 拨开的沟最多记几个点、一个点留几秒
+const GROOVE = 64, GROOVE_LIFE = 4;   // 拨开的沟最多记几个点、一个点留几秒
 const T = 64;
 function drawAtlas(c) {
   const g = c.getContext("2d");
@@ -351,7 +365,8 @@ function create(canvas, { period = 12000, cell = 8, fps = 30 } = {}) {
   // 停下 250ms 以上、移出画面，再动就是新的一笔。点一下单独记一个点，拨开的是一块（宽一点）
   let head = null, lastX = 0, lastY = 0, lastAt = -1e9;
   const inCloud = (x, y) => { const d = ray(x, y); if (d[1] < 0.01) return null; const t = Math.min(1.8 / d[1], 65); return d.map((v) => v * t); };
-  function push(pt) { groove.push(pt); if (groove.length > GROOVE) groove.shift(); }
+  const unit = (p) => { const l = Math.hypot(...p); return p.map((v) => v / l); };   // 按看过去的方向挑，远处的点不会因为隔得远就总留着
+  function push(pt) { groove.push(pt); if (groove.length > GROOVE) thin(groove, (g) => unit(g.p), (g) => g.start); }
   function part(x, y, now, tap) {
     const p = inCloud(x, y);
     if (!p) { head = null; return; }
