@@ -7,7 +7,7 @@ export default function AsciiWaves() {
     const sea = useRef<ReturnType<typeof create> | null>(null);
     const [failed, setFailed] = useState(false); // 浏览器没有 WebGL2
 
-    // 引擎自己画、自己限帧、滚出屏幕就停、自己跟着鼠标起涟漪；React 只管挂上、换主题、拆掉
+    // 引擎自己画、自己限帧、滚出屏幕就停、自己跟着鼠标拖出尾迹；React 只管挂上、换主题、拆掉
     useEffect(() => {
         let s: ReturnType<typeof create>;
         try { s = create(canvas.current!, { period: 12000 }); }
@@ -22,7 +22,7 @@ export default function AsciiWaves() {
         return () => { mo.disconnect(); mq.removeEventListener("change", retheme); s.destroy(); sea.current = null; };
     }, []);
 
-    // 键盘：聚焦到海上按回车或空格，激起一圈涟漪
+    // 键盘：聚焦到海上按回车或空格，溅起一摊水花
     const key = (e: KeyboardEvent) => {
         if (e.key !== "Enter" && e.key !== " ") return;
         e.preventDefault();
@@ -32,10 +32,10 @@ export default function AsciiWaves() {
     return (
         <div className="lab-root ascii-waves">
             <canvas className="sea" ref={canvas} tabIndex={0} role="img" onKeyDown={key}
-                aria-label="Ocean waves seen from above, drawn entirely in ASCII characters that turn along each crest. Press Enter to send a ripple." />
+                aria-label="Ocean waves seen from above, drawn entirely in ASCII characters that turn along each crest. Press Enter to splash it." />
             {failed && <p className="fallback">This experiment needs WebGL 2</p>}
             <p className="lab-hint">
-                <span className="for-mouse">Move across the water to ripple it</span>
+                <span className="for-mouse">Sweep across the water to leave a wake</span>
                 <span className="for-touch">Tap or swipe across the water</span>
             </p>
         </div>
