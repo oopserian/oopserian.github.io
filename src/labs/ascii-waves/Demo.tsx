@@ -13,7 +13,7 @@ export default function AsciiWaves() {
         try { s = create(canvas.current!, { period: 12000 }); }
         catch { setFailed(true); return; }
         sea.current = s;
-        // 换主题：顶栏的按钮改 <html data-theme>，跟随系统时看 prefers-color-scheme。浅色是白天，深色是月夜
+        // 换主题：顶栏的按钮改 <html data-theme>，跟随系统时看 prefers-color-scheme。深浅两种主题换一条字的色带
         const retheme = () => s.refresh();
         const mo = new MutationObserver(retheme);
         mo.observe(document.documentElement, { attributes: true, attributeFilter: ["data-theme"] });
@@ -32,7 +32,7 @@ export default function AsciiWaves() {
     return (
         <div className="lab-root ascii-waves">
             <canvas className="sea" ref={canvas} tabIndex={0} role="img" onKeyDown={key}
-                aria-label="Ocean waves rolling toward a low sun, or a moon in dark mode, drawn entirely in ASCII characters. Press Enter to send a ripple." />
+                aria-label="Ocean waves seen from above, drawn entirely in ASCII characters that turn along each crest. Press Enter to send a ripple." />
             {failed && <p className="fallback">This experiment needs WebGL 2</p>}
             <p className="lab-hint">
                 <span className="for-mouse">Move across the water to ripple it</span>
