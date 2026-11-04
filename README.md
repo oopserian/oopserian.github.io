@@ -28,7 +28,7 @@ pnpm check      # 类型检查
 | `src/site.ts` | 名字、简介、邮箱、GitHub 和 X 的地址，改一处到处跟着变 |
 | `src/content/projects/` | 「Projects」里的项目，一个一个 `.md`，字段见 `src/content.config.ts` |
 | `src/labs/<slug>/` | 一个实验一个目录：`index.md` 是标题、标签和做法说明，`Demo.tsx` 是组件，样式和图片也放这里 |
-| `src/labs/_kit/` | 实验共用的样子（`kit.css`）和图标（`icons.tsx`），见「实验的样子」 |
+| `src/labs/_kit/` | 实验共用的样子（`kit.css`）、图标（`icons.tsx`），见「实验的样子」；WebGL2 的样板（`gl.js`），见「选型」 |
 | `src/islands/LabDemo.tsx` | 页面上唯一的 React 入口，把实验挂到舞台上 |
 | `src/scripts/ascii.ts` | 首屏的字符画 |
 | `tools/portrait.py` | 从头像插画生成字符画用的图、小头像和 favicon（见「字符画」） |
@@ -39,7 +39,7 @@ pnpm check      # 类型检查
 ## 加一个实验
 
 1. 建目录 `src/labs/<slug>/`，`slug` 就是网址里那段（`/lab/<slug>/`），用小写和短横线。
-2. 写 `Demo.tsx`，默认导出一个 React 组件。根元素写 `className="lab-root <自己的类名>"`：`lab-root` 让它撑满舞台、内容居中，颜色、圆角、阴影都从它上面的变量取（见下面「实验的样子」）。舞台在卡片上高 280px、详情页上 320 到 480px，底色跟着主题走（浅色是浅灰，深色是深灰）。样式写在同目录的 `style.css`，在 `Demo.tsx` 里 `import "./style.css"`，选择器都挂在自己的类名下面（`.folder-lab .front`），不写裸的 `button`、`p`。图标从 `../_kit/icons` 拿。图片放 `assets/`，引用写 `import cover from "./assets/cover.webp?url"`（带 `?url` 拿到的是地址；不带的话 Astro 给的是一个对象，`<img src>` 会变成 `[object Object]`）。
+2. 写 `Demo.tsx`，默认导出一个 React 组件。根元素写 `className="lab-root <自己的类名>"`：`lab-root` 让它撑满舞台、内容居中，颜色、圆角、阴影都从它上面的变量取（见下面「实验的样子」）。舞台在卡片上高 280px、详情页上 320 到 480px，底色跟着主题走（浅色是浅灰，深色是深灰）。样式写在同目录的 `style.css`，在 `Demo.tsx` 里 `import "./style.css"`，选择器都挂在自己的类名下面（`.folder-lab .front`），不写裸的 `button`、`p`。图标从 `../_kit/icons` 拿，要用 WebGL2 画的从 `../_kit/gl.js` 拿样板（建上下文、编着色器、离屏图这些）。图片放 `assets/`，引用写 `import cover from "./assets/cover.webp?url"`（带 `?url` 拿到的是地址；不带的话 Astro 给的是一个对象，`<img src>` 会变成 `[object Object]`）。
 3. 写 `index.md`：
 
    ```md
