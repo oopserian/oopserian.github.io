@@ -110,7 +110,7 @@ pnpm check      # 类型检查
 - **Astro**（静态生成）：比较过留在 Vite + React 单页、Next.js 静态导出、Eleventy。原来的单页把所有东西都放在一个 JS 里，HTML 是空的，搜索引擎和分享卡片都看不到内容，首屏要等 React 下载完；Next.js 静态导出每页都带着 React 的运行时；Eleventy 页面很轻，但实验是 React 组件，要另想办法挂。Astro 默认页面不带 JS，又能把 React 组件当「岛」按需挂，正好：首页本身只有主题按钮和字符画两段小脚本，React 和实验的代码等滚到实验那一节才下载，一个实验一个文件。sooty 的官网也是 Astro，用法一样。
 - **React 只给实验用**：实验原来就是 React 写的，拖动、切换这些交互用 React 写也顺手，源码公开给人看。2026-10-27 重写时样式换成了普通 CSS 和共用的 `_kit/kit.css`，去掉了 Motion、Tabler 图标和 Tailwind 的类名（见「实验的样子」）。网站本身（顶栏、首页、详情页）全是 Astro 组件和普通 CSS。
 - **Tailwind 只扫 `src/labs/`**：现在的实验都不用它的类名，留着主要是 preflight 当整站的样式重置；以后的实验想用类名也能用。网站自己的样式不用 Tailwind，写在组件的 `<style>` 里。
-- **Three.js 只给 ASCII Waves 用**（MIT，钉在 0.186.x）：2026-11-04 laken 定了「全程用 Three.js 和 shader 实时渲染」（一开始做的是草，同一天改成了海浪；Three.js 画的海只当底稿，不显示原图，屏上只有字，铺满整个舞台）。它要一个真的 3D 场景（透视镜头、12 万个点的海面网格、深度）、带 mipmap 的离屏图和一个全屏挑字的 pass，Three.js 的 `PerspectiveCamera`、`RawShaderMaterial`、`WebGLRenderTarget`、`Raycaster`（鼠标落在海面哪里）正好都有，着色器照样自己写。代价是这个实验多下 540 KB（gzip 后 135 KB），只有滚到这个实验跟前才下载，别的页面、别的实验不受影响。也看过：
+- **Three.js 只给 ASCII Waves 用**（MIT，钉在 0.186.x）：2026-11-04 laken 定了「全程用 Three.js 和 shader 实时渲染」（一开始做的是草，同一天改成了海浪；Three.js 画的海只当底稿，不显示原图，屏上只有字，铺满整个舞台，每格都有字、顺着浪头转）。它要一个真的 3D 场景（透视镜头、12 万个点的海面网格、深度）、带 mipmap 的离屏图和一个全屏挑字的 pass，Three.js 的 `PerspectiveCamera`、`RawShaderMaterial`、`WebGLRenderTarget`、`Raycaster`（鼠标落在海面哪里）正好都有，着色器照样自己写。代价是这个实验多下 540 KB（gzip 后 135 KB），只有滚到这个实验跟前才下载，别的页面、别的实验不受影响。也看过：
   - 直接写 WebGL2（首屏字符画就是）：最小，但镜头矩阵、离屏图、深度、mipmap 这些样板要自己写一遍，跟 laken 定的不一样。
   - OGL（1.0，Unlicense）：小，接口跟 Three.js 像，但 2025 年初以后没再发版。
   - regl（2.1，MIT）：函数式的写法很省，但只支持 WebGL1，着色器得改写成 GLSL 1.0，2024 年以后没再发版。
