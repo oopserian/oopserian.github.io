@@ -39,7 +39,7 @@ import{t as e}from"./react.CadLv9_P.js";import{t}from"./jsx-runtime.C2DLLpjJ.js"
   ${g}
   vec3 sky(vec3 rd) {
     float e = clamp(rd.y, 0.0, 1.0);
-    vec3 c = e < 0.12 ? mix(uHorizon, uMid, e / 0.12) : mix(uMid, uZenith, pow((e - 0.12) / 0.88, 0.6));
+    vec3 c = e < 0.12 ? mix(uHorizon, uMid, e / 0.12) : mix(uMid, uZenith, pow(max(e - 0.12, 0.0) / 0.88, 0.6));   // pow 的底不能是负的
     float s = max(dot(rd, uSun), 0.0);
     return c + uGlow * (0.3 * pow(s, 6.0) + 0.6 * pow(s, 60.0)) + uSunCol * uDisc * smoothstep(0.9990, 0.9995, s);
   }
@@ -124,9 +124,11 @@ import{t as e}from"./react.CadLv9_P.js";import{t}from"./jsx-runtime.C2DLLpjJ.js"
     vec2 cell = floor(fc / uCell);
     vec4 s = at(cell, 1.0);                                       // 底稿一格两个像素，第 1 层 mipmap 正好一格一个
     // 字顺着浓淡的等高线放：左右、上下隔一格的浓淡差是变化最快的方向，字跟它垂直，云边一圈的字就绕着云走；
-    // 变化很小（天的大部分、云的里面）就横着放
+    // 变化很小（天的大部分、云的里面）就横着放。浓淡卡在头上（最亮的云）时四周一样，g 正好是 0：
+    // atan(0, 0) 规范里没定义，有的显卡算出 NaN，整格就没字了，所以先换成一个横着的方向
     vec2 g = vec2(level(at(cell + vec2(1.0, 0.0), 1.5)) - level(at(cell - vec2(1.0, 0.0), 1.5)), level(at(cell + vec2(0.0, 1.0), 1.5)) - level(at(cell - vec2(0.0, 1.0), 1.5)));
-    float a = atan(g.x, -g.y);
+    vec2 gs = dot(g, g) > 1e-12 ? g : vec2(0.0, -1.0);
+    float a = atan(gs.x, -gs.y);
     a = mod(a + 1.5707963, 3.1415926) - 1.5707963;
     a *= smoothstep(0.03, 0.12, length(g));
     float lv = clamp(level(s) + (hash(cell) - 0.5) * 0.06, 0.0, 0.999);
