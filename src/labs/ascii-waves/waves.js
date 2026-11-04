@@ -1,14 +1,16 @@
 /* 用字符画（ASCII）画的海浪。Three.js 画的海只在离屏图里当底稿，屏幕上只有字。每帧两步：
 
      1. 海（scene）：镜头从 11 米高往前下方 40° 看，整块画面都是海，没有天。
-        海面是一张从脚下铺到远处的网格（近密远疏），顶点在着色器里按 10 道 Gerstner 波推动：
-        浪顶尖、浪谷平，波峰被挤到一起的地方（雅可比行列式变小）、浪尖、涟漪的环起白沫。
-        每个像素再叠 8 道细碎的小波只改法线。底稿存两样：
-        亮度（浪顶比浪谷亮，迎着光的浪面、反光、白沫更亮，远处被雾抹到中间）和浪头在画面上的走向。
+        海面是一张从脚下铺到远处的网格（近密远疏），顶点在着色器里按 10 道 Gerstner 波推动，浪顶尖、浪谷平；
+        每个像素再叠 8 道细碎的小波只改法线。底稿存三样：
+        水的亮度（浪顶比浪谷亮，迎着光的浪面、反光更亮，远处被雾抹到中间）、浪头在画面上的走向、浪花有多浓。
+        浪花只在三道最大的浪的浪尖上一簇一簇地起，往后拖一段渐淡的尾巴，每簇自己冒出来、再散掉；
+        浪尖挤到一起（雅可比行列式变小）的地方、涟漪的环上也有。
      2. 合成（composite）：整块切成 8px 见方的格子，每格都有字，不留空：
-        按这一格底稿的平均亮度从 - ~ = * # @ 里挑（越亮越浓），颜色沿一条色带走（深色主题由深蓝到白，浅色主题由浅灰蓝到深蓝）；
-        字再转到浪头的走向上，一道道浪就被横着的字描出来，涟漪的环也是一圈转着的字，
-        跟 ASCII Grass 里字顺着草叶转是一个做法。
+        浪花够浓的格子画浪花的字 . : * o @（越浓越大），深色主题是白的，浅色主题是最深的墨，不转；浪花边上零星撒几个点当飞沫。
+        别的格子画水：按亮度从 - ~ = 里挑，颜色沿一条色带走（深色主题由深蓝到浅蓝，浅色主题由浅灰蓝到深蓝），
+        字再转到浪头的走向上，一道道浪就被横着的字描出来，涟漪的环外面的字也绕着环转，
+        跟最早那版草浪里字顺着草叶转是一个做法。
         画布是透明的，字以外露出网页自己的底色，所以铺满整块也跟网站接得上。
 
    鼠标、手指划过海面：从画面上那一点往海面投一条线，落点激起一圈往外扩的涟漪，两三秒后平下去。
@@ -39,10 +41,11 @@ function softwareGL(gl) {
   return /swiftshader|llvmpipe|softpipe|software|basic render/i.test(name);
 }
 
-// 字的色带：由淡的字到浓的字四个颜色。深色主题由深蓝到白（浓的字最亮）；浅色主题由浅灰蓝到深蓝（浓的字墨最重）
-const RAMPS = {
-  dark: [[0.12, 0.3, 0.56], [0.14, 0.5, 0.84], [0.45, 0.82, 0.96], [0.95, 0.99, 1.0]],
-  light: [[0.6, 0.7, 0.8], [0.27, 0.47, 0.72], [0.1, 0.29, 0.58], [0.03, 0.11, 0.28]],
+// 颜色：水的字沿一条四个颜色的色带走，由淡的字到浓的字；浪花的字由淡到浓两个颜色。
+// 深色主题水由深蓝到浅蓝、浪花由浅蓝到白（越浓越亮）；浅色主题水由浅灰蓝到深蓝、浪花是最深的墨（越浓越重）
+const COLORS = {
+  dark: { water: [[0.1, 0.26, 0.5], [0.13, 0.42, 0.76], [0.27, 0.65, 0.92], [0.55, 0.84, 1.0]], foam: [[0.62, 0.86, 1.0], [1.0, 1.0, 1.0]] },
+  light: { water: [[0.6, 0.7, 0.8], [0.33, 0.52, 0.75], [0.17, 0.37, 0.65], [0.09, 0.23, 0.5]], foam: [[0.1, 0.22, 0.42], [0.02, 0.06, 0.17]] },
 };
 
 // ---------- 波 ----------
@@ -50,14 +53,15 @@ const RAMPS = {
 // 每道波的角频率按深水色散 ω = √(gk) 算，再取成「一圈 period 里正好整数个周期」
 function makeWaves(period) {
   const r = rng(20261104), T = period / 1000, g = 9.81;
-  const omega = (k) => (TAU * Math.max(1, Math.round((Math.sqrt(g * k) * T) / TAU))) / T;
+  const cycles = (k) => Math.max(1, Math.round((Math.sqrt(g * k) * T) / TAU));
+  const omega = (k) => (TAU * cycles(k)) / T;
   const big = [], small = [];
   for (let i = 0; i < 10; i++) {
     const L = 9 * Math.pow(0.8, i), k = TAU / L;
     const a = Math.PI / 2 + (i % 3 === 1 ? 0.55 : (r() - 0.5) * 0.5);  // 往 +z（镜头）来，每三道有一道斜着
     const A = L * (i < 3 ? 0.05 : 0.03);
     const Q = 0.9 / (k * A * 10);                                       // 尖的程度：加起来不超过 1，浪顶才不会翻过去
-    big.push([Math.cos(a), Math.sin(a), k, A, Q, omega(k), L]);
+    big.push([Math.cos(a), Math.sin(a), k, A, Q, omega(k), L, cycles(k)]);
   }
   for (let i = 0; i < 8; i++) {
     const L = 1.1 * Math.pow(0.78, i), k = TAU / L, a = Math.PI / 2 + (r() - 0.5) * 2.2;
@@ -67,23 +71,24 @@ function makeWaves(period) {
 }
 
 // ---------- 字的图集 ----------
-// 一行 6 格，一格 64 见方（字要转，格子得是正方形），由淡到浓：- ~ = * # @。
-// 每个字按墨迹居中、横着拉宽一些（横线拉得多，块状的字拉得少），一格接一格连成一道道浪；再描一圈边，笔画粗一点
-const GLYPHS = ["-", "~", "=", "*", "#", "@"];
+// 一行 8 格，一格 64 见方（字要转，格子得是正方形）。前 3 个是水，由淡到浓 - ~ =，横着拉宽，一格接一格连成一道道浪；
+// 后 5 个是浪花，由淡到浓 . : * o @，不拉宽。每个字按墨迹居中，再描一圈边，笔画粗一点
+const GLYPHS = ["-", "~", "=", ".", ":", "*", "o", "@"], WATER = 3;
 const T = 64;
 function drawAtlas(c) {
   const g = c.getContext("2d");
   c.width = T * GLYPHS.length; c.height = T;
-  g.fillStyle = g.strokeStyle = "#fff"; g.lineJoin = "round"; g.lineWidth = 3;
+  g.fillStyle = g.strokeStyle = "#fff"; g.lineJoin = "round";
   g.textAlign = "left"; g.textBaseline = "alphabetic";
   g.font = '500 50px "DM Mono", ui-monospace, monospace';
   GLYPHS.forEach((ch, i) => {
     const m = g.measureText(ch);
     const l = m.actualBoundingBoxLeft, r = m.actualBoundingBoxRight, up = m.actualBoundingBoxAscent, dn = m.actualBoundingBoxDescent;
-    const sx = Math.max(1, Math.min(i <= 2 ? 1.8 : 1.25, (0.84 * T) / (l + r)));
+    const sx = i < WATER ? Math.max(1, Math.min(1.8, (0.84 * T) / (l + r))) : 1;
     g.save();
     g.translate(i * T + T / 2, T / 2); g.scale(sx, 1);
     const x = -(r - l) / 2, y = (up - dn) / 2;
+    g.lineWidth = i < WATER ? 4.5 : 3;   // 水的字是细线，描粗一点才压得住整块
     g.fillText(ch, x, y); g.strokeText(ch, x, y);
     g.restore();
   });
@@ -105,7 +110,8 @@ const SEA_VS = /* glsl */ `
   uniform vec4 uRip[8];             // 涟漪：x、z、过了几秒、有没有
   uniform float uT, uAmax;
   out vec3 vPos, vN;
-  out float vFoam;
+  out vec2 vP0;
+  out float vJ, vRip;
   void main() {
     vec2 p = position.xz;
     float dist = length(p - cameraPosition.xz);
@@ -131,27 +137,36 @@ const SEA_VS = /* glsl */ `
       float h = 0.5 * env * cos(3.6 * x), dh = -0.5 * env * 3.6 * sin(3.6 * x);
       P.y += h; n.xz -= dh * d / r; rip += env * (0.5 + 0.5 * cos(3.6 * x));   // 只算环的浪顶，环和环中间留着暗的
     }
-    float J = jxx * jzz - jxz * jxz;
-    vFoam = smoothstep(0.42, 0.12, J) + 0.6 * smoothstep(0.55, 0.95, P.y / uAmax) + 1.6 * rip;
-    vPos = P; vN = n;
+    vJ = jxx * jzz - jxz * jxz; vRip = rip;
+    vPos = P; vN = n; vP0 = p;
     gl_Position = projectionMatrix * viewMatrix * vec4(P, 1.0);
   }
 `;
 
-// 底稿：r 是亮度：浪顶比浪谷亮，迎着光的浪面、反光、亮点和白沫更亮，远处被雾抹到中间。
+// 底稿：r 是水的亮度：浪顶比浪谷亮，迎着光的浪面、反光、亮点更亮，远处被雾抹到中间。
 // g、b 是浪头在画面上的走向，存成二倍角（cos 2θ、sin 2θ）：一道横线转 180° 还是它，
-// 二倍角一格取平均才不会正反抵消，平均下来越短说明这一格的方向越乱
+// 二倍角一格取平均才不会正反抵消，平均下来越短说明这一格的方向越乱。
+// a 是浪花（白沫）有多浓：三道最大的浪，浪尖上一簇一簇地起，往后拖一段渐淡的尾巴；
+// 几道浪的浪尖挤到一起（雅可比行列式变小）的地方也起一点；涟漪的环上也有
 const SEA_FS = /* glsl */ `
   precision highp float;
   in vec3 vPos, vN;
-  in float vFoam;
+  in vec2 vP0;
+  in float vJ, vRip;
   out vec4 o;
   uniform mat4 projectionMatrix, viewMatrix;
   uniform vec3 cameraPosition, uSunDir;
   uniform vec2 uAspect;             // 画布的宽、高（只看比例）
+  uniform vec4 uW[10];              // 大波：方向 x、方向 z、波数 k、振幅 A
+  uniform vec4 uWq[10];             // 大波：尖的程度 Q、角频率 ω、波长、一圈走几个周期
   uniform vec4 uS[8];               // 小波：方向 x、方向 z、k、A
   uniform float uSw[8];             // 小波的角频率
-  uniform float uT, uAmax;
+  uniform float uT, uAmax, uPer;   // uPer：一圈多少秒
+  float h21(vec2 p) { p = fract(p * vec2(123.34, 456.21)); p += dot(p, p + 45.32); return fract(p.x * p.y); }
+  float vnoise(vec2 x) {
+    vec2 i = floor(x), f = fract(x); f = f * f * (3.0 - 2.0 * f);
+    return mix(mix(h21(i), h21(i + vec2(1.0, 0.0)), f.x), mix(h21(i + vec2(0.0, 1.0)), h21(i + vec2(1.0, 1.0)), f.x), f.y);
+  }
   void main() {
     vec3 V = cameraPosition - vPos; float dist = length(V); V /= dist;
     vec3 N = normalize(vN);
@@ -169,7 +184,6 @@ const SEA_FS = /* glsl */ `
     float spec = pow(max(dot(reflect(-V, N), uSunDir), 0.0), 40.0);
     float h = clamp(vPos.y / uAmax, -1.0, 1.0) * 0.5 + 0.5;
     float L = 0.04 + 0.6 * h + 0.2 * diff + 0.25 * F + 0.6 * spec;
-    L = mix(L, 1.0, clamp(vFoam, 0.0, 1.0) * 0.85);
     L = mix(L, 0.5, 1.0 - exp(-dist / 140.0));
     // 浪头的走向：海面上跟坡度垂直的方向（等高线），投到画面上。按坡度的平方算轻重：浪顶、浪谷是平的，方向说不准，几乎不算
     vec2 gh = -vN.xz;                                  // 高度对没推动前的位置的梯度：浪尖被挤尖的地方也不会被放大
@@ -179,7 +193,27 @@ const SEA_FS = /* glsl */ `
     sd.y = -sd.y;
     float m2 = dot(sd, sd);
     vec2 t2 = m2 > 1e-12 ? vec2(sd.x * sd.x - sd.y * sd.y, 2.0 * sd.x * sd.y) / m2 * min(dot(gh, gh) * 5.0, 1.0) : vec2(0.0);
-    o = vec4(L, t2 * 0.5 + 0.5, 1.0);
+    // 浪花：d 是这一点落在浪尖后面多远（相位，0 是浪尖），白沫从浪尖起、往后渐淡。
+    // 哪几段浪尖起白沫看噪声，噪声跟着这道浪尖走（沿浪尖的位置、第几道浪尖），
+    // 第几道浪尖按「一圈走几个周期」取余，一圈以后正好回到原样
+    float foam = 0.0;
+    for (int i = 0; i < 3; i++) {
+      vec2 D = uW[i].xy; float k = uW[i].z;
+      float th = k * dot(D, vP0) - uWq[i].y * uT;
+      float d = mod(1.5707963 - th, 6.2831853);
+      float id = mod(floor((th + d - 1.5707963) / 6.2831853 + 0.5), uWq[i].w);
+      float u = dot(vec2(-D.y, D.x), vP0);
+      float clump = smoothstep(0.32, 0.64, vnoise(vec2(u * 0.32, id * 7.31 + float(i) * 3.7)));
+      // 每一簇自己起落：一圈里碎三次，各簇错开，浪花冒出来、散掉，不是一直挂在浪尖上
+      clump *= smoothstep(0.05, 0.6, 0.5 + 0.5 * sin(6.2831853 * (3.0 * uT / uPer + vnoise(vec2(u * 0.15, id * 3.1 + float(i))))));
+      float grain = vnoise(vec2(u, d / k) * 1.4 + id * 5.13 + float(i) * 1.9);
+      float tail = exp(-d / 1.1);
+      foam += clump * smoothstep(0.12, 0.7, tail * (0.4 + 1.0 * grain)) * (1.0 - 0.2 * float(i));
+    }
+    foam += smoothstep(0.35, 0.08, vJ) * 0.4 * smoothstep(0.35, 0.7, vnoise(vP0 * 0.6));   // 浪尖挤到一起的地方，也是零零碎碎的
+    foam += 1.4 * vRip;
+    foam *= exp(-dist / 120.0);
+    o = vec4(L, t2 * 0.5 + 0.5, clamp(foam, 0.0, 1.0));
   }
 `;
 
@@ -188,9 +222,10 @@ const COMP_FS = /* glsl */ `
   in vec2 vUv; out vec4 o;
   uniform sampler2D uScene, uAtlas;
   uniform vec2 uRes;                // 画布，设备像素
-  uniform float uCell, uLod, uN;    // 一格多少设备像素、取平均用的 mipmap 层、字有几个
-  uniform vec2 uRange;              // 亮度从 x 到 y 铺满由淡到浓的字
-  uniform vec3 uC0, uC1, uC2, uC3;  // 色带
+  uniform float uCell, uLod, uN;    // 一格多少设备像素、取平均用的 mipmap 层、图集里有几个字
+  uniform vec2 uRange;              // 水的亮度从 x 到 y 铺满由淡到浓的水的字
+  uniform vec3 uC0, uC1, uC2, uC3;  // 水的色带
+  uniform vec3 uF0, uF1;            // 浪花由淡到浓的颜色
   float hash(vec2 p) { return fract(sin(dot(p, vec2(12.9898, 78.233))) * 43758.5453); }
   vec3 ramp(float t) {
     t = clamp(t, 0.0, 1.0) * 3.0;
@@ -199,17 +234,29 @@ const COMP_FS = /* glsl */ `
   void main() {
     vec2 fc = vec2(gl_FragCoord.x, uRes.y - gl_FragCoord.y);     // 左上角是原点
     vec2 cell = floor(fc / uCell), c0 = (cell + 0.5) * uCell / uRes;
-    vec3 s = textureLod(uScene, vec2(c0.x, 1.0 - c0.y), uLod).rgb;
-    // 字顺着浪头放；这一格的方向乱（二倍角平均下来很短）就横着放
-    vec2 t2 = textureLod(uScene, vec2(c0.x, 1.0 - c0.y), uLod + 1.5).gb * 2.0 - 1.0;   // 方向取周围几格一起的，不跟着一格里的小起伏乱转
-    float a = 0.5 * atan(t2.y, t2.x) * smoothstep(0.05, 0.25, length(t2));
-    float lv = clamp((s.r - uRange.x) / (uRange.y - uRange.x) + (hash(cell) - 0.5) * 0.08, 0.0, 0.999);
-    float gi = floor(lv * uN);
+    vec4 s = textureLod(uScene, vec2(c0.x, 1.0 - c0.y), uLod);
+    float r1 = hash(cell), r2 = hash(cell + 17.31);
+    float gi, a = 0.0;
+    vec3 col;
+    // 浪花：这一格的白沫够浓就画浪花的字（. : * o @），不转；边上淡的地方零星撒几个点当飞沫
+    float fz = s.a + (r1 - 0.5) * 0.16;
+    if (fz > 0.16 || r2 < (s.a - 0.04) * 3.0) {
+      float fl = clamp((fz - 0.16) / 0.6, 0.0, 0.999);
+      gi = ${WATER}.0 + floor(fl * (uN - ${WATER}.0));
+      col = mix(uF0, uF1, fl);
+    } else {
+      // 水：亮度挑 - ~ =，字顺着浪头放；这一格的方向乱（二倍角平均下来很短）就横着放
+      vec2 t2 = textureLod(uScene, vec2(c0.x, 1.0 - c0.y), uLod + 1.5).gb * 2.0 - 1.0;   // 方向取周围几格一起的，不跟着一格里的小起伏乱转
+      a = 0.5 * atan(t2.y, t2.x) * smoothstep(0.05, 0.25, length(t2));
+      float lv = clamp((s.r - uRange.x) / (uRange.y - uRange.x) + (r1 - 0.5) * 0.08, 0.0, 0.999);
+      gi = floor(lv * ${WATER}.0);
+      col = ramp(lv);
+    }
     vec2 loc = (fc - (cell + 0.5) * uCell) / uCell;
     vec2 q = vec2(cos(a) * loc.x + sin(a) * loc.y, -sin(a) * loc.x + cos(a) * loc.y);
     float ink = 0.0;
     if (abs(q.x) < 0.5 && abs(q.y) < 0.5) ink = texture(uAtlas, vec2((gi + q.x + 0.5) / uN, 0.5 - q.y)).r;
-    o = vec4(ramp(lv) * ink, ink);   // 预乘过的透明度：字以外是透明的
+    o = vec4(col * ink, ink);   // 预乘过的透明度：字以外是透明的
   }
 `;
 
@@ -256,9 +303,9 @@ function create(canvas, { period = 12000, cell = 8, fps = 30 } = {}) {
   const seaMat = new THREE.RawShaderMaterial({
     glslVersion: THREE.GLSL3, vertexShader: SEA_VS, fragmentShader: SEA_FS, side: THREE.DoubleSide,
     uniforms: {
-      uT, uAmax: { value: big.slice(0, 3).reduce((s, w) => s + w[3], 0) },
+      uT, uAmax: { value: big.slice(0, 3).reduce((s, w) => s + w[3], 0) }, uPer: { value: period / 1000 },
       uW: { value: big.map((w) => new THREE.Vector4(w[0], w[1], w[2], w[3])) },
-      uWq: { value: big.map((w) => new THREE.Vector4(w[4], w[5], w[6], 0)) },
+      uWq: { value: big.map((w) => new THREE.Vector4(w[4], w[5], w[6], w[7])) },
       uS: { value: small.map((w) => new THREE.Vector4(w[0], w[1], w[2], w[3])) },
       uSw: { value: small.map((w) => w[4]) },
       uRip: { value: rip },
@@ -281,6 +328,7 @@ function create(canvas, { period = 12000, cell = 8, fps = 30 } = {}) {
       uScene: { value: null }, uAtlas: { value: atlas }, uRes: { value: new THREE.Vector2(1, 1) }, uCell: { value: cell }, uLod: { value: 3 }, uN: { value: GLYPHS.length },
       uRange: { value: new THREE.Vector2(0.25, 0.8) },
       uC0: { value: new THREE.Vector3() }, uC1: { value: new THREE.Vector3() }, uC2: { value: new THREE.Vector3() }, uC3: { value: new THREE.Vector3() },
+      uF0: { value: new THREE.Vector3() }, uF1: { value: new THREE.Vector3() },
     },
   });
   const compScene = new THREE.Scene();
@@ -289,8 +337,9 @@ function create(canvas, { period = 12000, cell = 8, fps = 30 } = {}) {
   let W = 0, H = 0, dpr = 1, raf = 0, visible = true, last = -1e9, dead = false;
 
   function readTheme() {
-    const R = RAMPS[getComputedStyle(canvas).colorScheme.includes("dark") ? "dark" : "light"];
-    ["uC0", "uC1", "uC2", "uC3"].forEach((k, i) => compMat.uniforms[k].value.fromArray(R[i]));
+    const C = COLORS[getComputedStyle(canvas).colorScheme.includes("dark") ? "dark" : "light"];
+    ["uC0", "uC1", "uC2", "uC3"].forEach((k, i) => compMat.uniforms[k].value.fromArray(C.water[i]));
+    compMat.uniforms.uF0.value.fromArray(C.foam[0]); compMat.uniforms.uF1.value.fromArray(C.foam[1]);
   }
   function relayout() {
     W = canvas.clientWidth; H = canvas.clientHeight;
