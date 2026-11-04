@@ -28,7 +28,7 @@ pnpm check      # 类型检查
 | `src/site.ts` | 名字、简介、邮箱、GitHub 和 X 的地址，改一处到处跟着变 |
 | `src/content/projects/` | 「Projects」里的项目，一个一个 `.md`，字段见 `src/content.config.ts` |
 | `src/labs/<slug>/` | 一个实验一个目录：`index.md` 是标题、标签和做法说明，`Demo.tsx` 是组件，样式和图片也放这里 |
-| `src/labs/_kit/` | 实验共用的样子（`kit.css`）和图标（`icons.tsx`），见「实验的样子」 |
+| `src/labs/_kit/` | 实验共用的样子（`kit.css`）、图标（`icons.tsx`），见「实验的样子」；WebGL2 的样板（`gl.js`），见「选型」 |
 | `src/islands/LabDemo.tsx` | 页面上唯一的 React 入口，把实验挂到舞台上 |
 | `src/scripts/ascii.ts` | 首屏的字符画 |
 | `tools/portrait.py` | 从头像插画生成字符画用的图、小头像和 favicon（见「字符画」） |
@@ -39,7 +39,7 @@ pnpm check      # 类型检查
 ## 加一个实验
 
 1. 建目录 `src/labs/<slug>/`，`slug` 就是网址里那段（`/lab/<slug>/`），用小写和短横线。
-2. 写 `Demo.tsx`，默认导出一个 React 组件。根元素写 `className="lab-root <自己的类名>"`：`lab-root` 让它撑满舞台、内容居中，颜色、圆角、阴影都从它上面的变量取（见下面「实验的样子」）。舞台在卡片上高 280px、详情页上 320 到 480px，底色跟着主题走（浅色是浅灰，深色是深灰）。样式写在同目录的 `style.css`，在 `Demo.tsx` 里 `import "./style.css"`，选择器都挂在自己的类名下面（`.folder-lab .front`），不写裸的 `button`、`p`。图标从 `../_kit/icons` 拿。图片放 `assets/`，引用写 `import cover from "./assets/cover.webp?url"`（带 `?url` 拿到的是地址；不带的话 Astro 给的是一个对象，`<img src>` 会变成 `[object Object]`）。
+2. 写 `Demo.tsx`，默认导出一个 React 组件。根元素写 `className="lab-root <自己的类名>"`：`lab-root` 让它撑满舞台、内容居中，颜色、圆角、阴影都从它上面的变量取（见下面「实验的样子」）。舞台在卡片上高 280px、详情页上 320 到 480px，底色跟着主题走（浅色是浅灰，深色是深灰）。样式写在同目录的 `style.css`，在 `Demo.tsx` 里 `import "./style.css"`，选择器都挂在自己的类名下面（`.folder-lab .front`），不写裸的 `button`、`p`。图标从 `../_kit/icons` 拿，要用 WebGL2 画的从 `../_kit/gl.js` 拿样板（建上下文、编着色器、离屏图这些）。图片放 `assets/`，引用写 `import cover from "./assets/cover.webp?url"`（带 `?url` 拿到的是地址；不带的话 Astro 给的是一个对象，`<img src>` 会变成 `[object Object]`）。
 3. 写 `index.md`：
 
    ```md
@@ -110,8 +110,8 @@ pnpm check      # 类型检查
 - **Astro**（静态生成）：比较过留在 Vite + React 单页、Next.js 静态导出、Eleventy。原来的单页把所有东西都放在一个 JS 里，HTML 是空的，搜索引擎和分享卡片都看不到内容，首屏要等 React 下载完；Next.js 静态导出每页都带着 React 的运行时；Eleventy 页面很轻，但实验是 React 组件，要另想办法挂。Astro 默认页面不带 JS，又能把 React 组件当「岛」按需挂，正好：首页本身只有主题按钮和字符画两段小脚本，React 和实验的代码等滚到实验那一节才下载，一个实验一个文件。sooty 的官网也是 Astro，用法一样。
 - **React 只给实验用**：实验原来就是 React 写的，拖动、切换这些交互用 React 写也顺手，源码公开给人看。2026-10-27 重写时样式换成了普通 CSS 和共用的 `_kit/kit.css`，去掉了 Motion、Tabler 图标和 Tailwind 的类名（见「实验的样子」）。网站本身（顶栏、首页、详情页）全是 Astro 组件和普通 CSS。
 - **Tailwind 只扫 `src/labs/`**：现在的实验都不用它的类名，留着主要是 preflight 当整站的样式重置；以后的实验想用类名也能用。网站自己的样式不用 Tailwind，写在组件的 `<style>` 里。
-- **Three.js 只给 ASCII Waves 用**（MIT，钉在 0.186.x）：2026-11-04 laken 定了「全程用 Three.js 和 shader 实时渲染」（一开始做的是草，同一天改成了海浪；Three.js 画的海只当底稿，不显示原图，屏上只有字，铺满整个舞台，每格都有字、顺着浪头转）。它要一个真的 3D 场景（透视镜头、12 万个点的海面网格、深度）、带 mipmap 的离屏图和一个全屏挑字的 pass，Three.js 的 `PerspectiveCamera`、`RawShaderMaterial`、`WebGLRenderTarget`、`Raycaster`（鼠标落在海面哪里）正好都有，着色器照样自己写。代价是这个实验多下 540 KB（gzip 后 135 KB），只有滚到这个实验跟前才下载，别的页面、别的实验不受影响。也看过：
-  - 直接写 WebGL2（首屏字符画就是）：最小，但镜头矩阵、离屏图、深度、mipmap 这些样板要自己写一遍，跟 laken 定的不一样。
+- **ASCII Waves、ASCII Clouds 直接写 WebGL2，不引 3D 库**：两个实验都是着色器在离屏图里画一个真的 3D 场景当底稿（海：透视镜头、12 万个点的海面网格、深度；云：往天上打光线，在云层里一步步走），再全屏挑字，屏上只有字。2026-11-04 先用 Three.js 写了海浪（laken 定的「全程用 Three.js 和 shader 实时渲染」），同一天做云的时候 laken 觉得不用 Three.js 也能一模一样，定了两个实验都改成原生 WebGL2。着色器本来就是自己写的，Three.js 只替我们做了镜头矩阵、离屏图、深度、mipmap 和「鼠标落在海面哪里」，这些在 `src/labs/_kit/gl.js`（建上下文、编着色器、按类型设 uniform、全屏三角形、离屏图、从 canvas 建贴图）和 `waves.js` 开头的两个矩阵函数里，一共一百多行。改完以后海浪的静止帧跟 Three.js 那版逐像素一样（深浅两种主题、1 倍和 2 倍屏都比过），海浪这个实验少下 540 KB（gzip 后 135 KB）。也看过：
+  - Three.js（0.186，MIT）：`PerspectiveCamera`、`RawShaderMaterial`、`WebGLRenderTarget`、`Raycaster` 正好都有，但只用到这几样，场景树、材质、灯光这些大半的代码用不上，却要整个下载。
   - OGL（1.0，Unlicense）：小，接口跟 Three.js 像，但 2025 年初以后没再发版。
   - regl（2.1，MIT）：函数式的写法很省，但只支持 WebGL1，着色器得改写成 GLSL 1.0，2024 年以后没再发版。
 - **图标**：Phosphor 的 regular 粗细，几个用到的直接写成内联 SVG（网站的在 `components/Icon.astro`，实验的在 `src/labs/_kit/icons.tsx`），不引图标库。

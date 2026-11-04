@@ -1,4 +1,4 @@
-/* 用字符画（ASCII）画的海浪。Three.js 画的海只在离屏图里当底稿，屏幕上只有字。每帧两步：
+/* 用字符画（ASCII）画的海浪。WebGL2 着色器画的海只在离屏图里当底稿，屏幕上只有字。每帧两步：
 
      1. 海（scene）：镜头从 11 米高往前下方 40° 看，整块画面都是海，没有天。
         海面是一张从脚下铺到远处的网格（近密远疏），顶点在着色器里按 10 道 Gerstner 波推动，浪顶尖、浪谷平；
@@ -25,21 +25,11 @@
      w.splash();                     // 在海面上随便一处激起一圈涟漪（键盘用）
      w.refresh();                    // 换了主题以后调：换字的色带
      w.destroy();                    // 不用了：停下、摘掉监听、释放显存 */
-import * as THREE from "three";
+import { context, program, fullscreen, target, canvasTexture, softwareGL } from "../_kit/gl.js";
 
 const TAU = Math.PI * 2;
 
 function rng(seed) { let s = (seed >>> 0) || 1; return () => ((s = (Math.imul(s, 1664525) + 1013904223) >>> 0) / 4294967296); }
-
-// 显卡是不是 CPU 在模拟：跟首屏字符画（src/scripts/ascii.ts）同一个判断
-function softwareGL(gl) {
-  let name = String(gl.getParameter(gl.RENDERER));
-  if (/^webkit webgl$/i.test(name)) {
-    const info = gl.getExtension("WEBGL_debug_renderer_info");
-    if (info) name = String(gl.getParameter(info.UNMASKED_RENDERER_WEBGL));
-  }
-  return /swiftshader|llvmpipe|softpipe|software|basic render/i.test(name);
-}
 
 // 颜色：水的字沿一条四个颜色的色带走，由淡的字到浓的字；浪花的字由淡到浓两个颜色。
 // 深色主题水由深蓝到浅蓝、浪花由浅蓝到白（越浓越亮）；浅色主题水由浅灰蓝到深蓝、浪花是最深的墨（越浓越重）
@@ -96,7 +86,7 @@ function drawAtlas(c) {
 
 // ---------- 着色器 ----------
 const QUAD_VS = /* glsl */ `
-  in vec3 position; out vec2 vUv;
+  in vec2 position; out vec2 vUv;
   void main() { vUv = position.xy * 0.5 + 0.5; gl_Position = vec4(position.xy, 0.0, 1.0); }
 `;
 
@@ -210,7 +200,7 @@ const SEA_FS = /* glsl */ `
       float tail = exp(-d / 1.1);
       foam += clump * smoothstep(0.12, 0.7, tail * (0.4 + 1.0 * grain)) * (1.0 - 0.2 * float(i));
     }
-    foam += smoothstep(0.35, 0.08, vJ) * 0.4 * smoothstep(0.35, 0.7, vnoise(vP0 * 0.6));   // 浪尖挤到一起的地方，也是零零碎碎的
+    foam += (1.0 - smoothstep(0.08, 0.35, vJ)) * 0.4 * smoothstep(0.35, 0.7, vnoise(vP0 * 0.6));   // 浪尖挤到一起的地方，也是零零碎碎的
     foam += 1.4 * vRip;
     foam *= exp(-dist / 120.0);
     o = vec4(L, t2 * 0.5 + 0.5, clamp(foam, 0.0, 1.0));
@@ -260,112 +250,98 @@ const COMP_FS = /* glsl */ `
   }
 `;
 
+// ---------- 镜头 ----------
+// 透视投影、看向某一点的视图矩阵，按列存（uniformMatrix4fv 要的就是这样），算法跟 Three.js 的 PerspectiveCamera、lookAt 一样
+const sub = (a, b) => a.map((v, i) => v - b[i]), dot = (a, b) => a[0] * b[0] + a[1] * b[1] + a[2] * b[2];
+const norm = (a) => { const l = Math.hypot(...a); return a.map((v) => v / l); };
+const cross = (a, b) => [a[1] * b[2] - a[2] * b[1], a[2] * b[0] - a[0] * b[2], a[0] * b[1] - a[1] * b[0]];
+function perspective(fovY, aspect, near, far) {
+  const f = 1 / Math.tan((fovY * Math.PI) / 360), nf = 1 / (near - far);
+  return new Float32Array([f / aspect, 0, 0, 0, 0, f, 0, 0, 0, 0, (far + near) * nf, -1, 0, 0, 2 * far * near * nf, 0]);
+}
+function lookAt(eye, at) {
+  const z = norm(sub(eye, at)), x = norm(cross([0, 1, 0], z)), y = cross(z, x);   // 镜头往右、往上、往后
+  const view = new Float32Array([x[0], y[0], z[0], 0, x[1], y[1], z[1], 0, x[2], y[2], z[2], 0, -dot(x, eye), -dot(y, eye), -dot(z, eye), 1]);
+  return { x, y, z, view };
+}
+
 // ---------- 引擎 ----------
 /**
  * @param {HTMLCanvasElement} canvas
  * @param {{ period?: number, cell?: number, fps?: number }} [opts]
  */
 function create(canvas, { period = 12000, cell = 8, fps = 30 } = {}) {
-  // 没有 WebGL2 时 three 会抛错，交给调用的人接
-  const renderer = new THREE.WebGLRenderer({ canvas, antialias: false, alpha: true, premultipliedAlpha: true, powerPreference: "high-performance" });
-  renderer.autoClear = false;
-  const software = softwareGL(renderer.getContext());
+  const gl = context(canvas);   // 没有 WebGL2 就抛错，交给调用的人接
+  const software = softwareGL(gl);
   const motion = matchMedia("(prefers-reduced-motion: reduce)");
   let still = motion.matches || software;
-  const flat = new THREE.Camera();
-  const quad = new THREE.BufferGeometry();
-  quad.setAttribute("position", new THREE.Float32BufferAttribute([-1, -1, 0, 3, -1, 0, -1, 3, 0], 3));
+  const tri = fullscreen(gl);
+  const seaP = program(gl, SEA_VS, SEA_FS), compP = program(gl, QUAD_VS, COMP_FS);
 
   // 镜头：11 米高，往前下方 40° 看，画面最上沿也落在海上，没有天
-  const cam = new THREE.PerspectiveCamera(50, 2, 0.1, 1000);
-  cam.position.set(0, 11, 6);
-  cam.lookAt(0, 0, 6 - 11 / Math.tan((40 * Math.PI) / 180));
-  cam.updateMatrixWorld();
+  const FOV = 50, EYE = [0, 11, 6];
+  const cam = lookAt(EYE, [0, 0, 6 - 11 / Math.tan((40 * Math.PI) / 180)]);
+  let proj = perspective(FOV, 2, 0.1, 1000);
 
   const { big, small } = makeWaves(period);
-  const uT = { value: 0 };
+  const flat = (rows) => new Float32Array(rows.flat());
+  const sea = {
+    uAmax: big.slice(0, 3).reduce((s, w) => s + w[3], 0), uPer: period / 1000,
+    uW: flat(big.map((w) => w.slice(0, 4))), uWq: flat(big.map((w) => w.slice(4, 8))),
+    uS: flat(small.map((w) => w.slice(0, 4))), uSw: new Float32Array(small.map((w) => w[4])),
+    uSunDir: norm([0.25, 0.75, -1]),   // 光从正前方偏右的高处来
+    viewMatrix: cam.view, cameraPosition: EYE,
+  };
 
   // 1. 海面：x 方向 300 格、z 方向 400 格，z 按指数铺（脚下密、远处疏），越远越宽，正好盖满画面。
-  //    从镜头脚下往后一点开始铺，浪把网格前后推的时候边缘也露不出来
+  //    从镜头脚下往后一点开始铺，浪把网格前后推的时候边缘也露不出来。12 万个点，下标超过 65535，用 32 位的
   const COLS = 300, ROWS = 400, NEAR = 1, FAR = 260, Z0 = 6;
-  const pos = new Float32Array((COLS + 1) * (ROWS + 1) * 3), idx = [];
+  const pos = new Float32Array((COLS + 1) * (ROWS + 1) * 3), idx = new Uint32Array(COLS * ROWS * 6);
   for (let j = 0; j <= ROWS; j++) {
     const z = Z0 - NEAR * Math.pow(FAR / NEAR, j / ROWS) + 3, half = Math.abs(Z0 - z) * 1.3 + 10;
     for (let i = 0; i <= COLS; i++) { const o = (j * (COLS + 1) + i) * 3; pos[o] = (i / COLS * 2 - 1) * half; pos[o + 1] = 0; pos[o + 2] = z; }
   }
-  for (let j = 0; j < ROWS; j++) for (let i = 0; i < COLS; i++) {
+  for (let j = 0, o = 0; j < ROWS; j++) for (let i = 0; i < COLS; i++, o += 6) {
     const a = j * (COLS + 1) + i, b = a + 1, c = a + COLS + 1, d = c + 1;
-    idx.push(a, c, b, b, c, d);
+    idx[o] = a; idx[o + 1] = c; idx[o + 2] = b; idx[o + 3] = b; idx[o + 4] = c; idx[o + 5] = d;
   }
-  const seaGeo = new THREE.BufferGeometry();
-  seaGeo.setAttribute("position", new THREE.BufferAttribute(pos, 3)); seaGeo.setIndex(idx);
-  const rip = Array.from({ length: 8 }, () => new THREE.Vector4(0, 0, 0, 0)), ripT = new Array(8).fill(-1e9), ripP = Array.from({ length: 8 }, () => [0, 0]);
-  const seaMat = new THREE.RawShaderMaterial({
-    glslVersion: THREE.GLSL3, vertexShader: SEA_VS, fragmentShader: SEA_FS, side: THREE.DoubleSide,
-    uniforms: {
-      uT, uAmax: { value: big.slice(0, 3).reduce((s, w) => s + w[3], 0) }, uPer: { value: period / 1000 },
-      uW: { value: big.map((w) => new THREE.Vector4(w[0], w[1], w[2], w[3])) },
-      uWq: { value: big.map((w) => new THREE.Vector4(w[4], w[5], w[6], w[7])) },
-      uS: { value: small.map((w) => new THREE.Vector4(w[0], w[1], w[2], w[3])) },
-      uSw: { value: small.map((w) => w[4]) },
-      uRip: { value: rip },
-      uSunDir: { value: new THREE.Vector3(0.25, 0.75, -1).normalize() },   // 光从正前方偏右的高处来
-      uAspect: { value: new THREE.Vector2(1, 1) },
-    },
-  });
-  const seaScene = new THREE.Scene();
-  seaScene.add(Object.assign(new THREE.Mesh(seaGeo, seaMat), { frustumCulled: false }));
+  const seaVao = gl.createVertexArray(), seaBuf = gl.createBuffer(), seaIdx = gl.createBuffer();
+  gl.bindVertexArray(seaVao);
+  gl.bindBuffer(gl.ARRAY_BUFFER, seaBuf); gl.bufferData(gl.ARRAY_BUFFER, pos, gl.STATIC_DRAW);
+  gl.enableVertexAttribArray(0); gl.vertexAttribPointer(0, 3, gl.FLOAT, false, 0, 0);
+  gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, seaIdx); gl.bufferData(gl.ELEMENT_ARRAY_BUFFER, idx, gl.STATIC_DRAW);
+  gl.bindVertexArray(null);
+  const rip = new Float32Array(32), ripT = new Array(8).fill(-1e9), ripP = Array.from({ length: 8 }, () => [0, 0]);
   let sceneRT = null;
 
   // 2. 合成
   const atlasCanvas = document.createElement("canvas");
   drawAtlas(atlasCanvas);
-  const atlas = new THREE.CanvasTexture(atlasCanvas);
-  atlas.minFilter = THREE.LinearMipmapLinearFilter; atlas.magFilter = THREE.LinearFilter; atlas.generateMipmaps = true;
-  const compMat = new THREE.RawShaderMaterial({
-    glslVersion: THREE.GLSL3, vertexShader: QUAD_VS, fragmentShader: COMP_FS, depthTest: false, depthWrite: false,
-    uniforms: {
-      uScene: { value: null }, uAtlas: { value: atlas }, uRes: { value: new THREE.Vector2(1, 1) }, uCell: { value: cell }, uLod: { value: 3 }, uN: { value: GLYPHS.length },
-      uRange: { value: new THREE.Vector2(0.25, 0.8) },
-      uC0: { value: new THREE.Vector3() }, uC1: { value: new THREE.Vector3() }, uC2: { value: new THREE.Vector3() }, uC3: { value: new THREE.Vector3() },
-      uF0: { value: new THREE.Vector3() }, uF1: { value: new THREE.Vector3() },
-    },
-  });
-  const compScene = new THREE.Scene();
-  compScene.add(Object.assign(new THREE.Mesh(quad, compMat), { frustumCulled: false }));
+  const atlas = canvasTexture(gl, atlasCanvas);
 
-  let W = 0, H = 0, dpr = 1, raf = 0, visible = true, last = -1e9, dead = false;
+  let W = 0, H = 0, dpr = 1, raf = 0, visible = true, last = -1e9, dead = false, colors = COLORS.light;
 
-  function readTheme() {
-    const C = COLORS[getComputedStyle(canvas).colorScheme.includes("dark") ? "dark" : "light"];
-    ["uC0", "uC1", "uC2", "uC3"].forEach((k, i) => compMat.uniforms[k].value.fromArray(C.water[i]));
-    compMat.uniforms.uF0.value.fromArray(C.foam[0]); compMat.uniforms.uF1.value.fromArray(C.foam[1]);
-  }
+  function readTheme() { colors = COLORS[getComputedStyle(canvas).colorScheme.includes("dark") ? "dark" : "light"]; }
   function relayout() {
     W = canvas.clientWidth; H = canvas.clientHeight;
     if (!W || !H) return;
     dpr = Math.min(2, window.devicePixelRatio || 1);
-    renderer.setPixelRatio(dpr); renderer.setSize(W, H, false);
-    const pw = Math.round(W * dpr), ph = Math.round(H * dpr);
+    canvas.width = Math.round(W * dpr); canvas.height = Math.round(H * dpr);
     sceneRT?.dispose();
-    sceneRT = new THREE.WebGLRenderTarget(pw, ph, { minFilter: THREE.LinearMipmapLinearFilter, magFilter: THREE.LinearFilter, generateMipmaps: true, depthBuffer: true });
-    cam.aspect = W / H; cam.updateProjectionMatrix(); seaMat.uniforms.uAspect.value.set(W, H);
-    compMat.uniforms.uScene.value = sceneRT.texture;
-    compMat.uniforms.uRes.value.set(pw, ph);
-    compMat.uniforms.uCell.value = cell * dpr;
-    compMat.uniforms.uLod.value = Math.log2(cell * dpr) - 0.5;
+    sceneRT = target(gl, canvas.width, canvas.height, { mipmaps: true, depth: true });
+    proj = perspective(FOV, W / H, 0.1, 1000);
     readTheme();
     paint(true);
   }
 
   // 鼠标、手指：从画面上那一点往海面投一条线，落点激起一圈涟漪。移动时每走 40px 或者每 120ms 一圈，最多同时 8 圈
-  const ray = new THREE.Raycaster(), sea = new THREE.Plane(new THREE.Vector3(0, 1, 0), 0), hit = new THREE.Vector3(), ndc = new THREE.Vector2();
   let slot = 0, lastX = -1e9, lastY = -1e9, lastAt = -1e9;
   function splash(x, y) {
-    ndc.set((x / W) * 2 - 1, 1 - (y / H) * 2);
-    ray.setFromCamera(ndc, cam);
-    if (!ray.ray.intersectPlane(sea, hit)) return;
-    ripP[slot] = [hit.x, hit.z]; ripT[slot] = performance.now(); slot = (slot + 1) % rip.length;
+    const ty = Math.tan((FOV * Math.PI) / 360), nx = ((x / W) * 2 - 1) * ty * (W / H), ny = (1 - (y / H) * 2) * ty;
+    const d = [0, 1, 2].map((i) => cam.x[i] * nx + cam.y[i] * ny - cam.z[i]);
+    if (d[1] >= 0) return;   // 视线朝上，碰不到海面
+    const t = -EYE[1] / d[1];
+    ripP[slot] = [EYE[0] + d[0] * t, EYE[2] + d[2] * t]; ripT[slot] = performance.now(); slot = (slot + 1) % ripT.length;
     paint(true);
   }
   const at = (e) => { const b = canvas.getBoundingClientRect(); return [e.clientX - b.left, e.clientY - b.top]; };
@@ -384,20 +360,34 @@ function create(canvas, { period = 12000, cell = 8, fps = 30 } = {}) {
     raf = 0;
     if (dead || !W || !sceneRT) return;
     let busy = false;
-    for (let k = 0; k < rip.length; k++) {
+    for (let k = 0; k < ripT.length; k++) {
       const age = (now - ripT[k]) / 1000, on = age >= 0 && age < 5;
-      rip[k].set(ripP[k][0], ripP[k][1], age, on ? 1 : 0);
+      rip.set([ripP[k][0], ripP[k][1], age, on ? 1 : 0], k * 4);
       if (on) busy = true;
     }
     // 平时每秒 fps 帧；有涟漪时每帧都画，跟得上手
     if (!still && !busy && now - last < 1000 / fps - 2) { schedule(); return; }
     last = now;
     const u = still ? 0.05 : (((now % period) + period) % period) / period;   // 不动时停在跟封面差不多的那一刻
-    uT.value = (u * period) / 1000;
-    renderer.setRenderTarget(sceneRT); renderer.setClearColor(0x000000, 1); renderer.clear();
-    renderer.render(seaScene, cam);
-    renderer.setRenderTarget(null); renderer.setClearColor(0x000000, 0); renderer.clear();
-    renderer.render(compScene, flat);
+    // 海：画进带深度的离屏图（网格两面都画，不剔除），再生成 mipmap，合成时按格子取平均
+    sceneRT.bind();
+    gl.enable(gl.DEPTH_TEST); gl.depthFunc(gl.LEQUAL);
+    gl.clearColor(0, 0, 0, 1); gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT);
+    seaP.use({ ...sea, projectionMatrix: proj, uT: (u * period) / 1000, uRip: rip, uAspect: [W, H] });
+    gl.bindVertexArray(seaVao); gl.drawElements(gl.TRIANGLES, idx.length, gl.UNSIGNED_INT, 0); gl.bindVertexArray(null);
+    gl.disable(gl.DEPTH_TEST);
+    sceneRT.mip();
+    // 合成到画布上
+    gl.bindFramebuffer(gl.FRAMEBUFFER, null);
+    gl.viewport(0, 0, canvas.width, canvas.height);
+    gl.clearColor(0, 0, 0, 0); gl.clear(gl.COLOR_BUFFER_BIT);
+    const C = colors;
+    compP.use({
+      uScene: [sceneRT.tex, 0], uAtlas: [atlas.tex, 1], uRes: [canvas.width, canvas.height], uCell: cell * dpr,
+      uLod: Math.log2(cell * dpr) - 0.5, uN: GLYPHS.length, uRange: [0.25, 0.8],
+      uC0: C.water[0], uC1: C.water[1], uC2: C.water[2], uC3: C.water[3], uF0: C.foam[0], uF1: C.foam[1],
+    });
+    tri.draw();
     if (!still || busy) schedule();
   }
   function schedule() { if (!raf && !dead && visible && !document.hidden) raf = requestAnimationFrame(frame); }
@@ -415,7 +405,7 @@ function create(canvas, { period = 12000, cell = 8, fps = 30 } = {}) {
   // 字的图集用网站的 DM Mono 画，字体晚到了重画一遍
   document.fonts?.load('400 54px "DM Mono"').then(() => document.fonts.load('500 54px "DM Mono"')).then(() => {
     if (dead) return;
-    drawAtlas(atlasCanvas); atlas.needsUpdate = true; paint(true);
+    drawAtlas(atlasCanvas); atlas.update(); paint(true);
   }, () => {});
 
   relayout();
@@ -429,9 +419,10 @@ function create(canvas, { period = 12000, cell = 8, fps = 30 } = {}) {
       canvas.removeEventListener("pointerdown", onDown);
       document.removeEventListener("visibilitychange", onVis);
       motion.removeEventListener("change", onMotion);
-      sceneRT?.dispose(); seaGeo.dispose(); quad.dispose(); atlas.dispose();
-      seaMat.dispose(); compMat.dispose();
-      renderer.dispose();   // 上下文不强行丢掉：同一个 canvas 再挂一次（开发时 React 会挂两遍）还要用
+      sceneRT?.dispose(); atlas.dispose(); tri.dispose();
+      gl.deleteVertexArray(seaVao); gl.deleteBuffer(seaBuf); gl.deleteBuffer(seaIdx);
+      seaP.dispose(); compP.dispose();
+      // 上下文不强行丢掉：同一个 canvas 再挂一次（开发时 React 会挂两遍）还要用
     },
   };
 }
