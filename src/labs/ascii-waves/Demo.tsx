@@ -2,24 +2,12 @@ import { useEffect, useRef, useState, type KeyboardEvent } from "react";
 import { create } from "./waves.js";
 import "./style.css";
 
-type Mode = "waves" | "ascii";
-
-const TABS: { id: Mode; label: string }[] = [
-    { id: "waves", label: "Waves" },
-    { id: "ascii", label: "ASCII" },
-];
-const LABEL: Record<Mode, string> = {
-    waves: "Open sea rolling toward you under a low sun, or a moon in dark mode",
-    ascii: "Open sea rolling toward you under a low sun, with ASCII characters laid over the water",
-};
-
 export default function AsciiWaves() {
     const canvas = useRef<HTMLCanvasElement>(null);
     const sea = useRef<ReturnType<typeof create> | null>(null);
-    const [mode, setMode] = useState<Mode>("ascii");
     const [failed, setFailed] = useState(false); // 浏览器没有 WebGL2
 
-    // 引擎自己画、自己限帧、滚出屏幕就停、自己跟着鼠标起涟漪；React 只管换模式的按钮
+    // 引擎自己画、自己限帧、滚出屏幕就停、自己跟着鼠标起涟漪；React 只管挂上、换主题、拆掉
     useEffect(() => {
         let s: ReturnType<typeof create>;
         try { s = create(canvas.current!, { period: 12000 }); }
@@ -34,31 +22,18 @@ export default function AsciiWaves() {
         return () => { mo.disconnect(); mq.removeEventListener("change", retheme); s.destroy(); sea.current = null; };
     }, []);
 
-    const pick = (next: Mode) => { sea.current?.setMode(next); setMode(next); };
-
-    const arrows = (e: KeyboardEvent) => {
-        if (e.key !== "ArrowLeft" && e.key !== "ArrowRight") return;
+    // 键盘：聚焦到海上按回车或空格，激起一圈涟漪
+    const key = (e: KeyboardEvent) => {
+        if (e.key !== "Enter" && e.key !== " ") return;
         e.preventDefault();
-        const i = TABS.findIndex(t => t.id === mode);
-        const j = (i + (e.key === "ArrowRight" ? 1 : TABS.length - 1)) % TABS.length;
-        pick(TABS[j].id);
-        (e.currentTarget.querySelectorAll("button")[j] as HTMLButtonElement).focus();
+        sea.current?.splash();
     };
 
     return (
         <div className="lab-root ascii-waves">
-            <div className="screen">
-                <canvas className="sea" ref={canvas} role="img" aria-label={LABEL[mode]} />
-                {failed && <p className="fallback">This experiment needs WebGL 2</p>}
-                <div className="tabs" role="tablist" aria-label="Layer" onKeyDown={arrows}>
-                    {TABS.map(t => (
-                        <button key={t.id} role="tab" aria-selected={mode === t.id} tabIndex={mode === t.id ? 0 : -1}
-                            onClick={() => pick(t.id)}>
-                            {t.label}
-                        </button>
-                    ))}
-                </div>
-            </div>
+            <canvas className="sea" ref={canvas} tabIndex={0} role="img" onKeyDown={key}
+                aria-label="Ocean waves rolling toward a low sun, or a moon in dark mode, drawn entirely in ASCII characters. Press Enter to send a ripple." />
+            {failed && <p className="fallback">This experiment needs WebGL 2</p>}
             <p className="lab-hint">
                 <span className="for-mouse">Move across the water to ripple it</span>
                 <span className="for-touch">Tap or swipe across the water</span>
