@@ -1,11 +1,13 @@
 ---
-// 一个实验一页：大一点的舞台，下面是 Prompt（src/labs/<slug>/index.md 头里的 prompt，分段、保留换行，带一个拷贝按钮，太长先折起来）和源码地址，最后是上一个、下一个
+// 一个实验一页。第一屏是录屏用的一整块：标题和一句话、1px 细线框起来的舞台撑满剩下的高度、底下一行日期标签和 X 上的 @oopserian（水印，也是链接）。
+// 右上角「Focus」把这一块铺满整个窗口（藏掉顶栏、页脚和下面的东西，地址加 ?focus，Esc 或浏览器的后退回来），录屏时整个窗口就是这张卡片。
+// 往下是 Prompt（src/labs/<slug>/index.md 头里的 prompt，分段、保留换行，带一个拷贝按钮，太长先折起来）和源码地址，最后是上一个、下一个
 import fs from 'node:fs';
 import { getCollection, type CollectionEntry } from 'astro:content';
 import Base from '../../layouts/Base.astro';
 import LabStage from '../../components/LabStage.astro';
 import Icon from '../../components/Icon.astro';
-import { labSource } from '../../site';
+import { SITE, labSource } from '../../site';
 
 export async function getStaticPaths() {
   const labs = (await getCollection('labs', l => !l.data.wip)).sort((a, b) => a.data.order - b.data.order);
@@ -22,59 +24,100 @@ const { title, summary, tags, date, inspiration, prompt } = lab.data;
 const og = `/og/lab/${lab.id}.png`;
 const image = fs.existsSync(`${process.cwd()}/public${og}`) ? og : undefined;   // 构建在仓库根目录跑
 const when = date.toLocaleDateString('en', { year: 'numeric', month: 'long', timeZone: 'UTC' });
+const handle = '@' + new URL(SITE.x).pathname.slice(1);
 ---
 <Base title={title} description={summary} image={image}>
-  <article class="wrap lab">
-    <a class="back mono" href="/#lab"><Icon name="arrow-left" size={14} />Lab</a>
-    <header>
-      <h1 class="display">{title}</h1>
-      <p class="summary">{summary}</p>
-      <p class="meta mono">{when} · {tags.join(' · ')}</p>
-    </header>
-    <div class="frame"><LabStage slug={lab.id} size="page" /></div>
-    <div class="notes">
-      <section class="prompt" aria-labelledby="prompt-h">
-        <div class="bar">
-          <h2 id="prompt-h" class="eyebrow">Prompt</h2>
-          <button type="button" class="copy mono" data-copy>
-            <Icon name="copy" size={14} class="i-copy" /><Icon name="check" size={14} class="i-check" /><span class="label">Copy</span>
-          </button>
-        </div>
-        <div class="body"><p class="text mono">{prompt}</p></div>
-        <button type="button" class="more mono" aria-expanded="false" hidden>Show all</button>
-      </section>
-      <ul class="links mono">
-        <li><a href={labSource(lab.id)}><Icon name="code" size={16} /><span class="out">Source on GitHub</span></a></li>
-        {inspiration && <li><a href={inspiration}><Icon name="lightbulb" size={16} /><span class="out">Inspired by</span></a></li>}
-      </ul>
+  <!-- 带 ?focus 打开时，页面画出来之前就进整窗模式，不先闪一下平常的样子 -->
+  <script is:inline slot="head">if (new URLSearchParams(location.search).has('focus')) document.documentElement.setAttribute('data-focus', '');</script>
+  <article class="lab">
+    <section class="shot wrap" aria-labelledby="lab-title">
+      <div class="top mono">
+        <a class="back" href="/#lab"><Icon name="arrow-left" size={14} />Lab</a>
+        <button type="button" class="focus" data-focus aria-pressed="false" title="Fill the window, for screen recording. Esc to leave.">
+          <Icon name="corners-out" size={14} />Focus
+        </button>
+      </div>
+      <header>
+        <h1 id="lab-title" class="display">{title}</h1>
+        <p class="summary">{summary}</p>
+      </header>
+      <div class="frame"><LabStage slug={lab.id} size="page" /></div>
+      <div class="caption mono">
+        <p class="meta">{when} · {tags.join(' · ')}</p>
+        <a class="handle" href={SITE.x} aria-label={`${handle} on X`}><Icon name="x" size={14} />{handle}</a>
+      </div>
+    </section>
+    <div class="wrap below">
+      <div class="notes">
+        <section class="prompt" aria-labelledby="prompt-h">
+          <div class="bar">
+            <h2 id="prompt-h" class="eyebrow">Prompt</h2>
+            <button type="button" class="copy mono" data-copy>
+              <Icon name="copy" size={14} class="i-copy" /><Icon name="check" size={14} class="i-check" /><span class="label">Copy</span>
+            </button>
+          </div>
+          <div class="body"><p class="text mono">{prompt}</p></div>
+          <button type="button" class="more mono" aria-expanded="false" hidden>Show all</button>
+        </section>
+        <ul class="links mono">
+          <li><a href={labSource(lab.id)}><Icon name="code" size={16} /><span class="out">Source on GitHub</span></a></li>
+          {inspiration && <li><a href={inspiration}><Icon name="lightbulb" size={16} /><span class="out">Inspired by</span></a></li>}
+        </ul>
+      </div>
+      <nav class="pager" aria-label="More experiments">
+        {prev ? <a href={`/lab/${prev.id}/`}><span class="mono">Previous</span><span class="name">{prev.data.title}</span></a> : <span />}
+        {next ? <a class="next" href={`/lab/${next.id}/`}><span class="mono">Next</span><span class="name">{next.data.title}</span></a> : <span />}
+      </nav>
     </div>
-    <nav class="pager" aria-label="More experiments">
-      {prev ? <a href={`/lab/${prev.id}/`}><span class="mono">Previous</span><span class="name">{prev.data.title}</span></a> : <span />}
-      {next ? <a class="next" href={`/lab/${next.id}/`}><span class="mono">Next</span><span class="name">{next.data.title}</span></a> : <span />}
-    </nav>
   </article>
 </Base>
 
 <style>
-  .lab { padding-top: 40px; }
-  .back {
+  /* 第一屏：一屏高，舞台撑满标题和底下那行字中间剩下的高度。窗口太矮时不再压舞台，太高时也不无限拉长 */
+  .shot {
+    display: flex;
+    flex-direction: column;
+    height: calc(100svh - var(--nav-h));
+    min-height: 560px;
+    max-height: 1120px;
+    padding-top: 24px;
+  }
+  .top {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 16px;
+  }
+  .back, .focus {
     display: inline-flex;
     align-items: center;
     gap: 6px;
     color: var(--fg-3);
     transition: color .15s;
   }
-  .back:hover { color: var(--fg); }
-  header { margin: 28px 0 32px; max-width: 720px; }
+  .focus { padding: 4px 0 4px 8px; cursor: pointer; }
+  .back:hover, .focus:hover { color: var(--fg); }
+  header { margin: 20px 0 28px; max-width: 760px; }
   h1 { --size: 52px; }
-  .summary { margin-top: 16px; font-size: 18px; color: var(--fg-2); text-wrap: pretty; }
-  .meta { margin-top: 12px; color: var(--fg-3); font-size: 12px; }
-  .frame { border: 1px solid var(--line); }
+  .summary { margin-top: 14px; font-size: 18px; color: var(--fg-2); text-wrap: pretty; }
+  .frame { flex: 1; min-height: 0; display: grid; border: 1px solid var(--line); }
+  .caption {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 8px 24px;
+    min-height: 52px;
+    padding-block: 12px;
+    color: var(--fg-3);
+    font-size: 13px;
+  }
+  .handle { display: inline-flex; align-items: center; gap: 6px; flex: none; color: var(--fg-2); transition: color .15s; }
+  .handle:hover { color: var(--accent); }
+  .below { margin-top: 40px; }
   .notes {
     display: grid;
     grid-template-columns: minmax(0, 1fr) 220px;
     gap: 48px;
-    margin-top: 40px;
   }
   .prompt { border: 1px solid var(--line); min-width: 0; }
   .bar {
@@ -146,14 +189,47 @@ const when = date.toLocaleDateString('en', { year: 'numeric', month: 'long', tim
   .pager .mono { color: var(--fg-3); font-size: 12px; }
   .pager .name { font-family: var(--serif); font-size: 26px; line-height: 1.1; transition: color .15s; }
   @media (max-width: 760px) {
-    .lab { padding-top: 24px; }
+    .shot { min-height: 520px; padding-top: 16px; }
+    header { margin: 16px 0 20px; }
     h1 { --size: 40px; }
+    .summary { margin-top: 10px; font-size: 16px; }
+    .caption { min-height: 44px; padding-block: 10px; font-size: 12px; }
+    .below { margin-top: 32px; }
     .notes { grid-template-columns: 1fr; gap: 24px; }
     .pager .name { font-size: 22px; }
   }
 </style>
 
+<style is:global>
+  /* 录屏用的整窗模式（<html data-focus>）：只剩第一屏那一块，铺满窗口，四边留白跟分享图、视频一样 */
+  html[data-focus] { overflow: hidden; }
+  html[data-focus] body > .nav, html[data-focus] body > .foot, html[data-focus] .lab .top, html[data-focus] .lab .below { display: none; }
+  html[data-focus] .lab .shot { max-width: none; height: 100svh; min-height: 0; max-height: none; padding: 44px 56px 4px; }
+  @media (max-width: 760px) {
+    html[data-focus] .lab .shot { padding: 24px 16px 0; }
+  }
+</style>
+
 <script>
+  // 「Focus」：整窗模式，录屏用。进去时往历史里记一笔（地址加 ?focus），浏览器的后退、Esc 都能出来；
+  // 直接开带 ?focus 的地址也是整窗的，这时 Esc 只把地址改回去
+  const focusBtn = document.querySelector<HTMLButtonElement>('[data-focus]');
+  const root = document.documentElement;
+  const focusUrl = (on: boolean) => { const u = new URL(location.href); if (on) u.searchParams.set('focus', ''); else u.searchParams.delete('focus'); return u.href.replace('focus=', 'focus'); };
+  const setFocus = (on: boolean) => {
+    root.toggleAttribute('data-focus', on);
+    focusBtn?.setAttribute('aria-pressed', String(on));
+    if (on) scrollTo(0, 0);
+  };
+  setFocus(new URLSearchParams(location.search).has('focus'));
+  focusBtn?.addEventListener('click', () => { history.pushState({ focus: true }, '', focusUrl(true)); setFocus(true); });
+  addEventListener('popstate', () => setFocus(new URLSearchParams(location.search).has('focus')));
+  addEventListener('keydown', (e) => {
+    if (e.key !== 'Escape' || e.defaultPrevented || !root.hasAttribute('data-focus')) return;
+    if (history.state?.focus) history.back();
+    else { history.replaceState(null, '', focusUrl(false)); setFocus(false); }
+  });
+
   // Prompt 旁边的拷贝按钮：拷进剪贴板，按钮变成「Copied」两秒；拷不了（不是 https 这类）就把那段字选中，让人自己拷
   for (const btn of document.querySelectorAll<HTMLButtonElement>('[data-copy]')) {
     const text = btn.closest('.prompt')?.querySelector<HTMLElement>('.text');

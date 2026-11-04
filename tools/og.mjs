@@ -6,8 +6,8 @@
    生成 public/og/lab/<slug>.png，1200×630，深色主题。详情页（src/pages/lab/[slug].astro）有这张图就用它，
    没有就用全站的 public/og.png；所以截完要再 pnpm build 一次，提交时把图一起提交。改了实验的样子、标题、一句话要重截。
 
-   做法：自己起一个小服务器放 dist/，用 Playwright 按 1200×630、2 倍像素开实验的详情页，
-   往页面里加一段样式把它排成一张卡片：上面是标题和一句话（最多两行），下面是带 1px 细线的舞台撑满剩下的高度，右下角写 eooo.me；
+   做法：自己起一个小服务器放 dist/，用 Playwright 按 1200×630、2 倍像素开实验详情页的整窗模式（?focus，录屏用的那个），
+   再加一段样式调成卡片：上面是标题和一句话（最多两行），下面是带 1px 细线的舞台撑满剩下的高度，底下那行日期和 @oopserian 换成右下角的 eooo.me；
    等实验画出来，按 1 倍（scale: "css"）截下来：字符画一格只有 8px，按 2 倍画再缩小才不糊。
    无头浏览器没有显卡，WebGL 的实验只画一帧静止的，正好拿来截。
    要 Playwright 的 Chromium：第一次先跑 pnpm exec playwright install chromium。 */
@@ -42,16 +42,13 @@ server.listen(0);
 await once(server, "listening");
 const base = `http://127.0.0.1:${server.address().port}`;
 
-// 把详情页排成一张卡片。只藏、只挪，不改实验自己的样子
+// 整窗模式已经只剩标题、舞台和底下一行，再调成卡片。只藏、只挪，不改实验自己的样子
 const CARD = `
-  html, body { overflow: hidden !important; }
-  body > nav, body > header, body > footer, .lab .back, .lab .meta, .lab .notes, .lab .pager, .lab-hint { display: none !important; }
-  .lab { position: fixed !important; inset: 0; max-width: none !important; padding: 44px 56px 56px !important; display: flex; flex-direction: column; }
-  .lab > header { margin: 0 0 24px !important; max-width: 920px !important; }
+  .lab .caption, .lab-hint { display: none !important; }
+  .lab .shot { padding: 44px 56px 56px !important; }
+  .lab header { margin: 0 0 24px !important; max-width: 920px !important; }
   .lab h1 { --size: 44px !important; }
   .lab .summary { margin-top: 10px !important; font-size: 17px !important; display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 2; overflow: hidden; }
-  .lab .frame { flex: 1; min-height: 0; display: flex; }
-  .lab .frame .stage { flex: 1; height: auto !important; }
   /* 小组件在大舞台里显得空，放大一点；整块铺满的字符画（有 canvas 的）不放大 */
   .lab .frame astro-island:not(:has(canvas)) { transform: scale(1.25); }
   .og-mark { position: fixed; right: 56px; bottom: 19px; font: 400 13px/1 var(--mono); color: var(--fg-3); letter-spacing: 0.02em; }
@@ -63,7 +60,7 @@ const page = await context.newPage();
 const errors = [];
 page.on("pageerror", (e) => errors.push(e.message));
 for (const slug of slugs) {
-  await page.goto(`${base}/lab/${slug}/`, { waitUntil: "networkidle" });
+  await page.goto(`${base}/lab/${slug}/?focus`, { waitUntil: "networkidle" });
   await page.addStyleTag({ content: CARD });
   await page.evaluate(() => {
     const mark = document.createElement("div");

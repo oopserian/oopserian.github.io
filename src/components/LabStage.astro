@@ -1,5 +1,5 @@
 ---
-// 实验的舞台：一块固定高度的底色，组件挂在里面。还没做完的实验（wip）画一块斜条纹，不挂组件。
+// 实验的舞台：一块底色，组件挂在里面。卡片上固定高，详情页上撑满外面那个框（框的高度由详情页定）。还没做完的实验（wip）画一块斜条纹，不挂组件。
 import LabDemo from '../islands/LabDemo';
 
 interface Props { slug: string; wip?: boolean; size?: 'card' | 'page' }
@@ -27,7 +27,7 @@ const { slug, wip, size = 'card' } = Astro.props;
     min-width: 0;
   }
   .card { height: 280px; }
-  .page { height: clamp(320px, 52vh, 480px); }
+  .page { height: 100%; }
   .wip {
     place-items: center;
     background:
