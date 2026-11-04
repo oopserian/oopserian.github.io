@@ -5,29 +5,40 @@
         每个像素再叠 8 道细碎的小波只改法线。底稿存三样：
         水的亮度（浪顶比浪谷亮，迎着光的浪面、反光更亮，远处被雾抹到中间）、浪头在画面上的走向、浪花有多浓。
         浪花只在三道最大的浪的浪尖上一簇一簇地起，往后拖一段渐淡的尾巴，每簇自己冒出来、再散掉；
-        浪尖挤到一起（雅可比行列式变小）的地方、涟漪的环上也有。
+        浪尖挤到一起（雅可比行列式变小）的地方、手划过的尾迹上也有。
      2. 合成（composite）：整块切成 8px 见方的格子，每格都有字，不留空：
         浪花够浓的格子画浪花的字 . : * o @（越浓越大），深色主题是白的，浅色主题是最深的墨，不转；浪花边上零星撒几个点当飞沫。
         别的格子画水：按亮度从 - ~ = 里挑，颜色沿一条色带走（深色主题由深蓝到浅蓝，浅色主题由浅灰蓝到深蓝），
-        字再转到浪头的走向上，一道道浪就被横着的字描出来，涟漪的环外面的字也绕着环转，
+        字再转到浪头的走向上，一道道浪就被横着的字描出来，尾迹推出去的浪上的字也顺着那道浪转，
         跟最早那版草浪里字顺着草叶转是一个做法。
         画布是透明的，字以外露出网页自己的底色，所以铺满整块也跟网站接得上。
 
-   鼠标、手指划过海面：从画面上那一点往海面投一条线，落点激起一圈往外扩的涟漪，两三秒后平下去。
+   鼠标、手指划过海面：从画面上那一点往海面投一条线，落点连成一条尾迹，像船开过去一样：
+   划过的那一道翻着白沫，越往后越宽、越碎；两边各推出一道浪，连起来是一个 V（划得越快，V 拉得越长），浪尖上挂一线白沫；
+   跟着划的路线拐弯。点一下是溅开的一摊不规则的水花，再散成一圈参差的浪。三四秒后都平下去。
 
    所有会动的都是 t（一圈 period 毫秒）的函数：每道波一圈正好走整数个周期（按深水的色散关系挑最近的整数），
    所以一圈以后海面正好回到原样，录出来的视频首尾接得上。
 
-   省着画：平时每秒 30 帧，有涟漪的那一会儿跟着屏幕刷新；滚出屏幕、切到别的标签页就停；
+   省着画：平时每秒 30 帧，有尾迹的那一会儿跟着屏幕刷新；滚出屏幕、切到别的标签页就停；
    系统开了「减弱动态效果」，或者显卡是 CPU 模拟的（没有能用的显卡、无头浏览器，画一帧要上百毫秒），只画一帧不动的，也不跟着鼠标动。
 
      const w = create(canvas, { period: 12000 });
-     w.splash();                     // 在海面上随便一处激起一圈涟漪（键盘用）
+     w.splash();                     // 在海面上随便一处溅起一摊水花（键盘用）
      w.refresh();                    // 换了主题以后调：换字的色带
      w.destroy();                    // 不用了：停下、摘掉监听、释放显存 */
 import { context, program, fullscreen, target, canvasTexture, softwareGL } from "../_kit/gl.js";
 
 const TAU = Math.PI * 2;
+const TRAIL = 48, TRAIL_LIFE = 4;   // 尾迹最多几个点、一个点留几秒
+
+const NOISE = /* glsl */ `
+  float h21(vec2 p) { p = fract(p * vec2(123.34, 456.21)); p += dot(p, p + 45.32); return fract(p.x * p.y); }
+  float vnoise(vec2 x) {
+    vec2 i = floor(x), f = fract(x); f = f * f * (3.0 - 2.0 * f);
+    return mix(mix(h21(i), h21(i + vec2(1.0, 0.0)), f.x), mix(h21(i + vec2(0.0, 1.0)), h21(i + vec2(1.0, 1.0)), f.x), f.y);
+  }
+`;
 
 function rng(seed) { let s = (seed >>> 0) || 1; return () => ((s = (Math.imul(s, 1664525) + 1013904223) >>> 0) / 4294967296); }
 
@@ -97,11 +108,30 @@ const SEA_VS = /* glsl */ `
   uniform vec3 cameraPosition;
   uniform vec4 uW[10];              // 方向 x、方向 z、波数 k、振幅 A
   uniform vec4 uWq[10];             // 尖的程度 Q、角频率 ω、波长
-  uniform vec4 uRip[8];             // 涟漪：x、z、过了几秒、有没有
+  uniform vec4 uTrail[${TRAIL}];    // 尾迹：手划过海面的一串点，由旧到新。x、z、过了几秒、种类 × 100 + 那时划得多快（米/秒）
+  uniform float uTrailN;            // 有几个点；种类：0 接着上一个点，1 一笔的开头，2 点了一下（溅起水花）
   uniform float uT, uAmax;
   out vec3 vPos, vN;
   out vec2 vP0;
-  out float vJ, vRip;
+  out float vJ;
+  out vec4 vWake;                   // 离最近那一笔多远（米）、那一处过了几秒、浪尖上的白沫、是不是点出来的水花
+  ${NOISE}
+  // 一笔的尾迹：离这一笔最近的点在 d 米外，那一点是 a 秒前划过的，浪从那里往外推，跑在最前面的一道浪到了 c·a 米。
+  // 划得快，c 跟着大，最前面那道浪连起来就是一个 V（船尾的尾迹），夹角跟速度无关；点一下（没划）就是一圈。
+  // x 是这一点在最前面那道浪后面多远，浪头陡、往回渐弱；浪头的位置按噪声抖一点，不是一道规整的线
+  void wake(vec2 p, float d, float a, vec2 nd, vec2 ga, float c, float kind, float v, inout float H, inout vec2 G, inout float crest) {
+    if (a > ${TRAIL_LIFE}.0) return;
+    float x = d - c * a + 0.5 * (vnoise(p * 0.45 + kind * 7.3) - 0.5) * min(a, 1.0) * c;
+    float life = exp(-a / 1.3) * smoothstep(0.0, 0.08, a) * (1.0 - smoothstep(${TRAIL_LIFE}.0 - 1.0, ${TRAIL_LIFE}.0, a));
+    float lead = exp(-max(x, 0.0) * max(x, 0.0) / 0.08), back = exp(min(x, 0.0) / 1.6);
+    float A = (kind > 1.5 ? 0.5 : mix(0.28, 0.5, smoothstep(2.0, 14.0, v))) * life * lead * back;
+    float k = 3.4, cs = cos(k * x), sn = sin(k * x);
+    H += A * cs;
+    G += -A * k * sn * (nd - c * ga);           // x 对位置的梯度：离这一笔的方向，减去「沿着这一笔越往后越老」
+    // 最前面那道浪的浪尖上挂一线白沫（V 的两条边），一秒多淡掉；
+    // 划得慢的地方几乎不挂（慢慢挪的船也没有白浪），点一下的水花挂一圈，到片元着色器里再按噪声打碎
+    crest += exp(-a / 1.2) * smoothstep(0.0, 0.1, a) * exp(-x * x / 0.3) * (kind > 1.5 ? 1.2 : smoothstep(2.0, 10.0, v));
+  }
   void main() {
     vec2 p = position.xz;
     float dist = length(p - cameraPosition.xz);
@@ -117,17 +147,40 @@ const SEA_VS = /* glsl */ `
       n.x -= D.x * WA * c; n.z -= D.y * WA * c; n.y -= Q * WA * s;
       jxx -= Q * WA * D.x * D.x * s; jzz -= Q * WA * D.y * D.y * s; jxz -= Q * WA * D.x * D.y * s;
     }
-    // 涟漪：一圈往外扩的环，边走边弱
-    float rip = 0.0;
-    for (int i = 0; i < 8; i++) {
-      if (uRip[i].w < 0.5) continue;
-      vec2 d = p - uRip[i].xy; float r = length(d) + 1e-4, age = uRip[i].z;
-      float front = 0.6 + 3.2 * age, x = r - front;
-      float env = exp(-x * x / 1.2) * exp(-age / 1.3) * smoothstep(0.0, 0.15, age);
-      float h = 0.5 * env * cos(3.6 * x), dh = -0.5 * env * 3.6 * sin(3.6 * x);
-      P.y += h; n.xz -= dh * d / r; rip += env * (0.5 + 0.5 * cos(3.6 * x));   // 只算环的浪顶，环和环中间留着暗的
+    // 尾迹：一笔一笔地算，每笔只看离这一点最近的那一段（这一笔上的 V 才是连着的一道），几笔叠起来
+    float H = 0.0, crest = 0.0, near = 1e4, nearA = 99.0, nearK = 0.0;
+    vec2 G = vec2(0.0);
+    float bd = 1e4, ba = 0.0, bc = 0.0, bv = 0.0, bk = 0.0;
+    vec2 bn = vec2(0.0), bg = vec2(0.0);
+    float kind = 0.0;
+    for (int i = 0; i < ${TRAIL}; i++) {
+      if (float(i) >= uTrailN) break;
+      vec4 B = uTrail[i];
+      float kb = floor(B.w / 100.0), sb = B.w - kb * 100.0;
+      if (i > 0 && kb > 0.5) {               // 新的一笔：先把上一笔算完
+        wake(p, bd, ba, bn, bg, bc, kind, bv, H, G, crest);
+        if (bd < near) { near = bd; nearA = ba; nearK = kind; }
+        bd = 1e4;
+      }
+      if (i == 0 || kb > 0.5) kind = max(kb, 1.0);
+      vec4 Aa = (i == 0 || kb > 0.5) ? B : uTrail[max(i - 1, 0)];
+      float sa = Aa.w - floor(Aa.w / 100.0) * 100.0;
+      vec2 ab = B.xy - Aa.xy; float l2 = dot(ab, ab);
+      float t = l2 > 1e-6 ? clamp(dot(p - Aa.xy, ab) / l2, 0.0, 1.0) : 0.0;
+      vec2 q = Aa.xy + ab * t, dq = p - q; float dd = length(dq);
+      if (dd < bd) {
+        bd = dd; ba = mix(Aa.z, B.z, t); bn = dq / (dd + 1e-4);
+        bg = (t > 0.0 && t < 1.0) ? (B.z - Aa.z) * ab / l2 : vec2(0.0);
+        bv = mix(sa, sb, t); bc = kind > 1.5 ? 2.4 : clamp(0.36 * bv, 1.8, 7.0);
+      }
     }
-    vJ = jxx * jzz - jxz * jxz; vRip = rip;
+    if (bd < 1e3) {
+      wake(p, bd, ba, bn, bg, bc, kind, bv, H, G, crest);
+      if (bd < near) { near = bd; nearA = ba; nearK = kind; }
+    }
+    P.y += H; n.xz -= G;
+    vJ = jxx * jzz - jxz * jxz;
+    vWake = vec4(near, nearA, crest, nearK);
     vPos = P; vN = n; vP0 = p;
     gl_Position = projectionMatrix * viewMatrix * vec4(P, 1.0);
   }
@@ -137,12 +190,13 @@ const SEA_VS = /* glsl */ `
 // g、b 是浪头在画面上的走向，存成二倍角（cos 2θ、sin 2θ）：一道横线转 180° 还是它，
 // 二倍角一格取平均才不会正反抵消，平均下来越短说明这一格的方向越乱。
 // a 是浪花（白沫）有多浓：三道最大的浪，浪尖上一簇一簇地起，往后拖一段渐淡的尾巴；
-// 几道浪的浪尖挤到一起（雅可比行列式变小）的地方也起一点；涟漪的环上也有
+// 几道浪的浪尖挤到一起（雅可比行列式变小）的地方也起一点；手划过的尾迹上也有
 const SEA_FS = /* glsl */ `
   precision highp float;
   in vec3 vPos, vN;
   in vec2 vP0;
-  in float vJ, vRip;
+  in float vJ;
+  in vec4 vWake;
   out vec4 o;
   uniform mat4 projectionMatrix, viewMatrix;
   uniform vec3 cameraPosition, uSunDir;
@@ -152,11 +206,7 @@ const SEA_FS = /* glsl */ `
   uniform vec4 uS[8];               // 小波：方向 x、方向 z、k、A
   uniform float uSw[8];             // 小波的角频率
   uniform float uT, uAmax, uPer;   // uPer：一圈多少秒
-  float h21(vec2 p) { p = fract(p * vec2(123.34, 456.21)); p += dot(p, p + 45.32); return fract(p.x * p.y); }
-  float vnoise(vec2 x) {
-    vec2 i = floor(x), f = fract(x); f = f * f * (3.0 - 2.0 * f);
-    return mix(mix(h21(i), h21(i + vec2(1.0, 0.0)), f.x), mix(h21(i + vec2(0.0, 1.0)), h21(i + vec2(1.0, 1.0)), f.x), f.y);
-  }
+  ${NOISE}
   void main() {
     vec3 V = cameraPosition - vPos; float dist = length(V); V /= dist;
     vec3 N = normalize(vN);
@@ -201,7 +251,17 @@ const SEA_FS = /* glsl */ `
       foam += clump * smoothstep(0.12, 0.7, tail * (0.4 + 1.0 * grain)) * (1.0 - 0.2 * float(i));
     }
     foam += (1.0 - smoothstep(0.08, 0.35, vJ)) * 0.4 * smoothstep(0.35, 0.7, vnoise(vP0 * 0.6));   // 浪尖挤到一起的地方，也是零零碎碎的
-    foam += 1.4 * vRip;
+    // 尾迹上的白沫：划过的那一道翻着白，越往后越宽、越碎、越淡；点一下是溅开的一摊。浪尖上那道 V 也挂一点，碎成一簇一簇的
+    if (vWake.y < ${TRAIL_LIFE}.0) {
+      float a = vWake.y, tap = step(1.5, vWake.w);
+      float w = mix(0.5 + 0.7 * a, 0.7 + 1.4 * a, tap);
+      float d = max(vWake.x + (vnoise(vP0 * 0.9 + 5.1) - 0.5) * mix(0.4, 1.6, tap) * min(a * 2.0, 1.0), 0.0);   // 边上按噪声进进出出，水花不是一个圆
+      float churn = (1.0 - smoothstep(0.3 * w, w, d)) * exp(-a / mix(1.4, 0.9, tap)) * smoothstep(0.0, 0.05, a);
+      float n = 0.6 * vnoise(vP0 * 1.6 + vec2(a * 0.7, -a * 0.5)) + 0.4 * vnoise(vP0 * 4.3 - a);
+      float lo = mix(0.3, 0.44, tap) + 0.25 * min(a, 1.5);   // 越老越碎：噪声要越高的地方才留着白沫
+      foam += 1.5 * churn * smoothstep(lo, lo + 0.2, n);
+      foam += 1.1 * vWake.z * (mix(0.3, 0.0, tap) + mix(0.7, 1.0, tap) * smoothstep(0.3, 0.6, vnoise(vP0 * 2.2 + 3.7)));
+    }
     foam *= exp(-dist / 120.0);
     o = vec4(L, t2 * 0.5 + 0.5, clamp(foam, 0.0, 1.0));
   }
@@ -311,7 +371,8 @@ function create(canvas, { period = 12000, cell = 8, fps = 30 } = {}) {
   gl.enableVertexAttribArray(0); gl.vertexAttribPointer(0, 3, gl.FLOAT, false, 0, 0);
   gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, seaIdx); gl.bufferData(gl.ELEMENT_ARRAY_BUFFER, idx, gl.STATIC_DRAW);
   gl.bindVertexArray(null);
-  const rip = new Float32Array(32), ripT = new Array(8).fill(-1e9), ripP = Array.from({ length: 8 }, () => [0, 0]);
+  // 尾迹的点：海面上的 x、z，什么时候划过的（毫秒），种类（0 接着上一个、1 一笔的开头、2 点了一下），那时划得多快（米/秒）
+  const trail = [], trailU = new Float32Array(TRAIL * 4);
   let sceneRT = null;
 
   // 2. 合成
@@ -334,38 +395,54 @@ function create(canvas, { period = 12000, cell = 8, fps = 30 } = {}) {
     paint(true);
   }
 
-  // 鼠标、手指：从画面上那一点往海面投一条线，落点激起一圈涟漪。移动时每走 40px 或者每 120ms 一圈，最多同时 8 圈
-  let slot = 0, lastX = -1e9, lastY = -1e9, lastAt = -1e9;
-  function splash(x, y) {
+  // 鼠标、手指：从画面上那一点往海面投一条线，落点记进尾迹。划的时候最新的一个点一直跟着手走，
+  // 离上一个记下的点 28px 或者 90ms 就再记一个；停下 250ms 以上、移出画面，再动就是新的一笔。
+  // 点一下单独记一个点（溅起水花），接着拖是从那里开始的新的一笔
+  const toSea = (x, y) => {
     const ty = Math.tan((FOV * Math.PI) / 360), nx = ((x / W) * 2 - 1) * ty * (W / H), ny = (1 - (y / H) * 2) * ty;
     const d = [0, 1, 2].map((i) => cam.x[i] * nx + cam.y[i] * ny - cam.z[i]);
-    if (d[1] >= 0) return;   // 视线朝上，碰不到海面
+    if (d[1] >= 0) return null;   // 视线朝上，碰不到海面
     const t = -EYE[1] / d[1];
-    ripP[slot] = [EYE[0] + d[0] * t, EYE[2] + d[2] * t]; ripT[slot] = performance.now(); slot = (slot + 1) % ripT.length;
+    return [EYE[0] + d[0] * t, EYE[2] + d[2] * t];
+  };
+  let head = null, lastX = 0, lastY = 0, lastAt = -1e9;   // head：这一笔最新的那个点（跟着手走，还没定下来）
+  function push(pt) { trail.push(pt); if (trail.length > TRAIL) trail.shift(); }
+  function stroke(x, y, now, tap) {
+    const q = toSea(x, y);
+    if (!q) { head = null; return; }
+    if (tap) { push({ x: q[0], z: q[1], t: now, kind: 2, v: 0 }); head = null; paint(true); return; }
+    if (!head || now - head.t > 250) {                       // 新的一笔
+      head = { x: q[0], z: q[1], t: now, kind: 1, v: 0 };
+      push(head); lastX = x; lastY = y; lastAt = now;
+    } else {
+      const v = Math.hypot(q[0] - head.x, q[1] - head.z) / Math.max((now - head.t) / 1000, 0.008);
+      const prev = trail.length > 1 && trail[trail.length - 1] === head ? trail[trail.length - 2] : null;
+      if (Math.hypot(x - lastX, y - lastY) >= 28 || now - lastAt >= 90 || !prev) {   // 定下这一个，往前再开一个
+        head = { x: q[0], z: q[1], t: now, kind: 0, v: 0.6 * Math.min(v, 60) + 0.4 * (prev ? head.v : 0) };
+        push(head); lastX = x; lastY = y; lastAt = now;
+      } else {                                               // 还没走够，最新的点跟着手挪
+        Object.assign(head, { x: q[0], z: q[1], t: now, v: 0.6 * Math.min(v, 60) + 0.4 * head.v });
+      }
+    }
     paint(true);
   }
   const at = (e) => { const b = canvas.getBoundingClientRect(); return [e.clientX - b.left, e.clientY - b.top]; };
-  const onMove = (e) => {
-    if (still || !W) return;
-    const [x, y] = at(e), now = performance.now(), moved = Math.hypot(x - lastX, y - lastY);
-    if (moved < 6 || (moved < 40 && now - lastAt < 120)) return;
-    lastX = x; lastY = y; lastAt = now;
-    splash(x, y);
-  };
-  const onDown = (e) => { if (still || !W) return; const [x, y] = at(e); lastX = x; lastY = y; lastAt = performance.now(); splash(x, y); };
+  const onMove = (e) => { if (still || !W) return; const [x, y] = at(e); stroke(x, y, performance.now(), false); };
+  const onDown = (e) => { if (still || !W) return; const [x, y] = at(e); stroke(x, y, performance.now(), true); };
+  const onLeave = () => { head = null; };
   canvas.addEventListener("pointermove", onMove);
   canvas.addEventListener("pointerdown", onDown);
+  canvas.addEventListener("pointerleave", onLeave);
 
   function frame(now) {
     raf = 0;
     if (dead || !W || !sceneRT) return;
-    let busy = false;
-    for (let k = 0; k < ripT.length; k++) {
-      const age = (now - ripT[k]) / 1000, on = age >= 0 && age < 5;
-      rip.set([ripP[k][0], ripP[k][1], age, on ? 1 : 0], k * 4);
-      if (on) busy = true;
-    }
-    // 平时每秒 fps 帧；有涟漪时每帧都画，跟得上手
+    // 尾迹：过了 TRAIL_LIFE 秒的点扔掉；剩下的由旧到新传给着色器，最旧的那个如果原来接着前一个点，现在就是一笔的开头
+    while (trail.length && (now - trail[0].t) / 1000 >= TRAIL_LIFE) trail.shift();
+    if (!trail.length) head = null;
+    trail.forEach((pt, i) => trailU.set([pt.x, pt.z, Math.max(0, (now - pt.t) / 1000), (i === 0 ? Math.max(pt.kind, 1) : pt.kind) * 100 + Math.min(pt.v, 99)], i * 4));
+    const busy = trail.length > 0;
+    // 平时每秒 fps 帧；有尾迹时每帧都画，跟得上手
     if (!still && !busy && now - last < 1000 / fps - 2) { schedule(); return; }
     last = now;
     const u = still ? 0.05 : (((now % period) + period) % period) / period;   // 不动时停在跟封面差不多的那一刻
@@ -373,7 +450,7 @@ function create(canvas, { period = 12000, cell = 8, fps = 30 } = {}) {
     sceneRT.bind();
     gl.enable(gl.DEPTH_TEST); gl.depthFunc(gl.LEQUAL);
     gl.clearColor(0, 0, 0, 1); gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT);
-    seaP.use({ ...sea, projectionMatrix: proj, uT: (u * period) / 1000, uRip: rip, uAspect: [W, H] });
+    seaP.use({ ...sea, projectionMatrix: proj, uT: (u * period) / 1000, uTrail: trailU, uTrailN: trail.length, uAspect: [W, H] });
     gl.bindVertexArray(seaVao); gl.drawElements(gl.TRIANGLES, idx.length, gl.UNSIGNED_INT, 0); gl.bindVertexArray(null);
     gl.disable(gl.DEPTH_TEST);
     sceneRT.mip();
@@ -410,13 +487,14 @@ function create(canvas, { period = 12000, cell = 8, fps = 30 } = {}) {
 
   relayout();
   return {
-    splash() { if (!still && W) splash(W * (0.3 + Math.random() * 0.4), H * (0.55 + Math.random() * 0.3)); },
+    splash() { if (!still && W) stroke(W * (0.3 + Math.random() * 0.4), H * (0.55 + Math.random() * 0.3), performance.now(), true); },
     refresh() { readTheme(); paint(true); },
     destroy() {
       dead = true; cancelAnimationFrame(raf); raf = 0;
       io.disconnect(); ro.disconnect();
       canvas.removeEventListener("pointermove", onMove);
       canvas.removeEventListener("pointerdown", onDown);
+      canvas.removeEventListener("pointerleave", onLeave);
       document.removeEventListener("visibilitychange", onVis);
       motion.removeEventListener("change", onMotion);
       sceneRT?.dispose(); atlas.dispose(); tri.dispose();

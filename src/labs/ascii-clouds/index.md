@@ -29,20 +29,22 @@ prompt: |-
   - Update when my theme switch changes the theme.
 
   4. Parting the clouds
-  - On pointer move, and on tap or drag on touch, cast a ray from that pixel into the cloud layer and cut a hole where it enters. The hole is a flat-topped cone about 0.125 rad across, with a ragged edge from the detail noise. Add one for every 56 px or 160 ms of movement, up to 16 at once, so a fast sweep leaves a continuous lane.
+  - On pointer move, and on tap or drag on touch, cast a ray from that pixel to the middle of the cloud layer (1.8 km up) and keep the hits as a trail of up to 48 points that drift with the wind. The newest point follows the pointer; fix it and start another every 40 px or 120 ms. A pause of over 250 ms, or leaving the canvas, starts a new stroke. A tap is a stroke of its own and cuts wider.
+  - Each frame, turn the points into view directions. Per pixel, find the nearest point on each stroke's polyline (on the sphere of directions) and divide the angle by the groove's half-width there: about 0.085 rad for a stroke and 0.13 for a tap, varied by ±15% per point so the sides aren't parallel. So a sweep cuts a groove that follows its path, not a row of round holes.
+  - Rag the groove's edge with two scales of the detail noise, sampled where the ray crosses the middle of the layer (sampled along the ray, the noise averages out and the edge goes smooth again). Leave a few torn scraps inside near the edge, and make the clouds just outside the edge denser, as if pushed aside. Apply the cut and the rim to every sample on that ray, light samples included.
+  - The groove opens in 0.2 s. From 0.8 s to 4 s it fills back in: the puffiest parts (high noise) come back first, so it closes in wisps rather than shrinking evenly, while the edge creeps in a little. Drop points after 4 s.
   - Use touch-action: pan-y on the canvas, so vertical swipes still scroll the page.
-  - Each hole opens in 0.3 s and drifts with the wind. It starts closing after 1.1 s and is gone at 3.6 s.
   - Keyboard: Enter or Space on the focused canvas parts a random patch.
 
   5. Cost and accessibility
-  - Draw at 30 fps normally, and every frame while a hole is open. Stop when the canvas is off-screen or the tab is hidden.
+  - Draw at 30 fps normally, and every frame while a groove is open. Stop when the canvas is off-screen or the tab is hidden.
   - Under prefers-reduced-motion, or when the WebGL renderer is a software one (SwiftShader, llvmpipe), draw one still frame and ignore the pointer.
   - If WebGL2 is missing, show a one-line fallback instead of throwing.
   - Give the canvas role="img" and a short aria-label.
 
   6. Done when
   - It loops every 12 s with no visible seam.
-  - A fast sweep across the whole stage leaves one lane that closes from the oldest end.
+  - A sweep leaves one ragged groove that follows its curve and fills back in wisps, oldest end first; a tap tears an uneven hole, not a circle.
   - Both themes look right, nothing is drawn outside the container, and the console is clean.
   - You tell me every file you added or changed.
 ---
