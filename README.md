@@ -32,6 +32,7 @@ pnpm check      # 类型检查
 | `src/islands/LabDemo.tsx` | 页面上唯一的 React 入口，把实验挂到舞台上 |
 | `src/scripts/ascii.ts` | 首屏的字符画 |
 | `tools/portrait.py` | 从头像插画生成字符画用的图、小头像和 favicon（见「字符画」） |
+| `tools/og.mjs` | 给每个实验截一张分享图，放 `public/og/lab/`（见「分享卡片」） |
 | `src/styles/global.css` | 配色、字体、几个到处用的类；各组件的样式写在组件自己的 `<style>` 里 |
 | `src/assets/` | 头像（`avatar.webp` 顶栏和项目列表用，`portrait.webp` 字符画用）、项目图标这些要经过 Astro 压缩的图 |
 | `public/` | 原样发布的文件：字体、favicon、分享卡片 `og.png`、`CNAME` |
@@ -51,14 +52,26 @@ pnpm check      # 类型检查
    inspiration: https://…   # 照着谁的设计做的，没有就不写
    wip: true                # 还没做完：卡片上画斜条纹，不挂组件，不生成详情页
    order: 5                 # 越小越靠前
-   prompt: >-               # 详情页上的 Prompt：拷给 AI 就能照着做出这个实验的一段话，英文，折成 110 字宽
-     Build a React folder that opens and fans out the photos inside. …
+   prompt: |-               # 详情页上的 Prompt，英文，分段，保留换行（所以是 |-，不是 >-）
+     Add a folder to my project that opens and fans out the photos inside when you point at it. …
+
+     0. Start from what exists
+     - Find where the folder goes, …
+
+     1. Shapes and colours
+     - …
+
+     4. Done when
+     - …
+     - You tell me every file you added or changed.
    ---
    ```
 
-   只写头，不写正文：详情页舞台下面只放 Prompt（右上角一个拷贝按钮）和源码地址，不放做法说明（2026-11-04 laken 定的）。
+   只写头，不写正文：详情页舞台下面只放 Prompt（右上角一个拷贝按钮，超过 360px 高先折起来）和源码地址，不放做法说明（2026-11-04 laken 定的）。
 
-卡片上的「源码」链接指向 GitHub 上的 `src/labs/<slug>/`，不用另外填。首页的实验排成两列，个数是单数时最后一张占满一行。`index.md` 里的标题、一句话和 prompt 照代码实际怎么做的写：prompt 写清用什么做、怎么画、怎么玩、深浅两种主题和省电的做法，照着它能做出差不多的东西；改了做法要跟着改。
+   prompt 是给读者拷进自己项目里用的，不是只复刻我们这个 demo（2026-11-04 laken 定，参考了别人那种分步骤的长 prompt）。照现有几个的样子写：开头一两句说要做什么、用什么做、放进「我」现有的框架和设计系统里；`0. Start from what exists` 先让 AI 看项目里已有的组件和设计变量；中间几段按这个实验的门道分（结构、交互、动效、主题、性能和无障碍）；最后 `Done when` 列做完要满足什么，最后一条是「告诉我改了哪些文件」。数字、曲线、时长都照代码写，写之前对一遍。
+
+卡片上的「源码」链接指向 GitHub 上的 `src/labs/<slug>/`，不用另外填。首页的实验排成两列，个数是单数时最后一张占满一行。`index.md` 里的标题、一句话和 prompt 照代码实际怎么做的写，改了做法要跟着改。
 
 ## 实验的样子
 
@@ -116,6 +129,7 @@ pnpm check      # 类型检查
   - Three.js（0.186，MIT）：`PerspectiveCamera`、`RawShaderMaterial`、`WebGLRenderTarget`、`Raycaster` 正好都有，但只用到这几样，场景树、材质、灯光这些大半的代码用不上，却要整个下载。
   - OGL（1.0，Unlicense）：小，接口跟 Three.js 像，但 2025 年初以后没再发版。
   - regl（2.1，MIT）：函数式的写法很省，但只支持 WebGL1，着色器得改写成 GLSL 1.0，2024 年以后没再发版。
+- **分享图用 Playwright 截**（1.63，Apache-2.0，只是开发时用的依赖，不进页面）：实验的样子就是页面本身，截真页面最准，也不用另写一套画图的代码。比较过 Satori（Vercel 的 JSX 转 SVG，MIT）：画标题和字很方便，但画不了实验本身（WebGL、CSS 3D、背景模糊都不支持），只能放一张事先截好的图进去，等于还是要截图；Astro 的 `astro:assets` 只能处理已有的图，不能截图。
 - **图标**：Phosphor 的 regular 粗细，几个用到的直接写成内联 SVG（网站的在 `components/Icon.astro`，实验的在 `src/labs/_kit/icons.tsx`），不引图标库。
 
 ## 部署
@@ -125,3 +139,13 @@ pnpm check      # 类型检查
 ## 分享卡片
 
 `public/og.png` 是首页首屏深色主题 1200×630 的截图（`pnpm build && pnpm preview` 以后，用 Playwright 开 1200×630 的窗口、`colorScheme: 'dark'`、`deviceScaleFactor: 2`，等字符画显出来再截，再缩回 1200×630：字符画一格只有 8px 高，按 1 倍截会糊。无头浏览器没有显卡，字符画只画一帧静止的，正好拿来截）。改了首屏要重截一张。README 开头的 `docs/home.png` 也是这样截的，窗口 1440×900。
+
+每个实验页有自己的分享图 `public/og/lab/<slug>.png`（2026-11-04 加的，链接贴到 X、微信时显示这个实验，不再都是首页那张）：上面是实验的标题和一句话，下面是 1px 细线框起来的舞台，右下角写 eooo.me，深色，1200×630。`tools/og.mjs` 截：
+
+```bash
+pnpm exec playwright install chromium   # 第一次
+pnpm build && node tools/og.mjs         # 全部；node tools/og.mjs ascii-clouds 只截这一个
+pnpm build                              # 再构建一次，详情页才用上新图
+```
+
+它开详情页、加一段样式把页面排成卡片（小组件放大 1.25 倍，字符画不放大），按 2 倍画、1 倍截。详情页有这张图就用，没有就用 `og.png`。加了实验、改了标题、一句话或者样子，都要重截。

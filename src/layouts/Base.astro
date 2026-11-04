@@ -10,11 +10,12 @@ interface Props {
   title?: string;        // 不传就是 SITE.title，传了是「标题 · Erian」
   description?: string;
   noindex?: boolean;
+  image?: string;        // 分享图，从根开始的地址；不传就是全站的 /og.png（实验页传自己的，见 tools/og.mjs）
 }
-const { title, description = SITE.description, noindex } = Astro.props;
+const { title, description = SITE.description, noindex, image = '/og.png' } = Astro.props;
 const fullTitle = title ? `${title} · ${SITE.name}` : SITE.title;
 const canonical = new URL(Astro.url.pathname, Astro.site);
-const og = new URL('/og.png', Astro.site);
+const og = new URL(image, Astro.site);
 ---
 <!doctype html>
 <html lang="en">

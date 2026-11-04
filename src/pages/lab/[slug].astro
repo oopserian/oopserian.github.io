@@ -1,5 +1,6 @@
 ---
-// 一个实验一页：大一点的舞台，下面是 Prompt（src/labs/<slug>/index.md 头里的 prompt，带一个拷贝按钮）和源码地址，最后是上一个、下一个
+// 一个实验一页：大一点的舞台，下面是 Prompt（src/labs/<slug>/index.md 头里的 prompt，分段、保留换行，带一个拷贝按钮，太长先折起来）和源码地址，最后是上一个、下一个
+import fs from 'node:fs';
 import { getCollection, type CollectionEntry } from 'astro:content';
 import Base from '../../layouts/Base.astro';
 import LabStage from '../../components/LabStage.astro';
@@ -17,9 +18,12 @@ export async function getStaticPaths() {
 interface Props { lab: CollectionEntry<'labs'>; prev?: CollectionEntry<'labs'>; next?: CollectionEntry<'labs'> }
 const { lab, prev, next } = Astro.props;
 const { title, summary, tags, date, inspiration, prompt } = lab.data;
+// 分享图：tools/og.mjs 截的 public/og/lab/<slug>.png，还没截的用全站那张
+const og = `/og/lab/${lab.id}.png`;
+const image = fs.existsSync(`${process.cwd()}/public${og}`) ? og : undefined;   // 构建在仓库根目录跑
 const when = date.toLocaleDateString('en', { year: 'numeric', month: 'long', timeZone: 'UTC' });
 ---
-<Base title={title} description={summary}>
+<Base title={title} description={summary} image={image}>
   <article class="wrap lab">
     <a class="back mono" href="/#lab"><Icon name="arrow-left" size={14} />Lab</a>
     <header>
@@ -36,7 +40,8 @@ const when = date.toLocaleDateString('en', { year: 'numeric', month: 'long', tim
             <Icon name="copy" size={14} class="i-copy" /><Icon name="check" size={14} class="i-check" /><span class="label">Copy</span>
           </button>
         </div>
-        <p class="text mono">{prompt}</p>
+        <div class="body"><p class="text mono">{prompt}</p></div>
+        <button type="button" class="more mono" aria-expanded="false" hidden>Show all</button>
       </section>
       <ul class="links mono">
         <li><a href={labSource(lab.id)}><Icon name="code" size={16} /><span class="out">Source on GitHub</span></a></li>
@@ -98,8 +103,27 @@ const when = date.toLocaleDateString('en', { year: 'numeric', month: 'long', tim
     padding: 16px;
     color: var(--fg-2);
     line-height: 1.7;
+    white-space: pre-wrap;
     overflow-wrap: anywhere;
   }
+  /* 太长时先只露前面一截，底下渐隐，点「Show all」展开（脚本按实际高度决定要不要折） */
+  .body[data-folded] {
+    max-height: 360px;
+    overflow: hidden;
+    mask-image: linear-gradient(black 70%, transparent);
+  }
+  .more {
+    display: block;
+    width: 100%;
+    padding: 10px 16px;
+    border-top: 1px solid var(--line);
+    text-align: left;
+    color: var(--fg-2);
+    cursor: pointer;
+    transition: color .15s, background-color .15s;
+  }
+  .more[hidden] { display: none; }
+  .more:hover { color: var(--fg); background: var(--bg-2); }
   .links { display: flex; flex-direction: column; gap: 10px; font-size: 13px; }
   .links a { display: inline-flex; align-items: center; gap: 8px; color: var(--fg-2); transition: color .15s; }
   .links a:hover { color: var(--accent); }
@@ -147,6 +171,20 @@ const when = date.toLocaleDateString('en', { year: 'numeric', month: 'long', tim
       label.textContent = 'Copied';
       clearTimeout(timer);
       timer = window.setTimeout(() => { delete btn.dataset.done; label.textContent = 'Copy'; }, 2000);
+    });
+  }
+
+  // 长的 Prompt 先折起来：比折起的高度多出不到 120px 的就不折了，免得点开只多几行。没有脚本时整段都露着
+  for (const more of document.querySelectorAll<HTMLButtonElement>('.prompt .more')) {
+    const body = more.previousElementSibling as HTMLElement | null;
+    if (!body || body.scrollHeight <= 360 + 120) continue;
+    body.dataset.folded = '';
+    more.hidden = false;
+    more.addEventListener('click', () => {
+      const open = body.toggleAttribute('data-folded') === false;
+      more.setAttribute('aria-expanded', String(open));
+      more.textContent = open ? 'Show less' : 'Show all';
+      if (!open) more.closest('.prompt')?.scrollIntoView({ block: 'nearest' });
     });
   }
 </script>
