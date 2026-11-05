@@ -7,10 +7,10 @@ import { getCollection, type CollectionEntry } from 'astro:content';
 import Base from '../../layouts/Base.astro';
 import LabStage from '../../components/LabStage.astro';
 import Icon from '../../components/Icon.astro';
-import { SITE, labSource } from '../../site';
+import { SITE, labSource, newestFirst } from '../../site';
 
 export async function getStaticPaths() {
-  const labs = (await getCollection('labs', l => !l.data.wip)).sort((a, b) => a.data.order - b.data.order);
+  const labs = (await getCollection('labs', l => !l.data.wip)).sort(newestFirst);
   return labs.map((lab, i) => ({
     params: { slug: lab.id },
     props: { lab, prev: labs[i - 1], next: labs[i + 1] },

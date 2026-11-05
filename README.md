@@ -51,7 +51,7 @@ pnpm check      # 类型检查
    date: 2025-01-08         # 做出来的日子：卡片上显示年月（Jan 2025），详情页显示月份全称
    inspiration: https://…   # 照着谁的设计做的，没有就不写
    wip: true                # 还没做完：卡片上画斜条纹，不挂组件，不生成详情页
-   order: 5                 # 越小越靠前
+   order: 5                 # 同一天做的按它排，越小越靠前
    prompt: |-               # 详情页上的 Prompt，英文，分段，保留换行（所以是 |-，不是 >-）
      Add a folder to my project that opens and fans out the photos inside when you point at it. …
 
@@ -73,7 +73,7 @@ pnpm check      # 类型检查
 
    prompt 是给读者拷进自己项目里用的，不是只复刻我们这个 demo（2026-11-04 laken 定，参考了别人那种分步骤的长 prompt）。照现有几个的样子写：开头一两句说要做什么、用什么做、放进「我」现有的框架和设计系统里；`0. Start from what exists` 先让 AI 看项目里已有的组件和设计变量；中间几段按这个实验的门道分（结构、交互、动效、主题、性能和无障碍）；最后 `Done when` 列做完要满足什么，最后一条是「告诉我改了哪些文件」。数字、曲线、时长都照代码写，写之前对一遍。
 
-卡片上的「源码」链接指向 GitHub 上的 `src/labs/<slug>/`，不用另外填。首页的实验排成两列，个数是单数时最后一张占满一行。`index.md` 里的标题、一句话和 prompt 照代码实际怎么做的写，改了做法要跟着改。
+卡片上的「源码」链接指向 GitHub 上的 `src/labs/<slug>/`，不用另外填。首页的实验排成两列，新做的在前（按 `date`，同一天的按 `order`，2026-11-05 laken 定），详情页的上一个、下一个也按这个顺序；个数是单数时最后一张占满一行。`index.md` 里的标题、一句话和 prompt 照代码实际怎么做的写，改了做法要跟着改。
 
 ## 实验的样子
 
