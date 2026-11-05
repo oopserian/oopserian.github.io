@@ -1,4 +1,6 @@
 // 网站上到处用到的个人信息：名字、简介、联系方式。改一处，顶栏、页脚、首页、<head> 里的都跟着变。
+import type { CollectionEntry } from 'astro:content';
+
 export const SITE = {
   name: 'Erian',
   url: 'https://eooo.me',
@@ -9,6 +11,11 @@ export const SITE = {
   x: 'https://x.com/oopserian',
   repo: 'https://github.com/oopserian/oopserian.github.io',
 };
+
+// 实验的先后：新做的在前（date 新的在前），同一天的按 order，越小越靠前。
+// 首页的实验和详情页的上一个、下一个都按这个排（2026-11-05 laken 定：最新的放在前面）
+export const newestFirst = (a: CollectionEntry<'labs'>, b: CollectionEntry<'labs'>) =>
+  b.data.date.valueOf() - a.data.date.valueOf() || a.data.order - b.data.order;
 
 // 实验源码在 GitHub 上的地址
 export const labSource = (slug: string) => `${SITE.repo}/tree/main/src/labs/${slug}`;

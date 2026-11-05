@@ -1,9 +1,10 @@
 ---
-// 「Lab」：全部实验排成两列，格子之间是 1px 的线
+// 「Lab」：全部实验排成两列，格子之间是 1px 的线，新做的在前
 import { getCollection } from 'astro:content';
 import LabCard from './LabCard.astro';
+import { newestFirst } from '../site';
 
-const labs = (await getCollection('labs')).sort((a, b) => a.data.order - b.data.order);
+const labs = (await getCollection('labs')).sort(newestFirst);
 ---
 <p class="intro">Small interface experiments, each one a single component you can play with right here. The source of every one is on GitHub.</p>
 <div class="grid">
