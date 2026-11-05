@@ -25,8 +25,8 @@ const labs = (await getCollection('labs')).sort(newestFirst);
     background: var(--line);
     border: 1px solid var(--line);
   }
-  /* 实验是单数时最后一个占满一行，不然右下角空出一格，露出底下线的颜色 */
-  .grid > :global(:last-child:nth-child(odd)) { grid-column: 1 / -1; }
+  /* 实验是单数时第一个（最新的）占满一行，不然最后空出一格，露出底下线的颜色（2026-11-05 laken 定放前面） */
+  .grid > :global(:first-child:nth-last-child(odd)) { grid-column: 1 / -1; }
   @media (max-width: 680px) {
     .grid { grid-template-columns: 1fr; }
   }
