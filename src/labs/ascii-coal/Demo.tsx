@@ -22,7 +22,7 @@ export default function AsciiCoal() {
         return () => { mo.disconnect(); mq.removeEventListener("change", retheme); w.destroy(); wall.current = null; };
     }, []);
 
-    // 键盘：聚焦到煤壁上按回车或空格，随便一处裂开
+    // 键盘：聚焦到煤上按回车或空格，随便一处裂开
     const key = (e: KeyboardEvent) => {
         if (e.key !== "Enter" && e.key !== " ") return;
         e.preventDefault();
@@ -32,7 +32,7 @@ export default function AsciiCoal() {
     return (
         <div className="lab-root ascii-coal">
             <canvas className="wall" ref={canvas} tabIndex={0} role="img" onKeyDown={key}
-                aria-label="A wall of faceted coal with cold blue light in its seams, drawn entirely in ASCII characters. Press Enter to crack it." />
+                aria-label="A bed of faceted coal lumps seen at an angle, with cold blue light in the seams between them, drawn entirely in ASCII characters. Press Enter to crack it." />
             {failed && <p className="fallback">This experiment needs WebGL 2</p>}
             <p className="lab-hint">
                 <span className="for-mouse">Sweep across the coal to crack it</span>
