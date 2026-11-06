@@ -32,7 +32,7 @@ export default function AsciiSand() {
     return (
         <div className="lab-root ascii-sand">
             <canvas className="wall" ref={canvas} tabIndex={0} role="img" onKeyDown={key}
-                aria-label="Sand dunes with wind ripples, seen from above and drawn entirely in ASCII characters. Press Enter to pour a handful of sand." />
+                aria-label="Sand dunes with wind ripples running to the horizon, drawn entirely in ASCII characters. Press Enter to pour a handful of sand." />
             {failed && <p className="fallback">This experiment needs WebGL 2</p>}
             <p className="lab-hint">
                 <span className="for-mouse">Sweep across the sand to carve a groove</span>
