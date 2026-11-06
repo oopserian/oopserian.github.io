@@ -1,0 +1,28 @@
+/* 字铺满整个舞台，不另包一块圆角的屏；画布是透明的，字以外就是舞台自己的底色 */
+.ascii-sand .wall {
+    position: absolute;
+    inset: 0;
+    width: 100%;
+    height: 100%;
+    display: block;
+    touch-action: pan-y; /* 上下划还是滚页面，左右划在沙上犁出沟 */
+    cursor: crosshair;
+}
+.ascii-sand .wall:focus-visible {
+    outline-offset: -2px; /* 画布贴着舞台的边，焦点框画在里面才看得见 */
+}
+
+.ascii-sand .fallback {
+    position: absolute;
+    inset: 0;
+    display: grid;
+    place-items: center;
+    font: 11px/1 var(--mono);
+    color: var(--lab-fg-3);
+}
+
+/* 提示压在字上：垫一小块舞台的底色，字看得清 */
+.ascii-sand .lab-hint span {
+    padding: 4px 8px;
+    background: color-mix(in srgb, var(--bg-2) 88%, transparent);
+}
