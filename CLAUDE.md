@@ -8,6 +8,7 @@ Erian（laken）的个人网站 eooo.me，Astro 生成的纯静态页面，发�
 - type：`feat` `fix` `perf` `refactor` `docs` `test` `build` `chore` `style`。
 - scope：`site`（外壳、首页、共用组件、样式）、`lab`（`src/labs/` 里的实验和实验页）、`ascii`（首屏字符画）、`deploy`（构建和发布）；整个仓库的事写 `repo`，只改这份 CLAUDE.md 写 `agents`。
 - 一个完整的改动一个提交，只 `git add` 自己改的文件。
+- 拉取请求合并以后 GitHub 会自动删掉它的分支。收尾时的检查要是说有没推的提交，先 `git fetch origin main`，再用 `git log origin/main..HEAD` 看是不是都已经在 main 里了；都在就别推，推了会把删掉的分支又建回来（2026-11-06 清理时，十几个合过的分支就是这样回来的）。
 
 ## 约定
 
