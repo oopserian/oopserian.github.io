@@ -1,0 +1,36 @@
+/* 像素画铺满整个舞台；画布的大小、位置由 canopy.js 按舞台算好（整数倍放大，比舞台大一点点，多的被舞台裁掉） */
+.crown-shyness .sky {
+    position: absolute;
+    display: block;
+    image-rendering: pixelated;
+    touch-action: pan-y; /* 上下划还是滚页面；点一下摇树，横着拖推树冠 */
+}
+/* 画布可能比舞台大一点，焦点框画在舞台里面 */
+.crown-shyness .sky:focus-visible { outline: none; }
+.crown-shyness:has(.sky:focus-visible)::after {
+    content: "";
+    position: absolute;
+    inset: 0;
+    outline: 2px solid var(--lab-accent);
+    outline-offset: -2px;
+    pointer-events: none;
+}
+
+/* 右上角一排小按钮：换时间、摇一摇、换一片林子 */
+.crown-shyness .tools {
+    position: absolute;
+    top: 12px;
+    right: 12px;
+    display: flex;
+    gap: 6px;
+}
+.crown-shyness .tools .icon {
+    width: 30px;
+    padding: 0;
+}
+
+/* 提示压在画上：垫一小块舞台的底色，字看得清 */
+.crown-shyness .lab-hint span {
+    padding: 4px 8px;
+    background: color-mix(in srgb, var(--bg-2) 88%, transparent);
+}
