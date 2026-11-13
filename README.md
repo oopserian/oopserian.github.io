@@ -131,6 +131,7 @@ pnpm check      # 类型检查
   - Three.js（0.186，MIT）：`PerspectiveCamera`、`RawShaderMaterial`、`WebGLRenderTarget`、`Raycaster` 正好都有，但只用到这几样，场景树、材质、灯光这些大半的代码用不上，却要整个下载。
   - OGL（1.0，Unlicense）：小，接口跟 Three.js 像，但 2025 年初以后没再发版。
   - regl（2.1，MIT）：函数式的写法很省，但只支持 WebGL1，着色器得改写成 GLSL 1.0，2024 年以后没再发版。
+- **Crown Shyness 用 CPU 一个像素一个像素地画，不用 WebGL**：画面就是一张约 3.6 万个像素的小图（放大几倍按舞台面积定），再整数倍放大；每个像素要知道归哪棵树、离缝多远、被哪一团叶子盖住、落在色带的哪一档，在 JS 里扫几遍数组最直接，颜色也能一档一档地管住（像素画靠的就是这个）。写成着色器的话，叶团、主枝、近处的叶团这种按先后叠的东西得拆成好几遍渲染，省不了多少。无头 Chromium 里（没有显卡）一帧二十毫秒上下，平时限 30 帧，滚出屏幕就停。2026-11-12 先做成发帖用的单页（照 laken 给的一张林冠照片，像素风参考 feralui.dev/pixel-play），11-13 放进 lab 时把「按宽度排林子、一行一百八十像素」改成按面积：详情页的舞台又宽又矮，按宽度排的话树冠被放得很大、像素也粗。
 - **分享图用 Playwright 截**（1.63，Apache-2.0，只是开发时用的依赖，不进页面）：实验的样子就是页面本身，截真页面最准，也不用另写一套画图的代码。比较过 Satori（Vercel 的 JSX 转 SVG，MIT）：画标题和字很方便，但画不了实验本身（WebGL、CSS 3D、背景模糊都不支持），只能放一张事先截好的图进去，等于还是要截图；Astro 的 `astro:assets` 只能处理已有的图，不能截图。
 - **图标**：Phosphor 的 regular 粗细，几个用到的直接写成内联 SVG（网站的在 `components/Icon.astro`，实验的在 `src/labs/_kit/icons.tsx`），不引图标库。
 
