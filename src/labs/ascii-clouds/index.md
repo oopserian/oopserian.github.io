@@ -19,13 +19,14 @@ prompt: |-
 
   2. Characters
   - Cut the canvas into 8 px cells. Every cell gets a character; none is left empty.
-  - Pick from . : - = + * # % @ by brightness. The sky uses only . : - and the clouds use the rest.
+  - Pick from . : - = + * # % @ by brightness. The sky uses only . : - and the clouds use the rest (light mode inks them differently, see Themes).
   - Turn each character along the brightness contour, perpendicular to the gradient across neighbouring cells, so the strokes flow around each cloud. Guard the angle where the gradient is zero, because atan(0, 0) is NaN on some GPUs.
   - Draw the characters from a glyph atlas painted with the canvas 2D API in my site's monospace font. Repaint it once the font has loaded.
 
   3. Themes
   - Dark is dusk. The sun sits just below the horizon, ahead and to the right. Cloud edges are lit gold, then pink, and the shadowed sides are purple. Each character takes the colour of its patch of cloud.
-  - Light is daytime: the sun is behind the camera, with a blue sky and white clouds. Characters are inked in four navy tones from pale to dark by density, so the clouds read as dark-blue masses, not holes in white.
+  - Light is daytime, inked like an engraving: the sun is behind the camera, with a blue sky and white clouds. The sky is level hatching in my accent blue, - and = mixed through a 4×4 Bayer matrix so the strokes get denser and deeper toward the zenith (never a solid block, never random speckle). The clouds stay paper white: their lit faces get only faint . and :, and only the shaded undersides build up to blue-grey + and *, never black. The hatching turns along each cloud's edge, so the sky draws the clouds.
+  - In light mode, paint the atlas with a heavier outline (about 1.8× for - and =, 1.3× for the rest), since dark strokes on a pale ground read thinner.
   - Update when my theme switch changes the theme.
 
   4. Parting the clouds

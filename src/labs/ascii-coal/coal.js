@@ -49,15 +49,19 @@ function thin(list) {
 }
 
 // 颜色：煤面的字沿一条四个颜色的色带走，由淡的字到浓的字；蓝光由弱到强两个颜色；闪亮的高光一个颜色。
-// 深色主题煤面由近黑的蓝灰到亮灰（越亮越浓），光由冰蓝到白；浅色主题煤面由浅灰到墨（越暗越浓），光是网站的钴蓝
+// 深色主题煤面由近黑的蓝灰到亮灰（越亮越浓），光由冰蓝到白；浅色主题煤面由浅灰到墨（越暗越浓），光是网站的钴蓝。
+// 浅色主题是纸上的墨：煤是黑的，大半压成深灰，只有正对着光的面才淡下去；亮度要到 0.65 才算最亮（深色是 0.5），
+// 不然一半的面都淡成浅灰，煤块看着是空的。字描粗一点（stroke：煤面、光的描边），深字在浅底上显细
 const COLORS = {
   dark: {
     stone: [[0.12, 0.13, 0.17], [0.28, 0.31, 0.39], [0.56, 0.6, 0.7], [0.88, 0.91, 0.97]],
     glow: [[0.25, 0.5, 0.95], [0.82, 0.94, 1.0]], glint: [1, 1, 1], range: [0.04, 0.5], gamma: 0.6, dense: 1.4, fog: 0,
+    stroke: [4.5, 3],
   },
   light: {
-    stone: [[0.62, 0.64, 0.69], [0.4, 0.42, 0.48], [0.19, 0.2, 0.24], [0.04, 0.04, 0.06]],
-    glow: [[0.15, 0.25, 0.85], [0.03, 0.07, 0.5]], glint: [0.04, 0.04, 0.06], range: [0.04, 0.5], gamma: 0.8, dense: 1, fog: 1,
+    stone: [[0.62, 0.64, 0.68], [0.44, 0.46, 0.51], [0.29, 0.3, 0.34], [0.15, 0.15, 0.18]],
+    glow: [[0.15, 0.25, 0.85], [0.03, 0.07, 0.5]], glint: [0.04, 0.04, 0.06], range: [0.04, 0.65], gamma: 1, dense: 1, fog: 1,
+    stroke: [6.5, 4.5],
   },
 };
 
@@ -169,7 +173,7 @@ const terrain = (T) => /* glsl */ `
 // 后 5 个是光，由弱到强 . : * o @，不拉宽。每个字按墨迹居中，再描一圈边，笔画粗一点
 const GLYPHS = ["-", "=", ".", ":", "*", "o", "@"], BODY = 2;
 const T = 64;
-function drawAtlas(c) {
+function drawAtlas(c, stroke = [4.5, 3]) {
   const g = c.getContext("2d");
   c.width = T * GLYPHS.length; c.height = T;
   g.clearRect(0, 0, c.width, c.height);
@@ -183,7 +187,7 @@ function drawAtlas(c) {
     g.save();
     g.translate(i * T + T / 2, T / 2); g.scale(sx, 1);
     const x = -(r - l) / 2, y = (up - dn) / 2;
-    g.lineWidth = i < BODY ? 4.5 : 3;   // 煤面的字是细线，描粗一点才压得住整块
+    g.lineWidth = i < BODY ? stroke[0] : stroke[1];   // 煤面的字是细线，描粗一点才压得住整块
     g.fillText(ch, x, y); g.strokeText(ch, x, y);
     g.restore();
   });
@@ -380,6 +384,8 @@ const shadeFS = (T) => /* glsl */ `
     // 字的方向：顺着煤面的等高线（同一个面上朝一个方向），裂纹里顺着裂纹
     vec2 gr = h.yz;
     vec2 t2 = screenDir(P, normalize(vec2(-gr.y, gr.x) + 1e-6)) * clamp(length(gr) * 3.0, 0.0, 1.0);
+    // 浅色主题远处淡成纸的颜色，那里的字横着放，像远景稀疏的排线，不然一片淡字东倒西歪看着脏
+    if (uFogL > 0.5) t2 *= exp(-max(dist / uCamH * ${f(T.CAM_H)} - ${f(T.FOG0)}, 0.0) / ${f(T.FOGD)});
     t2 = mix(t2, screenDir(P, cdir), crack);
     o = vec4(clamp(lum, 0.0, 1.0), clamp(glow, 0.0, 1.0), t2 * 0.5 + 0.5);
   }
@@ -423,8 +429,10 @@ const compFS = (T) => /* glsl */ `
       // 煤面：亮度挑 - = #，字转到等高线的走向上；方向取周围几格一起的，不跟着一格里的小起伏乱转
       vec2 t2 = textureLod(uShade, uv, ${f(T.DIRLOD)}).ba * 2.0 - 1.0;
       lv = pow(lv, uGamma);
-      // 背光的暗处字都横着放，像版画里阴影的排线，亮的面才顺着面转
-      a = dot(t2, t2) > 1e-12 ? 0.5 * atan(t2.y, t2.x) * smoothstep(0.05, 0.25, length(t2)) * smoothstep(${f(T.FLAT0)}, ${f(T.FLAT0 + 0.2)}, lv) : 0.0;   // atan(0, 0) 没定义，有的显卡算出 NaN
+      // 深色主题背光的暗处字都横着放，像版画里阴影的排线，亮的面才顺着面转。
+      // 浅色主题反过来：墨重的是背光的面，字顺着面转才勾得出一块块煤；正对着光的面淡成纸色，横着放
+      float face = uDark > 0.5 ? smoothstep(${f(T.FLAT0)}, ${f(T.FLAT0 + 0.2)}, lv) : 1.0 - smoothstep(0.75, 0.95, lv);
+      a = dot(t2, t2) > 1e-12 ? 0.5 * atan(t2.y, t2.x) * smoothstep(0.05, 0.25, length(t2)) * face : 0.0;   // atan(0, 0) 没定义，有的显卡算出 NaN
       lv = mix(lv, lv * lv * (3.0 - 2.0 * lv), 0.3);   // 再拉开一点反差
       if (uDark < 0.5) lv = 0.999 - lv;
       float gl = clamp(glow * 1.6, 0.0, 1.0);
@@ -481,7 +489,12 @@ function create(canvas, { period = 12000, cell = 8, fps = 30 } = {}) {
   // 鼠标那盏灯：要去的地方、现在的地方（跟过去，不是瞬移）、亮度（移进来慢慢亮，移出去慢慢灭）
   const lamp = { tx: 0, ty: 0, x: 0, y: 0, on: 0, k: 0 };
 
-  function readTheme() { dark = getComputedStyle(canvas).colorScheme.includes("dark"); }
+  let weight = COLORS.dark.stroke;   // 图集现在按哪套描边画的
+  function readTheme() {
+    dark = getComputedStyle(canvas).colorScheme.includes("dark");
+    const C = COLORS[dark ? "dark" : "light"];
+    if (C.stroke !== weight) { weight = C.stroke; drawAtlas(atlasCanvas, weight); atlas.update(); }
+  }
   function relayout() {
     W = canvas.clientWidth; H = canvas.clientHeight;
     if (!W || !H) return;
@@ -617,7 +630,7 @@ function create(canvas, { period = 12000, cell = 8, fps = 30 } = {}) {
   // 字的图集用网站的 DM Mono 画，字体晚到了重画一遍
   document.fonts?.load('500 50px "DM Mono"').then(() => {
     if (dead) return;
-    drawAtlas(atlasCanvas); atlas.update(); paint(true);
+    drawAtlas(atlasCanvas, weight); atlas.update(); paint(true);
   }, () => {});
 
   relayout();

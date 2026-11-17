@@ -29,13 +29,14 @@ prompt: |-
   3. Characters
   - Cut the canvas into 8 px cells. Every cell gets a character.
   - Coal gets - = by brightness, turned along the stored direction, so each face is hatched in its own direction and the lumps' edges show where the direction changes. Stretch them to 0.84 of the cell's width so neighbours join. Read the direction from mip level 2, and guard the angle where the direction vector is zero, because atan(0, 0) is NaN on some GPUs.
-  - Map brightness 0.04–0.5 across the glyphs and lift the darks with a power (0.6 in dark mode, 0.8 in light mode), since coal is mostly dark. Turn the strokes in the darkest cells level, like the hatching in an engraving's shadows, and let only the lit faces follow their contours.
+  - In dark mode, map brightness 0.04–0.5 across the glyphs and lift the darks with a power of 0.6, since coal is mostly dark. Turn the strokes in the darkest cells level, like the hatching in an engraving's shadows, and let only the lit faces follow their contours.
+  - In light mode the ink sits on the shaded faces instead: map 0.04–0.65 (or half the faces wash out to pale grey and the lumps look hollow), let the inked faces follow their contours, and lay only the palest lit faces level. Lay the strokes level in the distance too, where the bed fades to paper.
   - Blue light tints the strokes and makes them denser. Where it is strongest (a crack's flash, a fresh split), use upright . : * o @ instead. In dark mode, scatter an upright * over the brightest highlights.
   - Draw the characters from a glyph atlas painted with the canvas 2D API in my site's monospace font, and repaint it once the font has loaded.
 
   4. Themes
   - Dark: the coal runs from a near-black blue grey to pale grey, denser for brighter; the light runs from ice blue to white.
-  - Light: the coal runs from grey to ink, denser for darker, so the lit faces are what's left pale; the light is a deep version of my accent blue.
+  - Light: the coal runs from grey to a soft near-black, denser for darker, so the lit faces are what's left pale; the light is a deep version of my accent blue. Paint the atlas with a heavier outline (about 1.5× the dark mode's), since dark strokes on a pale ground read thinner.
   - Update when my theme switch changes the theme.
 
   5. Cracks and light

@@ -33,7 +33,7 @@ prompt: |-
 
   3. Themes
   - Dark: dusk. Shaded sand is a dusty violet, sunlit sand runs through rose and amber to pale gold, and blown sand is near white.
-  - Light: a pen drawing. The sand runs from pale sand to dark brown, denser for darker, so the shadows are thick with ink; blown sand is a mid brown.
+  - Light: a pen drawing. The sand runs from a warm ochre to a deep brown, denser for darker, so the shadows are thick with ink; blown sand is a mid brown. Flip the sky's brightness as well, so it meets the haze at the horizon and pales upward instead of capping the picture with a dark band. Paint the atlas with a heavier outline (about 1.5× the dark mode's), since dark strokes on a pale ground read thinner.
   - Update when my theme switch changes the theme.
 
   4. Grooves and piles
