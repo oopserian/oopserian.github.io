@@ -1,16 +1,16 @@
 ---
 // 首屏：一屏放下网站的大部分内容，去掉了原来的字符画头像（2026-11-17 laken 要的）。
-// 第二版照 laken 给的一个参考站的思路（不照搬样子）：一格一个有画面、会动的小东西，用 1px 细线拼成一张表：
-//   简介（两格宽）        本地时间（走着的钟）   联系（能一键拷邮箱）
-//   实验（两格宽两格高）  SOOTY（两格宽，海报）
-//                         其他项目              深浅色开关
-// 实验那格：上面是预览框，下面是全部实验的目录。预览框自己隔几秒换下一个（擦进来），指到或 Tab 到目录里的哪个就换成哪个，
-// 点预览框打开。实验的小图由 tools/og.mjs 截，浅色深色各一张。窄屏上一格一格往下排。
-// 没有脚本时：钟停在构建时的样子，预览框是最新的实验，目录照样是链接。
-import fs from 'node:fs';
+// 照 laken 给的一个参考站学的思路（不照搬样子）：一格一个有画面的东西，用 1px 细线拼成一张表。
+// 第三版（同一天 laken 说「不要时间，把海浪和晚霞和树放上来」）：钟拿掉，右上一块放三个实验，直接在首屏里跑、能玩：
+//   简介（两格宽）        晚霞（两格宽：天要宽一点才看得出霞）
+//   SOOTY（两格宽，海报）  海浪        树
+//   实验目录（两格宽）     联系        其他项目
+// 三个实验跟下面「Lab」那节是同一套组件（LabStage），自己限帧、看不见就停；首屏里藏掉它们的提示和按钮，点右上的名字进详情页。
+// 窄屏上一格一格往下排。
 import { Image } from 'astro:assets';
 import { getCollection } from 'astro:content';
 import Icon from './Icon.astro';
+import LabStage from './LabStage.astro';
 import avatar from '../assets/avatar.webp';
 import poster from '../assets/projects/sooty-og.jpg';
 import { SITE, newestFirst } from '../site';
@@ -18,28 +18,24 @@ import { SITE, newestFirst } from '../site';
 const labs = (await getCollection('labs')).sort(newestFirst);
 const projects = (await getCollection('projects', p => !p.data.hidden && p.data.name !== 'SOOTY'))
   .sort((a, b) => a.data.order - b.data.order);
-
-const thumb = (slug: string, theme: string) => `/thumb/lab/${slug}-${theme}.webp`;
-const hasThumb = (slug: string) => fs.existsSync(`${process.cwd()}/public${thumb(slug, 'light')}`); // 构建在仓库根目录跑
 const month = (d: Date) => d.toLocaleDateString('en', { year: 'numeric', month: 'short', timeZone: 'UTC' });
 
-// 目录的编号按做出来的先后，最早的是 01，新做的实验不会改动旧实验的号
-const labRows = labs.map((lab, i) => {
-  const no = String(labs.length - i).padStart(2, '0');
-  return {
-    id: lab.id,
-    no,
-    title: lab.data.title,
-    meta: `${month(lab.data.date)} · ${lab.data.tags.join(' · ')}`,
-    href: lab.data.wip ? '#lab' : `/lab/${lab.id}/`,
-    thumb: !lab.data.wip && hasThumb(lab.id),
-  };
-});
-const first = labRows[0];
-const since = month(labs[labs.length - 1].data.date);
+// 首屏上跑的三个实验：海浪、晚霞（ASCII Clouds 的深色是黄昏，舞台一直是深的）、树（Crown Shyness）
+const pick = (id: string) => labs.find(l => l.id === id)!;
+const scenes = [
+  { area: 'dusk', word: 'Afterglow', lab: pick('ascii-clouds') },
+  { area: 'waves', word: 'Waves', lab: pick('ascii-waves') },
+  { area: 'trees', word: 'Trees', lab: pick('crown-shyness') },
+];
 
-// 钟面：60 道刻度，整点的长一点
-const ticks = Array.from({ length: 60 }, (_, i) => ({ a: i * 6, hour: i % 5 === 0 }));
+// 目录的编号按做出来的先后，最早的是 01，新做的实验不会改动旧实验的号
+const labRows = labs.map((lab, i) => ({
+  id: lab.id,
+  no: String(labs.length - i).padStart(2, '0'),
+  title: lab.data.title,
+  href: lab.data.wip ? '#lab' : `/lab/${lab.id}/`,
+}));
+const since = month(labs[labs.length - 1].data.date);
 const handle = '@' + new URL(SITE.x).pathname.slice(1);
 ---
 <section class="hero" data-hero>
@@ -64,23 +60,50 @@ const handle = '@' + new URL(SITE.x).pathname.slice(1);
         </div>
       </div>
 
-      <!-- 本地时间：德国的时间，和你差几个小时 -->
-      <div class="cell clock rise" style="--d:60ms" data-clock>
-        <div class="bar"><h2 class="tag">Local time</h2><span class="tag-r mono">Germany</span></div>
-        <svg class="face" viewBox="0 0 200 200" aria-hidden="true">
-          <circle cx="100" cy="100" r="96" class="rim" />
-          {ticks.map(t => (
-            <line x1="100" y1={t.hour ? 10 : 10} x2="100" y2={t.hour ? 22 : 15} class:list={['tick', { hour: t.hour }]} transform={`rotate(${t.a} 100 100)`} />
+      <!-- 三个实验：直接跑，能玩 -->
+      {scenes.map(({ area, word, lab }, i) => (
+        <div class:list={['cell scene rise', area, { dark: lab.data.dark }]} style={`--d:${60 + i * 60}ms`}>
+          <div class="fill"><LabStage slug={lab.id} dark={lab.data.dark} size="page" /></div>
+          <div class="label">
+            <span class="tag">{word}</span>
+            <a class="tag name-link" href={`/lab/${lab.id}/`}><span class="out">{lab.data.title}</span></a>
+          </div>
+        </div>
+      ))}
+
+      <!-- SOOTY：正在做的 -->
+      <a class="cell now rise" style="--d:120ms" href="https://sooty.app" aria-label="SOOTY, a local-first asset manager for Mac — sooty.app">
+        <Image src={poster} alt="" widths={[640, 1000, 1400]} sizes="(max-width: 760px) 100vw, 600px" loading="eager" />
+        <div class="over">
+          <span class="tag light"><span class="dot" aria-hidden="true"></span>Now building</span>
+          <span class="tag light out">sooty.app</span>
+        </div>
+        <p class="facts mono" aria-hidden="true">
+          <span>Rust + GPUI</span><span>Local-first</span><span>On-device AI search</span><span>Wasm plugins</span>
+        </p>
+      </a>
+
+      <!-- 实验目录 -->
+      <nav class="cell lab rise" style="--d:300ms" aria-labelledby="lab-h">
+        <div class="bar">
+          <h2 class="tag" id="lab-h">Lab <span class="count">{labRows.length}</span></h2>
+          <a class="tag-r mono all" href="#lab">Since {since} · play below ↓</a>
+        </div>
+        <ol class="list">
+          {labRows.map(l => (
+            <li>
+              <a class="row" href={l.href}>
+                <span class="no mono">{l.no}</span>
+                <span class="title">{l.title}</span>
+              </a>
+            </li>
           ))}
-          <g class="hand h" data-h><line x1="100" y1="112" x2="100" y2="54" /></g>
-          <g class="hand m" data-m><line x1="100" y1="114" x2="100" y2="30" /></g>
-          <g class="hand s" data-s><line x1="100" y1="120" x2="100" y2="22" /><circle cx="100" cy="100" r="3.2" /></g>
-        </svg>
-        <p class="when mono"><span data-time>Berlin</span><span class="diff" data-diff></span></p>
-      </div>
+          <li class="more"><a class="row" href="#lab"><span class="no mono">+{labRows.length - 5}</span><span class="title">More below, all playable ↓</span></a></li>
+        </ol>
+      </nav>
 
       <!-- 联系 -->
-      <div class="cell contact rise" style="--d:120ms" id="contact">
+      <div class="cell contact rise" style="--d:360ms" id="contact">
         <div class="bar"><h2 class="tag">Contact</h2></div>
         <a class="hi" href={`mailto:${SITE.email}`}>Say hi<span class="arrow" aria-hidden="true">↗</span></a>
         <ul class="rows mono">
@@ -96,54 +119,8 @@ const handle = '@' + new URL(SITE.x).pathname.slice(1);
         </ul>
       </div>
 
-      <!-- 实验：预览框 + 目录 -->
-      <nav class="cell lab rise" style="--d:180ms" aria-labelledby="lab-h" data-labcell>
-        <div class="bar">
-          <h2 class="tag" id="lab-h">Lab <span class="count">{labRows.length}</span></h2>
-          <a class="tag-r mono all" href="#lab">Since {since} · play below ↓</a>
-        </div>
-        <a class="screen" href={first.href} tabindex="-1" aria-hidden="true" data-screen>
-          <div class="layer">
-            {first.thumb
-              ? <><img class="t-light" src={thumb(first.id, 'light')} alt="" /><img class="t-dark" src={thumb(first.id, 'dark')} alt="" /></>
-              : null}
-          </div>
-          <span class="progress" data-progress></span>
-          <span class="open mono">Open ↗</span>
-        </a>
-        <p class="caption" aria-hidden="true">
-          <span class="no mono" data-c-no>No. {first.no}</span>
-          <span class="title" data-c-title>{first.title}</span>
-          <span class="meta mono" data-c-meta>{first.meta}</span>
-        </p>
-        <ol class="list">
-          {labRows.map((l, i) => (
-            <li>
-              <a class="row" href={l.href} data-row={l.id} data-on={i === 0 ? '' : undefined}
-                data-kind={l.thumb ? 'thumb' : 'stripes'} data-no={l.no} data-title={l.title} data-meta={l.meta}>
-                <span class="no mono">{l.no}</span>
-                <span class="title">{l.title}</span>
-              </a>
-            </li>
-          ))}
-          <li class="more"><a class="row" href="#lab"><span class="no mono">+{labRows.length - 5}</span><span class="title">More below, all playable ↓</span></a></li>
-        </ol>
-      </nav>
-
-      <!-- SOOTY：正在做的 -->
-      <a class="cell now rise" style="--d:240ms" href="https://sooty.app" aria-label="SOOTY, a local-first asset manager for Mac — sooty.app">
-        <Image src={poster} alt="" widths={[640, 1000, 1400]} sizes="(max-width: 760px) 100vw, 600px" loading="eager" />
-        <div class="over">
-          <span class="tag light"><span class="dot" aria-hidden="true"></span>Now building</span>
-          <span class="tag light out">sooty.app</span>
-        </div>
-        <p class="facts mono" aria-hidden="true">
-          <span>Rust + GPUI</span><span>Local-first</span><span>On-device AI search</span><span>Wasm plugins</span>
-        </p>
-      </a>
-
       <!-- 其他项目 -->
-      <div class="cell also rise" style="--d:300ms" id="work">
+      <div class="cell also rise" style="--d:420ms" id="work">
         <div class="bar"><h2 class="tag">Also</h2></div>
         <ul>
           {projects.map(({ data: p }) => (
@@ -157,16 +134,6 @@ const handle = '@' + new URL(SITE.x).pathname.slice(1);
             </li>
           ))}
         </ul>
-      </div>
-
-      <!-- 深浅色开关：点一下整站换主题，跟顶栏的按钮是同一个开关 -->
-      <div class="cell mode rise" style="--d:360ms">
-        <div class="bar"><h2 class="tag">Appearance</h2><span class="tag-r mono"><span class="is-light">Light</span><span class="is-dark">Dark</span></span></div>
-        <button class="switch" type="button" role="switch" aria-label="Dark mode" data-switch>
-          <span class="track" aria-hidden="true"><Icon name="sun" size={20} /><Icon name="moon" size={20} /></span>
-          <span class="knob" aria-hidden="true"><Icon name="sun" size={28} class="sun" /><Icon name="moon" size={28} class="moon" /></span>
-        </button>
-        <p class="hint mono">Follows your system until you flip it.</p>
       </div>
 
     </div>
@@ -184,9 +151,9 @@ const handle = '@' + new URL(SITE.x).pathname.slice(1);
     grid-template-columns: repeat(4, minmax(0, 1fr));
     grid-template-rows: 1.1fr 1fr 1fr;
     grid-template-areas:
-      "intro intro clock contact"
-      "lab   lab   now   now"
-      "lab   lab   also  mode";
+      "intro intro dusk    dusk"
+      "now   now   waves   trees"
+      "lab   lab   contact also";
     gap: 1px;
     height: clamp(760px, calc(100svh - var(--nav-h) - 48px), 920px);
     background: var(--line);
@@ -250,203 +217,38 @@ const handle = '@' + new URL(SITE.x).pathname.slice(1);
     text-wrap: pretty;
   }
 
-  /* 本地时间 */
-  .clock { grid-area: clock; }
-  .face {
-    flex: 1;
-    min-height: 0;
-    width: 100%;
-    margin-block: 10px 8px;
-  }
-  .rim { fill: none; stroke: var(--line); stroke-width: 1; }
-  .tick { stroke: var(--fg-3); stroke-width: 1; vector-effect: non-scaling-stroke; }
-  .tick.hour { stroke: var(--fg); stroke-width: 1.5; }
-  .hand { transform-origin: 100px 100px; transform-box: view-box; }
-  .hand line { stroke-linecap: square; }
-  .hand.h line { stroke: var(--fg); stroke-width: 5; }
-  .hand.m line { stroke: var(--fg); stroke-width: 3; }
-  .hand.s line { stroke: var(--accent); stroke-width: 1.25; }
-  .hand.s circle { fill: var(--accent); }
-  /* 秒针每秒跳一下，稍微冲过头再回来（像车站的钟） */
-  @media (prefers-reduced-motion: no-preference) {
-    .hand.s { transition: rotate .32s cubic-bezier(.3, 1.8, .55, 1); }
-  }
-  .when {
-    display: flex;
-    justify-content: space-between;
-    gap: 8px;
-    font-size: 13px;
-    color: var(--fg);
-    font-variant-numeric: tabular-nums;
-  }
-  .diff { color: var(--fg-3); }
-
-  /* 联系 */
-  .contact { grid-area: contact; }
-  .hi {
-    display: inline-flex;
-    align-items: flex-start;
-    gap: 6px;
-    margin-top: auto;
-    font-family: var(--serif);
-    font-size: 54px;
-    line-height: 1;
-    letter-spacing: -0.01em;
-    transition: color .2s;
-  }
-  .hi .arrow {
-    font-family: var(--mono);
-    font-size: 22px;
-    line-height: 1;
-    margin-top: 6px;
-    transition: transform .25s cubic-bezier(.2, .7, .2, 1);
-  }
-  .hi:hover { color: var(--accent); }
-  .hi:hover .arrow { transform: translate(3px, -3px); }
-  .rows { margin-top: 18px; border-top: 1px solid var(--line); font-size: 12px; }
-  .rows li {
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    gap: 12px;
-    height: 34px;
-    border-bottom: 1px solid var(--line);
-  }
-  .rows li:last-child { border-bottom: 0; height: 30px; align-items: flex-end; }
-  .k { color: var(--fg-3); }
-  .rows a, .copy { color: var(--fg); transition: color .15s; min-width: 0; }
-  .rows a:hover, .copy:hover { color: var(--accent); }
-  .copy {
-    display: inline-flex;
-    align-items: center;
-    gap: 6px;
-    cursor: pointer;
-    font: inherit;
-  }
-  .copy .v { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-  .copy .state { display: grid; color: var(--fg-3); }
-  .copy :global(.i-check), .copy[data-done] :global(.i-copy) { display: none; }
-  .copy[data-done] :global(.i-check) { display: block; color: var(--accent); }
-
-  /* 实验 */
-  .lab { grid-area: lab; }
-  .count { margin-left: 4px; color: var(--fg-2); }
-  .all { transition: color .15s; }
-  .all:hover { color: var(--accent); }
-  .screen {
+  /* 三个实验：舞台铺满整格，左上一块小牌子写是什么、右上一块写实验名（点了进详情页）。
+     牌子有底色，什么画面上都看得清；只挡住它自己那一小块，别的地方鼠标照样能搅动 */
+  .scene { padding: 0; background: var(--bg-2); }
+  .waves { grid-area: waves; }
+  .dusk { grid-area: dusk; }
+  .trees { grid-area: trees; }
+  .fill { position: absolute; inset: 0; }
+  .label {
     position: relative;
-    display: block;
-    flex: 1;
-    min-height: 0;
-    margin-top: 12px;
-    overflow: hidden;
-    background: var(--bg-2);
-  }
-  /* 一层层是脚本建的，没有 Astro 的作用域属性，用 :global */
-  .screen :global(.layer) {
-    position: absolute;
-    inset: 0;
-    background: var(--bg-2);
-  }
-  .screen :global(.layer > img) {
-    position: absolute;
-    inset: 0;
-    width: 100%;
-    height: 100%;
-    object-fit: cover;
-    transition: scale .6s cubic-bezier(.2, .7, .2, 1);
-  }
-  .screen:hover :global(.layer:last-of-type > img) { scale: 1.02; }
-  .screen :global(.layer.stripes) {
-    background:
-      repeating-linear-gradient(-45deg, transparent 0 14px, color-mix(in srgb, var(--fg) 6%, transparent) 14px 15px),
-      var(--bg-2);
-  }
-  /* 服务器上画的那一层两张都有，按主题露一张（脚本建的层只放当前主题那张） */
-  .t-dark { display: none; }
-  :global(:root[data-theme="dark"]) .t-dark { display: block; }
-  :global(:root[data-theme="dark"]) .t-light { display: none; }
-  @media (prefers-color-scheme: dark) {
-    :global(:root:not([data-theme="light"])) .t-dark { display: block; }
-    :global(:root:not([data-theme="light"])) .t-light { display: none; }
-  }
-  .screen::after {
-    content: "";
-    position: absolute;
-    inset: 0;
-    border: 1px solid color-mix(in srgb, var(--fg) 8%, transparent);
+    z-index: 1;
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+    gap: 8px;
+    padding: 14px;
     pointer-events: none;
   }
-  /* 自己换下一个之前，底边一道蓝线从左走到右，走完就换 */
-  .progress {
-    position: absolute;
-    left: 0;
-    right: 0;
-    bottom: 0;
-    z-index: 2;
-    height: 2px;
-    background: var(--accent);
-    transform-origin: left;
-    scale: 0 1;
-  }
-  .progress:global(.run) { animation: fill var(--dur, 5s) linear forwards; }
-  .progress:global(.paused) { animation-play-state: paused; }
-  @keyframes fill { to { scale: 1 1; } }
-  .open {
-    position: absolute;
-    right: 10px;
-    bottom: 12px;
-    z-index: 2;
-    padding: 2px 8px;
-    font-size: 12px;
-    color: var(--fg);
-    background: var(--bg);
+  .label .tag {
+    padding: 1px 7px;
+    color: var(--fg-2);
+    background: color-mix(in srgb, var(--bg) 86%, transparent);
     border: 1px solid var(--line);
-    opacity: 0;
-    translate: 0 4px;
-    transition: opacity .2s, translate .3s cubic-bezier(.2, .7, .2, 1);
-  }
-  .screen:hover .open { opacity: 1; translate: 0 0; }
-  .caption {
-    display: flex;
-    align-items: baseline;
-    gap: 10px;
-    margin-top: 12px;
-    min-width: 0;
     white-space: nowrap;
+    backdrop-filter: blur(6px);
   }
-  .caption .no { font-size: 12px; color: var(--accent); flex: none; }
-  .caption .title { font-family: var(--serif); font-size: 24px; line-height: 1.1; flex: none; }
-  .caption .meta { margin-left: auto; font-size: 12px; color: var(--fg-3); overflow: hidden; text-overflow: ellipsis; }
-  .list {
-    columns: 3;
-    column-gap: 20px;
-    margin-top: 12px;
-    border-top: 1px solid var(--line);
-  }
-  .list li { break-inside: avoid; }
-  .list .more { display: none; }
-  .row {
-    display: flex;
-    align-items: baseline;
-    gap: 8px;
-    padding-block: 4px 3px;
-    border-bottom: 1px solid var(--line);
-    transition: color .2s;
-  }
-  .row .no { flex: none; width: 20px; font-size: 11px; color: var(--fg-3); transition: color .2s; }
-  .row .title {
-    font-family: var(--serif);
-    font-size: 18px;
-    line-height: 1.2;
-    white-space: nowrap;
-    overflow: hidden;
-    text-overflow: ellipsis;
-  }
-  @media (hover: hover) {
-    .list:has(.row:hover) .row:not(:hover) { color: var(--fg-3); }
-  }
-  .row[data-on] .no, .row:focus-visible .no { color: var(--accent); }
+  .label .name-link { pointer-events: auto; letter-spacing: 0.02em; text-transform: none; transition: color .15s, border-color .15s; }
+  .label .name-link:hover { color: var(--accent); }
+  /* 一直是深底的两格：牌子跟 SOOTY 海报上的标签一样，深底浅字 */
+  .scene.dark .tag { color: rgb(237 237 234 / .8); background: rgb(10 10 10 / .62); border-color: rgb(237 237 234 / .16); }
+  .scene.dark .name-link:hover { color: #fff; border-color: rgb(237 237 234 / .4); }
+  /* 首屏里只看、只玩，不要实验自己的提示和按钮（下面「Lab」那节和详情页里都有） */
+  .scene :global(.lab-hint), .scene :global(.tools) { display: none; }
 
   /* SOOTY：海报铺满，上面两个小标签 */
   .now {
@@ -495,6 +297,88 @@ const handle = '@' + new URL(SITE.x).pathname.slice(1);
   }
   .now:hover .facts, .now:focus-visible .facts { opacity: 1; translate: 0 0; }
 
+  /* 实验目录 */
+  .lab { grid-area: lab; }
+  .count { margin-left: 4px; color: var(--fg-2); }
+  .all { transition: color .15s; }
+  .all:hover { color: var(--accent); }
+  .list {
+    columns: 3;
+    column-gap: 20px;
+    margin-top: auto;
+    border-top: 1px solid var(--line);
+  }
+  .list li { break-inside: avoid; }
+  .list .more { display: none; }
+  .row {
+    display: flex;
+    align-items: baseline;
+    gap: 8px;
+    padding-block: 4px 3px;
+    border-bottom: 1px solid var(--line);
+    transition: color .2s;
+  }
+  .row .no { flex: none; width: 20px; font-size: 11px; color: var(--fg-3); transition: color .2s; }
+  .row .title {
+    font-family: var(--serif);
+    font-size: 18px;
+    line-height: 1.2;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+  @media (hover: hover) {
+    .list:has(.row:hover) .row:not(:hover) { color: var(--fg-3); }
+  }
+  .row:hover .no, .row:focus-visible .no { color: var(--accent); }
+
+  /* 联系 */
+  .contact { grid-area: contact; }
+  .hi {
+    display: inline-flex;
+    align-items: flex-start;
+    gap: 6px;
+    margin-top: auto;
+    font-family: var(--serif);
+    font-size: 54px;
+    line-height: 1;
+    letter-spacing: -0.01em;
+    transition: color .2s;
+  }
+  .hi .arrow {
+    font-family: var(--mono);
+    font-size: 22px;
+    line-height: 1;
+    margin-top: 6px;
+    transition: transform .25s cubic-bezier(.2, .7, .2, 1);
+  }
+  .hi:hover { color: var(--accent); }
+  .hi:hover .arrow { transform: translate(3px, -3px); }
+  .rows { margin-top: 18px; border-top: 1px solid var(--line); font-size: 12px; }
+  .rows li {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    height: 34px;
+    border-bottom: 1px solid var(--line);
+  }
+  .rows li:last-child { border-bottom: 0; height: 30px; align-items: flex-end; }
+  .k { color: var(--fg-3); }
+  .rows a, .copy { color: var(--fg); transition: color .15s; min-width: 0; }
+  .rows a:hover, .copy:hover { color: var(--accent); }
+  .copy {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    cursor: pointer;
+    font: inherit;
+  }
+  .copy .v { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .copy .state { display: grid; color: var(--fg-3); }
+  .copy :global(.i-check), .copy[data-done] :global(.i-copy) { display: none; }
+  .copy[data-done] :global(.i-check) { display: block; color: var(--accent); }
+
   /* 其他项目 */
   .also { grid-area: also; }
   .also ul { margin-top: 12px; border-top: 1px solid var(--line); }
@@ -515,62 +399,11 @@ const handle = '@' + new URL(SITE.x).pathname.slice(1);
   .pk { grid-area: kind; margin-top: 3px; font-size: 11px; color: var(--fg-3); }
   .also a:hover .pn { color: var(--accent); }
 
-  /* 深浅色开关：方的，跟网站的直角一致。浅色时方块在左（太阳），深色在右（月亮） */
-  .mode { grid-area: mode; }
-  .is-dark { display: none; }
-  .switch {
-    position: relative;
-    display: block;
-    width: 100%;
-    flex: 1;
-    min-height: 72px;
-    margin-block: 18px 14px;
-    background: var(--bg-2);
-    border: 1px solid var(--line);
-    cursor: pointer;
-  }
-  /* 槽里两头各一个淡淡的图标，方块滑到哪头就盖住哪头 */
-  .track {
-    position: absolute;
-    inset: 0;
-    display: grid;
-    grid-template-columns: 1fr 1fr;
-    place-items: center;
-    color: var(--fg-3);
-    opacity: .7;
-  }
-  .knob {
-    position: absolute;
-    top: 5px;
-    bottom: 5px;
-    left: 5px;
-    width: calc(50% - 5px);
-    display: grid;
-    place-items: center;
-    background: var(--bg);
-    border: 1px solid var(--line);
-    color: var(--fg);
-    transition: translate .5s cubic-bezier(.3, 1.4, .5, 1), background-color .3s;
-  }
-  .knob :global(.moon) { display: none; }
-  .switch:hover .knob { border-color: color-mix(in srgb, var(--fg) 30%, transparent); }
-  .hint { font-size: 11px; color: var(--fg-3); }
-  :global(:root[data-theme="dark"]) .knob { translate: calc(100% - 0px) 0; }
-  :global(:root[data-theme="dark"]) .knob :global(.sun) { display: none; }
-  :global(:root[data-theme="dark"]) .knob :global(.moon) { display: block; }
-  :global(:root[data-theme="dark"]) .is-dark { display: inline; }
-  :global(:root[data-theme="dark"]) .is-light { display: none; }
-  @media (prefers-color-scheme: dark) {
-    :global(:root:not([data-theme="light"])) .knob { translate: calc(100% - 0px) 0; }
-    :global(:root:not([data-theme="light"])) .knob :global(.sun) { display: none; }
-    :global(:root:not([data-theme="light"])) .knob :global(.moon) { display: block; }
-    :global(:root:not([data-theme="light"])) .is-dark { display: inline; }
-    :global(:root:not([data-theme="light"])) .is-light { display: none; }
-  }
-
-  /* 中等宽度：字小一点 */
+  /* 中等宽度：字小一点，目录的字也小一号，三列放得下 */
   @media (max-width: 1240px) {
     h1 { --size: 38px; }
+    .intro { gap: 10px; }
+    .lede { margin-top: 12px; }
     .hi { font-size: 46px; }
     .list { column-gap: 16px; }
     .row .title { font-size: 16px; }
@@ -583,36 +416,44 @@ const handle = '@' + new URL(SITE.x).pathname.slice(1);
       grid-template-rows: none;
       grid-template-areas:
         "intro intro"
+        "dusk  dusk"
+        "waves trees"
         "now   now"
         "lab   lab"
-        "clock contact"
-        "also  mode";
+        "contact also";
       height: auto;
     }
     .intro { min-height: 300px; }
+    .dusk { aspect-ratio: 2 / 1; }
+    .waves, .trees { aspect-ratio: 1; }
     .now { aspect-ratio: 1200 / 630; }
-    .lab .screen { flex: none; aspect-ratio: 1200 / 630; }
-    .list { columns: 2; column-gap: 20px; }
+    .list { columns: 2; column-gap: 20px; margin-top: 14px; }
     .row .title { font-size: 18px; }
-    .clock .face { flex: none; width: min(220px, 80%); margin-inline: auto; }
-    .clock, .contact { min-height: 300px; }
+    .contact { min-height: 300px; }
   }
-  /* 手机：一列（钟和开关并排） */
+  /* 手机：一列（海浪和树并排） */
   @media (max-width: 640px) {
     .hero { padding-block: 12px 24px; }
     .bento {
       grid-template-areas:
         "intro intro"
+        "dusk  dusk"
+        "waves trees"
         "now   now"
         "lab   lab"
         "contact contact"
-        "clock mode"
         "also  also";
     }
     .cell { padding: 16px; }
+    .scene, .now { padding: 0; }
+    .label { padding: 12px; }
+    .over { padding: 14px 16px; }
     .intro { min-height: 0; gap: 36px; }
     h1 { --size: 34px; }
     .lede { font-size: 15px; }
+    .dusk { aspect-ratio: 3 / 2; }
+    /* 半格太窄，只留左边的词 */
+    .waves .name-link, .trees .name-link { display: none; }
     .list { columns: 1; }
     .row { padding-block: 9px 8px; }
     /* 手机上只列最新的五个，其余的下面「Lab」那节都能玩 */
@@ -620,13 +461,8 @@ const handle = '@' + new URL(SITE.x).pathname.slice(1);
     .list .more { display: block; }
     .more .no, .more .title { color: var(--fg-3); }
     .more .title { font-family: inherit; font-size: 13px; }
-    .clock, .mode { min-height: 220px; }
-    .contact, .also { min-height: 0; }
+    .contact { min-height: 0; }
     .hi { font-size: 48px; margin-top: 28px; }
-    .switch { min-height: 64px; }
-    .hint { display: none; }
-    .caption .meta { display: none; }
-    .when { flex-direction: column; gap: 0; }
   }
   /* 触屏没有悬停，SOOTY 那格的几个标签就不出来了（一直露着会挡住海报） */
   @media (hover: none) {
@@ -636,57 +472,6 @@ const handle = '@' + new URL(SITE.x).pathname.slice(1);
 
 <script>
   const hero = document.querySelector<HTMLElement>('[data-hero]');
-  const root = document.documentElement;
-  const darkMq = matchMedia('(prefers-color-scheme: dark)');
-  const reduce = matchMedia('(prefers-reduced-motion: reduce)');
-  const theme = () => root.dataset.theme ?? (darkMq.matches ? 'dark' : 'light');
-  const ease = 'cubic-bezier(.2, .7, .2, 1)';
-
-  // 首屏在不在屏幕上：不在就停掉钟和轮播
-  let visible = true;
-  const listeners: Array<() => void> = [];
-  if (hero) {
-    new IntersectionObserver(([e]) => { visible = e.isIntersecting; listeners.forEach(f => f()); }).observe(hero);
-    document.addEventListener('visibilitychange', () => listeners.forEach(f => f()));
-  }
-  const live = () => visible && !document.hidden;
-
-  // ── 本地时间：德国（Europe/Berlin）的钟，每秒走一下；底下写现在几点、跟看的人差几个小时 ──
-  const clock = hero?.querySelector<HTMLElement>('[data-clock]');
-  if (clock) {
-    const [h, m, s] = (['h', 'm', 's'] as const).map(k => clock.querySelector<SVGGElement>(`[data-${k}]`)!);
-    const timeEl = clock.querySelector('[data-time]')!;
-    const diffEl = clock.querySelector('[data-diff]')!;
-    const fmt = new Intl.DateTimeFormat('en-GB', { timeZone: 'Europe/Berlin', hour: '2-digit', minute: '2-digit', second: '2-digit', hourCycle: 'h23', timeZoneName: 'short' });
-    let lastSec = -1;
-    let turns = 0;
-    let timer = 0;
-    const tick = () => {
-      const parts = Object.fromEntries(fmt.formatToParts(new Date()).map(p => [p.type, p.value]));
-      const hh = +parts.hour, mm = +parts.minute, ss = +parts.second;
-      if (lastSec === 59 && ss === 0) turns++;   // 秒针一直往前转，不从 59 倒回 0
-      lastSec = ss;
-      h.style.rotate = `${(hh % 12) * 30 + mm * 0.5}deg`;
-      m.style.rotate = `${mm * 6 + ss * 0.1}deg`;
-      s.style.rotate = `${turns * 360 + ss * 6}deg`;
-      timeEl.textContent = `${parts.hour}:${parts.minute} ${parts.timeZoneName}`;
-      // 跟看的人差几个小时：两边的本地时间直接比
-      const berlin = new Date(new Date().toLocaleString('en-US', { timeZone: 'Europe/Berlin' }));
-      const diff = Math.round((berlin.getTime() - Date.now()) / 36e5 * 2) / 2;
-      diffEl.textContent = diff === 0 ? 'Same time as you' : `${Math.abs(diff)} h ${diff < 0 ? 'behind' : 'ahead of'} you`;
-    };
-    const run = () => {
-      clearInterval(timer);
-      tick();
-      if (live()) timer = window.setInterval(tick, 1000);
-    };
-    // 第一下不要动画：秒针直接到位
-    s.style.transition = 'none';
-    tick();
-    requestAnimationFrame(() => requestAnimationFrame(() => { s.style.transition = ''; }));
-    run();
-    listeners.push(run);
-  }
 
   // ── 联系：点邮箱就拷进剪贴板，图标变成对勾两秒 ──
   for (const btn of hero?.querySelectorAll<HTMLButtonElement>('[data-copy]') ?? []) {
@@ -697,112 +482,5 @@ const handle = '@' + new URL(SITE.x).pathname.slice(1);
       clearTimeout(t);
       t = window.setTimeout(() => delete btn.dataset.done, 2000);
     });
-  }
-
-  // ── 深浅色开关：跟顶栏的按钮做一样的事 ──
-  const sw = hero?.querySelector<HTMLButtonElement>('[data-switch]');
-  if (sw) {
-    const sync = () => sw.setAttribute('aria-checked', String(theme() === 'dark'));
-    sync();
-    sw.addEventListener('click', () => {
-      const next = theme() === 'dark' ? 'light' : 'dark';
-      root.dataset.theme = next;
-      try { localStorage.setItem('theme', next); } catch {}
-    });
-    new MutationObserver(sync).observe(root, { attributes: true, attributeFilter: ['data-theme'] });
-    darkMq.addEventListener('change', sync);
-  }
-
-  // ── 实验：预览框自己轮播，指到目录里的哪个就换成哪个 ──
-  const cell = hero?.querySelector<HTMLElement>('[data-labcell]');
-  const screen = cell?.querySelector<HTMLAnchorElement>('[data-screen]');
-  if (cell && screen) {
-    const rows = [...cell.querySelectorAll<HTMLAnchorElement>('[data-row]')];
-    const progress = screen.querySelector<HTMLElement>('[data-progress]')!;
-    const cap = {
-      box: cell.querySelector<HTMLElement>('.caption')!,
-      no: cell.querySelector('[data-c-no]')!,
-      title: cell.querySelector('[data-c-title]')!,
-      meta: cell.querySelector('[data-c-meta]')!,
-    };
-    const DUR = 5000;
-    let current = rows[0];
-    let token = 0;
-    let hovering = false;
-    let focused = false;
-    const src = (row: HTMLElement) => row.dataset.kind === 'thumb' ? `/thumb/lab/${row.dataset.row}-${theme()}.webp` : '';
-    const settle = (keep: Element) => { for (const el of screen.querySelectorAll('.layer')) if (el !== keep) el.remove(); };
-
-    const show = async (row: HTMLAnchorElement, how: 'wipe' | 'instant' = 'wipe') => {
-      const prev = current;
-      current = row;
-      const my = ++token;
-      const layer = document.createElement('div');
-      layer.className = 'layer';
-      let img: HTMLImageElement | null = null;
-      const url = src(row);
-      if (url) { img = new Image(); img.alt = ''; img.src = url; layer.append(img); } else layer.classList.add('stripes');
-      if (img) await img.decode().catch(() => {});
-      if (my !== token) return;
-      // 往后（目录里往下）就从上往下擦，往前就从下往上
-      const down = rows.indexOf(row) >= rows.indexOf(prev) || (prev === rows[rows.length - 1] && row === rows[0]);
-      const under = screen.querySelector('.layer:last-of-type > img');
-      screen.href = row.href;
-      screen.insertBefore(layer, progress);
-      prev.removeAttribute('data-on');
-      row.setAttribute('data-on', '');
-      if (how === 'wipe' && !reduce.matches) {
-        layer.animate([{ clipPath: down ? 'inset(0 0 100% 0)' : 'inset(100% 0 0 0)' }, { clipPath: 'inset(0 0 0 0)' }], { duration: 620, easing: ease })
-          .finished.then(() => my === token && settle(layer), () => {});
-        img?.animate([{ scale: 1.06 }, { scale: 1 }], { duration: 1000, easing: ease });
-        under?.animate([{ translate: '0 0' }, { translate: `0 ${down ? 5 : -5}%` }], { duration: 620, easing: ease, fill: 'forwards' });
-        cap.box.animate([{ opacity: 0, translate: `0 ${down ? 5 : -5}px` }, { opacity: 1, translate: '0 0' }], { duration: 320, easing: ease });
-      } else settle(layer);
-      cap.no.textContent = `No. ${row.dataset.no}`;
-      cap.title.textContent = row.dataset.title ?? '';
-      cap.meta.textContent = row.dataset.meta ?? '';
-      restart();
-    };
-
-    // 轮播：底边那道蓝线走完一遍（5 秒）就换下一个。指在这一格上、键盘停在这一格里、首屏不在屏幕上、开了「减弱动态效果」时停
-    const restart = () => {
-      progress.classList.remove('run');
-      void progress.offsetWidth;   // 让动画从头来
-      if (!reduce.matches) progress.classList.add('run');
-      pauseIfNeeded();
-    };
-    const pauseIfNeeded = () => progress.classList.toggle('paused', hovering || focused || !live());
-    progress.style.setProperty('--dur', `${DUR}ms`);
-    progress.addEventListener('animationend', () => {
-      const next = rows[(rows.indexOf(current) + 1) % rows.length];
-      // 下一张先拿下来再换，不然擦进来的是一块空白
-      show(next);
-      const after = rows[(rows.indexOf(next) + 1) % rows.length];
-      if (after.dataset.kind === 'thumb') new Image().src = src(after);
-    });
-    cell.addEventListener('pointerenter', (e) => { if (e.pointerType !== 'touch') { hovering = true; pauseIfNeeded(); } });
-    cell.addEventListener('pointerleave', () => { hovering = false; pauseIfNeeded(); });
-    cell.addEventListener('focusin', () => { focused = true; pauseIfNeeded(); });
-    cell.addEventListener('focusout', (e) => { if (!cell.contains(e.relatedTarget as Node | null)) { focused = false; pauseIfNeeded(); } });
-    listeners.push(pauseIfNeeded);
-    reduce.addEventListener('change', restart);
-    restart();
-    { const n = rows[1]; if (n?.dataset.kind === 'thumb') new Image().src = src(n); }
-
-    // 指针第一次进目录：把当前主题的小图都先拿下来，往下扫的时候不用等
-    let fetched = false;
-    cell.querySelector('.list')!.addEventListener('pointerenter', () => {
-      if (fetched) return;
-      fetched = true;
-      for (const r of rows) if (r.dataset.kind === 'thumb') new Image().src = src(r);
-    });
-    for (const row of rows) {
-      row.addEventListener('pointerenter', (e) => { if (e.pointerType !== 'touch' && row !== current) show(row); });
-      row.addEventListener('focus', () => { if (row !== current) show(row); });
-    }
-    // 换主题：当前那张换成另一个主题的，不带动画
-    const retheme = () => show(current, 'instant');
-    new MutationObserver(retheme).observe(root, { attributes: true, attributeFilter: ['data-theme'] });
-    darkMq.addEventListener('change', retheme);
   }
 </script>
