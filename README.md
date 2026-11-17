@@ -96,7 +96,7 @@ pnpm check      # 类型检查
 
 - 直角、不用阴影，区块之间用 1px 细线分开。
 - 黑白灰为主，略带暖。强调色只有一个钴蓝，只给链接、当前状态（比如首屏实验目录里正放着的那一行）和字符画里被搅动的字：浅色主题 `#2F4BE8`（在底色上对比度 6.0），深色主题 `#8597FF`（7.4）。原来是炭火的橙，2026-10-27 laken 嫌它发黄，换成了蓝。灰的几档都过 4.5。值在 `global.css` 开头，深色写了两处（跟随系统、手动选了深色），改要一起改；手动选了深色那一处同时管 `.always-dark`，就是不管主题都用深色的一块（`dark: true` 的实验舞台）。
-- 大标题 Instrument Serif（第二行斜体），标签、日期、导航这些小字 DM Mono，正文用系统字体。两款都是 SIL OFL 1.1，许可证在 `public/fonts/OFL.txt`，文件是从 sooty 官网拷来的拉丁字母子集。字体都放在本站，不从 Google Fonts 拿。
+- 大标题 Instrument Serif（第二行斜体），标签、日期、导航这些小字 DM Mono，正文用系统字体。两款都是 SIL OFL 1.1，许可证在 `public/fonts/OFL.txt`，文件是从 sooty 官网拷来的拉丁字母子集。字体都放在本站，不从 Google Fonts 拿。Unboxing 的卡面、盒面上的小字另外用 Instrument Sans（可变字重 400–700，`public/fonts/instrument-sans-latin-wght-normal.woff2`，取自 @fontsource-variable/instrument-sans 5.3.0 的拉丁字母子集，也是 OFL），只在这个实验的 `style.css` 里声明，别的页面不下。
 - 浅色、深色跟随系统，顶栏右边（首页是简介那格右上角）的按钮可以手动换，记在 `localStorage` 的 `theme` 里；`<head>` 最前面那段脚本在页面画出来之前就定好，不闪。
 - 页面上只有淡入和短距离的位移（`.rise`）、首屏标题后面一闪一闪的光标和换页的海浪，系统开了「减弱动态效果」就都不动（海浪不播，直接换页）。一直在动的只有实验（包括首屏上的三个），它们自己限帧、看不见就停。
 
@@ -156,6 +156,7 @@ pnpm check      # 类型检查
   - 贴图：地表 4096 × 2048、云图 4096 × 2048、夜光和水陆遮罩 2048 × 1024、加那利群岛高程 2048 × 768（无损），都转成 WebP；舞台窄于 700px（卡片、手机）时地表和云图改下 2048 宽的，一共约 0.75 MB，详情页约 1.8 MB。来源：地表和夜光是 NASA 的 Blue Marble、Earth at Night，云图是 Tom Patterson 的 Natural Earth III（经 three-globe、globe.gl 的示例图），都是公有领域；高程来自 AWS Terrain Tiles（SRTM、GMTED、ETOPO1 等，含 EU-DEM 的部分按要求注明：Produced using Copernicus data and information funded by the European Union - EU-DEM layers）。
   - 没有显卡（软件渲染）时不画：这个着色器在 CPU 上画一帧要几分钟，换成一张事先渲好的静帧 `assets/poster.webp`（4.9 千米的积云和泰德峰，1600 × 800，用同一套着色器在单页上渲的），仪表停在它的高度；分享图截的就是它。没有 WebGL2、着色器编不过、上下文丢了也一样。
   - 无头浏览器里要跑真引擎自查，在页面脚本之前把 `getParameter` 拿到的显卡名字改成假的（`RENDERER`、`UNMASKED_RENDERER_WEBGL` 返回别的字符串），软件渲染的判断就过去了；很慢，舞台小一点、开「减弱动态效果」让进度直接跳到位。
+- **Unboxing 用 Three.js（0.169，MIT），是实验里唯一引 3D 库的**：前面几个不引，是因为画面是几遍全屏着色器，Three.js 的场景树、材质、灯光都用不上；开盒正好反过来，用的就是这些：一棵嵌套的场景树（盒盖绕铰链转、“手”这一组始终正对相机、卡从卡包里交到手上要保留世界位置），带清漆、sheen、粗糙度金属度贴图和法线图的 PBR 材质（卡面镭射是在它的着色器里 `onBeforeCompile` 插一段），RoomEnvironment 经 PMREM 做的环境光，VSM 软影子，`ExtrudeGeometry` 挖出凹槽和半圆指口的内托，还有对几十个网格的射线拾取。这些自己写要几千行，也很难写得比它对。只有这个实验下它：实验按 `client:visible` 一个个按需挂，进屏幕才下载：这个实验的脚本连 Three.js 一共 590 KB，gzip 后 158 KB，别的页面不受影响。版本停在 0.169.0，因为 2026-11-17 先做成发帖用的单页时就是在这个版本上调的灯光和材质。贴图都是开头在 canvas 上画的（盒面印刷、纸纹、锡箔褶皱、五张卡），不下图片；卡面一张要画一两百毫秒，所以先贴一个像素，空闲时一张张画好换上，撕开卡包时没画完的当场画完。纸带（撕拉条、卡包撕条）是自己写的两排质点加距离约束。没有显卡时放四张事先渲好的透明底静帧（宽舞台一排、窄舞台两排，浅色深色各一张），用无头浏览器加 SwiftShader 跑真引擎，摊开五张卡后从画布 `toDataURL` 存下来再转成 WebP。
 - **分享图用 Playwright 截**（1.63，Apache-2.0，只是开发时用的依赖，不进页面）：实验的样子就是页面本身，截真页面最准，也不用另写一套画图的代码。比较过 Satori（Vercel 的 JSX 转 SVG，MIT）：画标题和字很方便，但画不了实验本身（WebGL、CSS 3D、背景模糊都不支持），只能放一张事先截好的图进去，等于还是要截图；Astro 的 `astro:assets` 只能处理已有的图，不能截图。
 - **图标**：Phosphor 的 regular 粗细，几个用到的直接写成内联 SVG（网站的在 `components/Icon.astro`，实验的在 `src/labs/_kit/icons.tsx`），不引图标库。
 
