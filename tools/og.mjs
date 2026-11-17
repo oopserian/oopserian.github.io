@@ -49,8 +49,8 @@ const CARD = `
   .lab header { margin: 0 0 24px !important; max-width: 920px !important; }
   .lab h1 { --size: 44px !important; }
   .lab .summary { margin-top: 10px !important; font-size: 17px !important; display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 2; overflow: hidden; }
-  /* 小组件在大舞台里显得空，放大一点；整块铺满的字符画（有 canvas 的）不放大 */
-  .lab .frame astro-island:not(:has(canvas)) { transform: scale(1.25); }
+  /* 小组件在大舞台里显得空，放大一点；整块铺满的字符画（有 canvas 的）、自己按舞台大小缩放的（根元素带 data-fit）不放大 */
+  .lab .frame astro-island:not(:has(canvas, [data-fit])) { transform: scale(1.25); }
   .og-mark { position: fixed; right: 56px; bottom: 19px; font: 400 13px/1 var(--mono); color: var(--fg-3); letter-spacing: 0.02em; }
 `;
 
@@ -71,6 +71,8 @@ for (const slug of slugs) {
   });
   await page.waitForSelector(".lab .frame astro-island:not([ssr])", { timeout: 15000 }).catch(() => {});
   await page.waitForTimeout(2500);   // 等实验挂上、WebGL 画完那一帧
+  // 实验想让分享图停在某个样子（比如选中几个文件、栏已经出来），在根元素上挂一个 __og()，这里调一下再等它动完
+  if (await page.evaluate(() => { const r = document.querySelector(".lab-root"); if (typeof r?.__og !== "function") return false; r.__og(); return true; })) await page.waitForTimeout(1200);
   const file = path.join(OUT, `${slug}.png`);
   await page.screenshot({ path: file, scale: "css" });
   console.log(`${slug}: ${path.relative(ROOT, file)}，${Math.round(fs.statSync(file).size / 1024)} KB`);
