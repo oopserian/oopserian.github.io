@@ -185,7 +185,7 @@ a:hover > .out::after, .out:hover::after { transform: translate(1px, -1px); }
 /* 开场：内容淡入上移，只动 opacity 和 translate。--d 是每样东西的延迟 */
 @media (prefers-reduced-motion: no-preference) {
   .rise {
-    animation: rise .7s cubic-bezier(.2, .7, .2, 1) both;
+    animation: rise .7s cubic-bezier(.2, .7, .2, 1) backwards;   /* 不用 both：放完就不再占一个合成层，不然小数像素的位置上格子会盖住表格最外那圈线 */
     animation-delay: var(--d, 0ms);
   }
   @keyframes rise {
