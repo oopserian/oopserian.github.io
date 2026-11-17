@@ -1,11 +1,13 @@
 ---
 // 实验的舞台：一块底色，组件挂在里面。卡片上固定高，详情页上撑满外面那个框（框的高度由详情页定）。还没做完的实验（wip）画一块斜条纹，不挂组件。
+// dark：舞台不管主题都是深底（global.css 的 .always-dark），实验里读到的 color-scheme 也是深色，就按深色那套画。
+// 在服务端就带上这个类，组件挂上之前舞台已经是深的，不会浅了再变深
 import LabDemo from '../islands/LabDemo';
 
-interface Props { slug: string; wip?: boolean; size?: 'card' | 'page' }
-const { slug, wip, size = 'card' } = Astro.props;
+interface Props { slug: string; wip?: boolean; dark?: boolean; size?: 'card' | 'page' }
+const { slug, wip, dark, size = 'card' } = Astro.props;
 ---
-<div class:list={['stage', size, { wip }]}>
+<div class:list={['stage', size, { wip, 'always-dark': dark }]}>
   {wip
     ? <p class="mono soon">Under construction</p>
     : <LabDemo slug={slug} client:visible={{ rootMargin: '300px' }} />}

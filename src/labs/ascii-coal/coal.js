@@ -9,7 +9,7 @@
         朝着它的面一块块闪亮，亮面跟着光滑过去；斜着的面映着一点天光；鼠标是第二盏灯，悬在煤上，跟着鼠标走。
         越远越暗，远处没进黑里。缝里住着冷的蓝光：平时只有几处亮，沿着缝慢慢挪，把缝两边的煤块底下也映蓝。
         底稿存三样：亮度、蓝光有多亮、字该朝哪个方向放（煤面的等高线投到画面上，存成二倍角）。
-     3. 合成（composite）：整块切成 8px 见方的格子，每格都有字，不留空。跟 ASCII Waves 一个做法：
+     3. 合成（composite）：整块切成 5px 见方的格子，每格都有字，不留空。跟 ASCII Waves 一个做法：
         煤面按亮度从 - = # 里挑，颜色沿一条色带走，字再转到等高线的走向上，同一个面上的字朝一个方向，换一个面就换一个方向，
         一块块煤的棱角就被字描出来；蓝光把字染蓝，最亮的地方（裂开时炸开的那一下）是不转的 . : * o @。
         画布是透明的，字以外露出网页自己的底色。
@@ -169,8 +169,8 @@ const terrain = (T) => /* glsl */ `
 `;
 
 // ---------- 字的图集 ----------
-// 一行一格 64 见方（字要转，格子得是正方形）。前 2 个是煤面，由淡到浓 - =，横着拉宽，一格接一格连成一道道线；
-// 后 5 个是光，由弱到强 . : * o @，不拉宽。每个字按墨迹居中，再描一圈边，笔画粗一点
+// 一行一格 64 见方（字要转，格子得是正方形）。前 2 个是煤面，由淡到浓 - =，横着拉满整格，左右首尾相接，连成一道道线；
+// 后 5 个是光，由弱到强 . : * o @，不拉。每个字按墨迹居中，再描一圈边，笔画粗一点
 const GLYPHS = ["-", "=", ".", ":", "*", "o", "@"], BODY = 2;
 const T = 64;
 function drawAtlas(c, stroke = [4.5, 3]) {
@@ -183,11 +183,12 @@ function drawAtlas(c, stroke = [4.5, 3]) {
   GLYPHS.forEach((ch, i) => {
     const m = g.measureText(ch);
     const l = m.actualBoundingBoxLeft, r = m.actualBoundingBoxRight, up = m.actualBoundingBoxAscent, dn = m.actualBoundingBoxDescent;
-    const sx = i < BODY ? Math.max(1, Math.min(1.8, (0.84 * T) / (l + r))) : 1;
+    const lw = i < BODY ? stroke[0] : stroke[1];   // 煤面的字是细线，描粗一点才压得住整块
+    const sx = i < BODY ? Math.max(1, T / (l + r + lw)) : 1;   // 横线连描边一起拉到正好一格宽：左右两格的字首尾相接，连成一整道
     g.save();
     g.translate(i * T + T / 2, T / 2); g.scale(sx, 1);
     const x = -(r - l) / 2, y = (up - dn) / 2;
-    g.lineWidth = i < BODY ? stroke[0] : stroke[1];   // 煤面的字是细线，描粗一点才压得住整块
+    g.lineWidth = lw;
     g.fillText(ch, x, y); g.strokeText(ch, x, y);
     g.restore();
   });
@@ -453,7 +454,7 @@ const compFS = (T) => /* glsl */ `
  * @param {HTMLCanvasElement} canvas
  * @param {{ period?: number, cell?: number, fps?: number }} [opts]
  */
-function create(canvas, { period = 12000, cell = 8, fps = 30 } = {}) {
+function create(canvas, { period = 12000, cell = 5, fps = 30 } = {}) {
   const P = DEF;
   const gl = context(canvas);   // 没有 WebGL2 就抛错，交给调用的人接
   const software = softwareGL(gl);

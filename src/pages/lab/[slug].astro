@@ -19,7 +19,7 @@ export async function getStaticPaths() {
 
 interface Props { lab: CollectionEntry<'labs'>; prev?: CollectionEntry<'labs'>; next?: CollectionEntry<'labs'> }
 const { lab, prev, next } = Astro.props;
-const { title, summary, tags, date, inspiration, prompt } = lab.data;
+const { title, summary, tags, date, inspiration, prompt, dark } = lab.data;
 // 分享图：tools/og.mjs 截的 public/og/lab/<slug>.png，还没截的用全站那张
 const og = `/og/lab/${lab.id}.png`;
 const image = fs.existsSync(`${process.cwd()}/public${og}`) ? og : undefined;   // 构建在仓库根目录跑
@@ -41,7 +41,7 @@ const handle = '@' + new URL(SITE.x).pathname.slice(1);
         <h1 id="lab-title" class="display">{title}</h1>
         <p class="summary">{summary}</p>
       </header>
-      <div class="frame"><LabStage slug={lab.id} size="page" /></div>
+      <div class="frame"><LabStage slug={lab.id} dark={dark} size="page" /></div>
       <div class="caption mono">
         <p class="meta">{when} · {tags.join(' · ')}</p>
         <a class="handle" href={SITE.x} aria-label={`${handle} on X`}><Icon name="x" size={14} />{handle}</a>
