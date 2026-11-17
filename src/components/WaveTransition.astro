@@ -2,8 +2,10 @@
 // 换页的海浪（2026-11-17 laken 要的「页面过渡就是那个海浪冲刷 UI，浅色深色两种」）：
 // 点站内的链接，一道字符画的浪从屏幕底下涌上来把页面盖住，新页面打开以后浪再退下去，露出新页面。
 // 浅色主题是纸上的蓝墨浪、浪头一道黑沫子；深色主题是深底上的蓝浪、白沫子。颜色跟着当时的主题取。
-// 只用 canvas 2D：字先画进一张图集，每帧按格子从图集里贴；只在换页那一两秒里画，平时什么都不跑。
-// 不播：系统开了「减弱动态效果」、按着 Cmd/Ctrl/Shift/Alt 点、新窗口打开、下载、站外链接、只换 # 的链接、写了 data-no-wave 的链接。
+// 用显卡画（WebGL2，一个全屏的片元着色器），每帧只有一次绘制，屏幕再大、像素再密也不卡（第一版用 canvas 2D 一格一格贴，
+// 大屏高清屏上一帧要贴四万次，laken 说卡）。只在换页那一两秒里画，平时什么都不跑。
+// 不播：系统开了「减弱动态效果」、没有 WebGL2 或者显卡是软件模拟的、按着 Cmd/Ctrl/Shift/Alt 点、新窗口打开、下载、
+// 站外链接、只换 # 的链接、图片和文件、写了 data-no-wave 的链接。
 ---
 <script is:inline>
   // 上一页是被浪盖住才换过来的：页面画出来之前先整个盖上底色（下面的样式），等脚本接手把浪退下去
@@ -33,15 +35,18 @@
 </style>
 
 <script>
-  // 跟 ASCII Waves 一个画法：整片切成小格，每格一笔横着的字（- ~ =），按浪的亮度挑字、挑颜色，再转到浪头的走向上；
-  // 浪头一道沫子用 . : * o @（越靠近水面越浓），不转。
+  import { context, program, fullscreen, softwareGL } from '../labs/_kit/gl.js';
+
+  // 跟 ASCII Waves 一个画法：整片切成 8px 的小格，每格一笔拉满格宽的横字（- ~ =），按浪的亮度挑字、挑颜色，
+  // 再转到浪头的走向上；浪头一道沫子、浪尖上一簇簇浪花用 . : * o @，不转。
   const CELL = 8;                  // 一格 8px
   const COVER_MS = 720;            // 涌上来
   const REVEAL_MS = 950;           // 退下去
-  const root = document.documentElement;
-  const reduce = matchMedia('(prefers-reduced-motion: reduce)');
-  const darkMq = matchMedia('(prefers-color-scheme: dark)');
-  const isDark = () => (root.dataset.theme ?? (darkMq.matches ? 'dark' : 'light')) === 'dark';
+  const OVER = 80;                 // 上下各多走一点，让起伏的浪头整个出屏
+  const ANGLES = 9, MAX_TILT = 0.7;          // 字转的角度分 9 档，最多转 0.7 弧度（40°）
+  const FOAM = ['.', ':', '*', 'o', '@'];
+  const GLYPHS = 3 * ANGLES + FOAM.length;   // 图集一行：三种笔画各转 9 档，再五个沫子的字
+  const TAU = Math.PI * 2;
 
   // 两套颜色：water 五档，越亮的浪越往后；foam 是浪头那一道沫子；cap 是水里浪尖上的浪花，由淡到浓。
   // 浅色主题是纸上的墨：浪越高墨越浓，浪头一道深墨，浪花反过来是留白里淡淡的蓝（越浓越白）；深色主题浪花越浓越白
@@ -49,221 +54,278 @@
     light: { water: ['#C9D0EC', '#9AA7E6', '#6479E2', '#2F4BE8', '#1C2C99'], foam: ['#161A33', '#2F4BE8'], cap: ['#8A97DC', '#BCC4EC'] },
     dark: { water: ['#18214D', '#283A92', '#4B62D6', '#8597FF', '#C6CEFF'], foam: ['#F2F2EE', '#AFB9FF'], cap: ['#AFB9FF', '#FFFFFF'] },
   };
-  const ANGLES = 9, MAX_TILT = 0.7;          // 字转的角度分 9 档，最多转 0.7 弧度（40°）
-  const STROKES = 3;                          // - ~ =
-  const FOAM = ['.', ':', '*', 'o', '@'];
-  const FOAM_COL = STROKES * ANGLES;          // 图集里沫子从这一列开始
 
-  // 水下的浪：一道大涌往上走（往岸上冲），浪头不是直的，按 x 弯来弯去（warp）；再叠一道细一点、斜一点的碎浪只改亮度。
-  // 不用几道方向差不多的波互相交，那样会交出一个个闭合的圈，像布纹不像海
-  const SWELL = { k: 0.034, w: 3.4 };          // 波长约 185px
-  const CHOP = { k: 0.075, kx: 0.013, w: 5.6, a: 0.35 };
-  const BEND = [[30, 0.0047, 0.55, 0], [14, 0.011, -0.85, 1.3], [6, 0.029, 1.6, 2.1]];   // 浪头弯的幅度、频率、速度、相位
-  const TAU = Math.PI * 2;
+  const VS = /* glsl */ `
+    in vec2 position;
+    void main() { gl_Position = vec4(position, 0.0, 1.0); }
+  `;
 
-  let cv: HTMLCanvasElement | null = null;
-  let ctx: CanvasRenderingContext2D;
-  let atlas: HTMLCanvasElement;
-  let W = 0, H = 0, dpr = 1, atlasKey = '';
-  let bg = '#000';
-  let raf = 0;
-  let lowRes = false;   // 画得跟不上（老机器、没有显卡）就退回 1 倍像素，要画的像素少四分之三
+  // 每个像素先算出自己在哪一格，再按那一格的中心算浪：水面在哪、这格画什么字、什么颜色，最后从图集里取字。
+  // 会随时间变的相位都在 JS 里按墙上的钟算好、取过模再传进来，着色器里的数都不大，手机显卡上 sin 也准
+  const FS = /* glsl */ `
+    precision highp float;
+    precision highp int;
+    uniform sampler2D uAtlas;
+    uniform vec2 uRes;          // 画布多少像素
+    uniform float uDpr, uCell, uGlyph;
+    uniform float uBase;        // 水面的平均高度（CSS 像素，往下是水）
+    uniform float uLace;        // 退的时候页面上留的一圈沫子，0 到 1
+    uniform vec3 uEdgePh;       // 水面三道起伏的相位
+    uniform vec3 uBendPh;       // 浪头三道弯的相位
+    uniform float uSwellPh, uChopPh, uFoamPh, uFoamDrift, uCrestOff;
+    uniform float uStep;        // 沫子一秒换 12 次
+    uniform vec3 uBg;
+    uniform vec3 uWater[5];
+    uniform vec3 uFoam[2];
+    uniform vec3 uCap[2];
+    out vec4 outColor;
 
-  const ease = (x: number) => (x < 0.5 ? 4 * x * x * x : 1 - Math.pow(-2 * x + 2, 3) / 2);
-  const hash = (i: number, j: number, k: number) => {
-    const s = Math.sin(i * 12.9898 + j * 78.233 + k * 37.719) * 43758.5453;
-    return s - Math.floor(s);
-  };
-  // 一维的平滑噪声：决定浪尖上哪几段起沫子
-  const h1 = (i: number) => { const s = Math.sin(i * 127.1 + 311.7) * 43758.5453; return s - Math.floor(s); };
-  const vnoise = (x: number) => { const i = Math.floor(x), f = x - i, u = f * f * (3 - 2 * f); return h1(i) * (1 - u) + h1(i + 1) * u; };
+    const float PI = 3.14159265, TAU = 6.2831853;
+    const float ANGLES = ${ANGLES}.0, MAX_TILT = ${MAX_TILT}, FOAM_COL = ${3 * ANGLES}.0, GLYPHS = ${GLYPHS}.0;
 
-  // 画布和图集：尺寸、主题变了才重做。图集一行一种颜色（水 5 行、浪头 2 行、浪花 2 行）；前 27 列是三种笔画各转 9 档，后 5 列是沫子
-  function setup() {
-    if (!cv) {
-      cv = document.createElement('canvas');
-      cv.className = 'wave-canvas';
-      cv.setAttribute('aria-hidden', 'true');
-      document.body.append(cv);
-      ctx = cv.getContext('2d')!;
+    uint pcg(uint v) { uint s = v * 747796405u + 2891336453u; uint w = ((s >> ((s >> 28u) + 4u)) ^ s) * 277803737u; return (w >> 22u) ^ w; }
+    float rnd(uint a, uint b, uint c) { return float(pcg(a ^ pcg(b ^ pcg(c)))) / 4294967295.0; }
+    float h1(float i) { return float(pcg(uint(int(i) + 1000000))) / 4294967295.0; }
+    float vnoise(float x) { float i = floor(x), f = x - i, u = f * f * (3.0 - 2.0 * f); return mix(h1(i), h1(i + 1.0), u); }
+
+    float edgeAt(float x) {
+      return uBase + 26.0 * sin(x * 0.0072 + uEdgePh.x) + 14.0 * sin(x * 0.019 - uEdgePh.y) + 6.0 * sin(x * 0.047 + uEdgePh.z);
     }
-    dpr = lowRes ? 1 : Math.min(devicePixelRatio || 1, 2);
-    W = innerWidth; H = innerHeight;
-    if (cv.width !== Math.round(W * dpr) || cv.height !== Math.round(H * dpr)) {
-      cv.width = Math.round(W * dpr);
-      cv.height = Math.round(H * dpr);
-    }
-    const dark = isDark();
-    bg = getComputedStyle(root).getPropertyValue('--bg').trim() || (dark ? '#0B0B0B' : '#F7F7F5');
-    const key = `${dark}-${dpr}`;
-    if (key === atlasKey) return;
-    atlasKey = key;
-    const pal = dark ? PALETTES.dark : PALETTES.light;
-    const colors = [...pal.water, ...pal.foam, ...pal.cap];
-    const s = CELL * dpr;
-    atlas = document.createElement('canvas');
-    atlas.width = (FOAM_COL + FOAM.length) * s;
-    atlas.height = colors.length * s;
-    const a = atlas.getContext('2d')!;
-    a.lineWidth = 1.2 * dpr;
-    a.lineCap = 'butt';
-    a.font = `${CELL * 1.15 * dpr}px "DM Mono", ui-monospace, monospace`;
-    a.textAlign = 'center';
-    a.textBaseline = 'middle';
-    colors.forEach((c, r) => {
-      a.strokeStyle = c;
-      a.fillStyle = c;
-      // 笔画拉满一格宽，左右两格首尾接成一整道
-      for (let k = 0; k < STROKES; k++) for (let q = 0; q < ANGLES; q++) {
-        const ang = (q / (ANGLES - 1) * 2 - 1) * MAX_TILT;
-        a.save();
-        a.beginPath();
-        a.rect((k * ANGLES + q) * s, r * s, s, s);
-        a.clip();
-        a.translate((k * ANGLES + q) * s + s / 2, r * s + s / 2);
-        a.rotate(ang);
-        a.beginPath();
-        if (k === 0) { a.moveTo(-s, 0); a.lineTo(s, 0); }
-        else if (k === 1) { for (let x = -s; x <= s; x += s / 8) a.lineTo(x, Math.sin(x / s * Math.PI * 2) * s * 0.13); }
-        else { a.moveTo(-s, -s * 0.16); a.lineTo(s, -s * 0.16); a.moveTo(-s, s * 0.16); a.lineTo(s, s * 0.16); }
-        a.stroke();
-        a.restore();
-      }
-      FOAM.forEach((g, k) => a.fillText(g, (FOAM_COL + k) * s + s / 2, r * s + s / 2 + dpr * 0.5));
-    });
-  }
 
-  // 一帧：base 是水面的平均高度（往下是水），t 是秒，lace 是浪退下去时在沙上留的一圈沫子（0 到 1）
-  function frame(base: number, t: number, lace = 0) {
-    const s = CELL * dpr;
-    const cols = Math.ceil(W / CELL) + 1;
-    const rows = Math.ceil(H / CELL) + 1;
-    const edge = new Float32Array(cols);
-    const bend = new Float32Array(cols);
-    const tilt = new Uint8Array(cols);
-    for (let i = 0; i < cols; i++) {
-      const x = i * CELL;
-      let b = 0, slope = 0;
-      for (const [a, f, v, o] of BEND) { b += a * Math.sin(x * f + t * v + o); slope += a * f * Math.cos(x * f + t * v + o); }
-      bend[i] = b;
-      // 浪头是 y + bend(x) = 常数 的一条线，走向 (1, -bend')
-      const ang = Math.max(-MAX_TILT, Math.min(MAX_TILT, Math.atan(-slope)));
-      tilt[i] = Math.round((ang / MAX_TILT + 1) / 2 * (ANGLES - 1));
-      edge[i] = base + 26 * Math.sin(x * 0.0072 + t * 1.5) + 14 * Math.sin(x * 0.019 - t * 2.6) + 6 * Math.sin(x * 0.047 + t * 4.1);
+    // 从图集里取第 g 个字在这一格里的这一点（只要透明度，字是白的）
+    float glyph(float g, vec2 local) {
+      vec2 t = vec2(g * uGlyph, 0.0) + local * (uGlyph / (uCell * uDpr));
+      return texture(uAtlas, t / vec2(GLYPHS * uGlyph, uGlyph)).a;
     }
-    ctx.clearRect(0, 0, cv!.width, cv!.height);
-    // 水下整片先盖上底色，比水面低一点，让沫子一半落在原来的页面上
-    ctx.fillStyle = bg;
-    ctx.beginPath();
-    ctx.moveTo(0, cv!.height);
-    for (let i = 0; i < cols; i++) ctx.lineTo(i * s, Math.max(0, edge[i] + 6) * dpr);
-    ctx.lineTo(cv!.width, cv!.height);
-    ctx.closePath();
-    ctx.fill();
 
-    const step = Math.floor(t * 12);   // 沫子一秒换 12 次
-    const above = lace ? 90 : 14;      // 水面以上画多远
-    for (let j = 0; j < rows; j++) {
-      const y = j * CELL + CELL / 2;
-      for (let i = 0; i < cols; i++) {
-        const d = y - edge[i];          // 在水下多深，负的是水面以上
-        if (d < -above) continue;
-        const n = hash(i, j, step);
-        let col: number, row: number;
-        if (d < 0) {
-          // 水面以上：溅起的几点；退的时候沙上留一圈，越远越稀
-          const p = d > -14 ? 0.3 : lace * 0.28 * (1 + d / above);
-          if (n > p) continue;
-          col = FOAM_COL + (n < p * 0.3 ? 1 : 0);
-          row = 6;
-        } else if (d < 22) {
-          // 浪头：一道沫子，贴着水面最浓
-          const f = 1 - d / 22 + (n - 0.5) * 0.45;
-          if (f < 0.12) continue;
-          col = FOAM_COL + Math.min(4, Math.floor(f * 5));
-          row = n > 0.88 ? 6 : 5;
-        } else {
-          // 水里：大涌的相位定亮度，浪头弯的走向定字转多少（同一道浪头上的字都朝一个方向，连成一道）
-          const x = i * CELL;
-          const ph = SWELL.k * (y + bend[i]) + SWELL.w * t;   // 相位不变的地方 y 随 t 变小：往上走
-          const h = Math.sin(ph) + CHOP.a * Math.sin(CHOP.k * (y + bend[i] * 0.5) + CHOP.kx * x + CHOP.w * t + 2);
-          // 浪尖（sin 最大）往后（下面）拖一段沫子：每道浪尖按 x 取一段噪声，只有几段起，一会儿冒出来一会儿散掉
-          const crest = Math.floor((ph - Math.PI / 2) / TAU + 0.5);       // 第几道浪尖
-          const back = ph - Math.PI / 2 - crest * TAU;                    // 离浪尖多远（相位，正的在后面）
-          // 一簇沫子是个梭子形：中间最浓、往后拖得最长，两头收尖；边上再用每格的随机数啃得毛一点
-          let foam = 0;
-          if (back > -0.35 && back < 1.9) {
-            const m = vnoise(x * 0.011 + crest * 7.31 + t * 0.35) * (0.62 + 0.38 * Math.sin(crest * 2.3 + t * 0.9 + x * 0.003));
-            const st = Math.min(1, Math.max(0, (m - 0.4) / 0.3));
-            const len = 1.9 * st * st;                       // 平方：两头收得尖，不是一块方的
-            const lead = 0.3 * st * st;
-            if (st > 0 && back < len && back > -lead) {
-              foam = st * (back < 0 ? 1 + back / lead : 1 - 0.8 * back / len) + (n - 0.5) * 0.45;
-            }
-          }
-          if (foam > 0.22) {
-            // 沫子底下还是水：先贴一笔最淡的水，再盖沫子的字，不然一簇沫子在深色主题上是个黑窟窿
-            ctx.drawImage(atlas, tilt[i] * s, 0, s, s, i * s, j * s, s, s);
-            col = FOAM_COL + Math.min(4, Math.floor(1 + foam * 5));
-            row = 7 + (foam > 0.55 ? 1 : 0);
-          } else {
-            const lv = Math.min(0.999, Math.max(0, 0.5 + 0.44 * h / (1 + CHOP.a) + (n - 0.5) * 0.14));
-            const k = lv < 0.4 ? 0 : lv < 0.7 ? 1 : 2;
-            col = k * ANGLES + tilt[i];
-            row = Math.floor(lv * 5);
-          }
+    void main() {
+      vec2 p = vec2(gl_FragCoord.x, uRes.y - gl_FragCoord.y);   // 设备像素，原点在左上
+      float s = uCell * uDpr;
+      vec2 cell = floor(p / s);
+      vec2 local = p - cell * s;
+      float x = cell.x * uCell, y = cell.y * uCell + uCell * 0.5;  // 这一格的位置（CSS 像素）
+      float d = y - edgeAt(x);                                   // 在水下多深，负的是水面以上
+      float above = uLace > 0.0 ? 90.0 : 14.0;                   // 水面以上画多远
+
+      // 水下整片先盖上底色，比水面低一点，让沫子一半落在原来的页面上
+      vec4 col = p.y / uDpr > edgeAt(p.x / uDpr) + 6.0 ? vec4(uBg, 1.0) : vec4(0.0);
+      if (d < -above) { outColor = col; return; }
+
+      float n = rnd(uint(int(cell.x) + 4096), uint(int(cell.y) + 4096), uint(uStep));
+      float g = -1.0, under = -1.0;
+      vec3 c = vec3(0.0), cu = vec3(0.0);
+
+      if (d < 0.0) {
+        // 水面以上：溅起的几点；退的时候页面上留一圈，越远越稀
+        float pr = d > -14.0 ? 0.3 : uLace * 0.28 * (1.0 + d / above);
+        if (n <= pr) { g = FOAM_COL + (n < pr * 0.3 ? 1.0 : 0.0); c = uFoam[1]; }
+      } else if (d < 22.0) {
+        // 浪头：一道沫子，贴着水面最浓
+        float f = 1.0 - d / 22.0 + (n - 0.5) * 0.45;
+        if (f >= 0.12) { g = FOAM_COL + min(4.0, floor(f * 5.0)); c = n > 0.88 ? uFoam[1] : uFoam[0]; }
+      } else {
+        // 水里：一道往上走的大涌，浪头按 x 弯（同一道浪头上的字都转到它的走向上），再叠一道碎浪只改亮度。
+        // 不用几道方向差不多的波互相交，那样会交出一个个闭合的圈，像布纹不像海
+        vec3 bf = vec3(0.0047, 0.011, 0.029), ba = vec3(30.0, 14.0, 6.0);
+        vec3 bp = x * bf + uBendPh;
+        float bend = dot(ba, sin(bp));
+        float slope = dot(ba * bf, cos(bp));
+        float ang = clamp(atan(-slope), -MAX_TILT, MAX_TILT);     // 浪头是 y + bend(x) = 常数 的一条线，走向 (1, -bend')
+        float tilt = floor((ang / MAX_TILT + 1.0) * 0.5 * (ANGLES - 1.0) + 0.5);
+        float ph = 0.034 * (y + bend) + uSwellPh;                  // 相位不变的地方 y 随时间变小：往上走
+        float h = sin(ph) + 0.35 * sin(0.075 * (y + bend * 0.5) + 0.013 * x + uChopPh);
+        // 浪尖（sin 最大）往后（下面）拖一簇沫子，梭子形：中间最浓、往后拖得最长，两头收尖；
+        // 每道浪尖按 x 取一段噪声，只有几段起，一会儿冒出来一会儿散掉
+        float k = floor((ph - PI * 0.5) / TAU + 0.5);
+        float back = ph - PI * 0.5 - k * TAU;
+        float crest = k + uCrestOff;                               // 第几道浪尖（相位取过模，加回去）
+        float foam = 0.0;
+        if (back > -0.35 && back < 1.9) {
+          float m = vnoise(x * 0.011 + mod(crest * 7.31, 1000.0) + uFoamDrift) * (0.62 + 0.38 * sin(mod(crest * 2.3, TAU) + uFoamPh + x * 0.003));
+          float st = clamp((m - 0.4) / 0.3, 0.0, 1.0);
+          float len = 1.9 * st * st, lead = 0.3 * st * st;
+          if (st > 0.0 && back < len && back > -lead) foam = st * (back < 0.0 ? 1.0 + back / lead : 1.0 - 0.8 * back / len) + (n - 0.5) * 0.45;
         }
-        ctx.drawImage(atlas, col * s, row * s, s, s, i * s, j * s, s, s);
+        if (foam > 0.22) {
+          // 沫子底下还是水：先一笔最淡的水，再盖沫子的字，不然一簇沫子在深色主题上是个黑窟窿
+          under = tilt; cu = uWater[0];
+          g = FOAM_COL + min(4.0, floor(1.0 + foam * 5.0)); c = foam > 0.55 ? uCap[1] : uCap[0];
+        } else {
+          float lv = clamp(0.5 + 0.44 * h / 1.35 + (n - 0.5) * 0.14, 0.0, 0.999);
+          float kind = lv < 0.4 ? 0.0 : lv < 0.7 ? 1.0 : 2.0;
+          g = kind * ANGLES + tilt; c = uWater[int(lv * 5.0)];
+        }
       }
+      if (under >= 0.0) { float a = glyph(under, local); col = vec4(mix(col.rgb, cu, a), max(col.a, a)); }
+      if (g >= 0.0) { float a = glyph(g, local); col = vec4(mix(col.rgb, c, a), max(col.a, a)); }
+      outColor = vec4(col.rgb * col.a, col.a);
     }
+  `;
+
+  const root = document.documentElement;
+  const reduce = matchMedia('(prefers-reduced-motion: reduce)');
+  const darkMq = matchMedia('(prefers-color-scheme: dark)');
+  const isDark = () => (root.dataset.theme ?? (darkMq.matches ? 'dark' : 'light')) === 'dark';
+  const hex = (h: string) => [1, 3, 5].map((i) => parseInt(h.slice(i, i + 2), 16) / 255);
+  const ease = (x: number) => (x < 0.5 ? 4 * x * x * x : 1 - Math.pow(-2 * x + 2, 3) / 2);
+
+  type GL = { gl: WebGL2RenderingContext; prog: ReturnType<typeof program>; quad: ReturnType<typeof fullscreen>; tex: WebGLTexture };
+  let cv: HTMLCanvasElement | null = null;
+  let g: GL | null = null;
+  let W = 0, H = 0, dpr = 1, atlasKey = '';
+  let colors: Record<string, number | number[]> = {};
+  let raf = 0;
+  let unusable = false;   // 没有 WebGL2、显卡是软件模拟的：不播
+
+  // 字的图集：一行 32 个白字，一个字正好一格大（设备像素），取的时候不用缩放，跟用 2D 画的一样清楚
+  function atlas(size: number) {
+    const a = document.createElement('canvas');
+    a.width = GLYPHS * size;
+    a.height = size;
+    const c = a.getContext('2d')!;
+    c.strokeStyle = c.fillStyle = '#fff';
+    c.lineWidth = 1.2 * dpr;
+    c.lineCap = 'butt';
+    c.font = `${CELL * 1.15 * dpr}px "DM Mono", ui-monospace, monospace`;
+    c.textAlign = 'center';
+    c.textBaseline = 'middle';
+    for (let k = 0; k < 3; k++) for (let q = 0; q < ANGLES; q++) {
+      const x = (k * ANGLES + q) * size;
+      c.save();
+      c.beginPath();
+      c.rect(x, 0, size, size);
+      c.clip();
+      c.translate(x + size / 2, size / 2);
+      c.rotate((q / (ANGLES - 1) * 2 - 1) * MAX_TILT);
+      c.beginPath();
+      // 笔画拉满一格宽，左右两格首尾接成一整道
+      if (k === 0) { c.moveTo(-size, 0); c.lineTo(size, 0); }
+      else if (k === 1) for (let t = -size; t <= size; t += size / 8) c.lineTo(t, Math.sin(t / size * TAU) * size * 0.13);
+      else { c.moveTo(-size, -size * 0.16); c.lineTo(size, -size * 0.16); c.moveTo(-size, size * 0.16); c.lineTo(size, size * 0.16); }
+      c.stroke();
+      c.restore();
+    }
+    FOAM.forEach((ch, k) => c.fillText(ch, (3 * ANGLES + k) * size + size / 2, size / 2 + dpr * 0.5));
+    return a;
   }
 
-  // 水面从屏幕底下走到顶上（up，涌上来盖住）或者反过来（down，退下去），走完回调。
-  // 上下各多走 OVER，让起伏的浪头整个出屏。t 用墙上的钟，换页前后两页的浪纹接得上；hold 是走完了还接着画（等新页面）
-  const OVER = 80;
-  const now = () => (Date.now() % 1e7) / 1000;
-  function run(dir: 'up' | 'down', ms: number, done?: () => void, hold = false) {
+  // 画布、显卡、图集：第一次用的时候建，尺寸和主题变了才重做。建不起来返回 false，这次就不播
+  function setup(): boolean {
+    if (unusable) return false;
+    if (!cv) {
+      const canvas = document.createElement('canvas');
+      canvas.className = 'wave-canvas';
+      canvas.setAttribute('aria-hidden', 'true');
+      try {
+        const gl = context(canvas);
+        if (softwareGL(gl) && !(window as any).__waveSoftwareOk) throw new Error('软件渲染');   // 无头浏览器测试时设 __waveSoftwareOk
+        g = { gl, prog: program(gl, VS, FS), quad: fullscreen(gl), tex: gl.createTexture()! };
+      } catch {
+        unusable = true;
+        g = null;
+        return false;
+      }
+      cv = canvas;
+      document.body.append(cv);
+      atlasKey = '';
+    }
+    dpr = Math.min(devicePixelRatio || 1, 2);
+    W = innerWidth; H = innerHeight;
+    const bw = Math.round(W * dpr), bh = Math.round(H * dpr);
+    if (cv.width !== bw || cv.height !== bh) { cv.width = bw; cv.height = bh; }
+    const dark = isDark();
+    const key = `${dark}-${dpr}`;
+    if (key !== atlasKey) {
+      atlasKey = key;
+      const { gl, tex } = g!;
+      const size = Math.max(4, Math.round(CELL * dpr));
+      gl.bindTexture(gl.TEXTURE_2D, tex);
+      gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, gl.RGBA, gl.UNSIGNED_BYTE, atlas(size));
+      // 一个字正好一格大，取样点落在像素正中，线性取样也是原样；dpr 不是整数时（比如 1.1）稍微糊一点
+      gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.LINEAR);
+      gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.LINEAR);
+      gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE);
+      gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE);
+      const pal = dark ? PALETTES.dark : PALETTES.light;
+      const bg = getComputedStyle(root).getPropertyValue('--bg').trim() || (dark ? '#0B0B0B' : '#F7F7F5');
+      colors = { uBg: hex(bg), uWater: pal.water.flatMap(hex), uFoam: pal.foam.flatMap(hex), uCap: pal.cap.flatMap(hex), uGlyph: size };
+    }
+    return true;
+  }
+
+  // 一帧：base 是水面的平均高度（CSS 像素），lace 是浪退下去时在页面上留的一圈沫子（0 到 1）。
+  // 时间用墙上的钟，换页前后两页的浪纹接得上；相位在这里用双精度算好再取模
+  function frame(base: number, lace = 0) {
+    const { gl, prog, quad, tex } = g!;
+    const t = (Date.now() % 1e7) / 1000;
+    const m = (v: number) => ((v % TAU) + TAU) % TAU;
+    const swell = 3.4 * t;
+    gl.viewport(0, 0, cv!.width, cv!.height);
+    gl.clearColor(0, 0, 0, 0);
+    gl.clear(gl.COLOR_BUFFER_BIT);
+    prog.use({
+      ...colors,
+      uAtlas: [tex, 0],
+      uRes: [cv!.width, cv!.height],
+      uDpr: dpr, uCell: CELL, uBase: base, uLace: lace, uStep: Math.floor(t * 12) % 1e6,
+      uEdgePh: [m(1.5 * t), m(2.6 * t), m(4.1 * t)],
+      uBendPh: [m(0.55 * t), m(-0.85 * t + 1.3), m(1.6 * t + 2.1)],
+      uSwellPh: m(swell), uCrestOff: Math.floor(swell / TAU),
+      uChopPh: m(5.6 * t + 2), uFoamPh: m(0.9 * t), uFoamDrift: (0.35 * t) % 1000,
+    });
+    quad.draw();
+  }
+
+  // 水面从屏幕底下走到顶上（up，涌上来盖住）、反过来（down，退下去），或者停在盖满的地方接着翻（hold，等新页面）；走完回调
+  function run(dir: 'up' | 'down' | 'hold', ms: number, done?: () => void) {
     cancelAnimationFrame(raf);
     const t0 = performance.now();
-    let last = 0, slow = 0;
     const tick = (time: number) => {
-      // 头几帧里有两帧隔了 28ms 以上（掉到 35 帧以下）就降分辨率
-      if (last && !lowRes && dpr > 1 && time - last > 28 && ++slow >= 2) lowRes = true;
-      last = time;
-      setup();
-      const p = Math.min(1, (time - t0) / ms);
-      const bottom = H + OVER, top = -OVER;
-      const [a, b] = dir === 'up' ? [bottom, top] : [top, bottom];
-      frame(a + (b - a) * ease(p), now(), dir === 'down' ? Math.min(1, p * 3) * (1 - p) * 1.5 : 0);
-      if (p < 1 || hold) raf = requestAnimationFrame(tick);
-      if (p >= 1 && done) { const d = done; done = undefined; d(); }
+      if (!setup()) { done?.(); return; }
+      const p = dir === 'hold' ? 1 : Math.min(1, (time - t0) / ms);
+      if (dir === 'hold') frame(-OVER);
+      else {
+        const [a, b] = dir === 'up' ? [H + OVER, -OVER] : [-OVER, H + OVER];
+        frame(a + (b - a) * ease(p), dir === 'down' ? Math.min(1, p * 3) * (1 - p) * 1.5 : 0);
+      }
+      if (dir === 'hold' || p < 1) raf = requestAnimationFrame(tick);
+      else done?.();
     };
     raf = requestAnimationFrame(tick);
   }
+
+  let leaving = false;
+  let fallback = 0;
   const stop = () => {
     cancelAnimationFrame(raf);
+    clearTimeout(fallback);
+    leaving = false;
     cv?.remove();
     cv = null;
-    atlasKey = '';
+    g?.gl.getExtension('WEBGL_lose_context')?.loseContext();   // 显卡上的东西立刻还回去，下次换页再建
+    g = null;
     root.removeAttribute('data-wave');
   };
 
-  // 新页面：先画一帧盖满的浪，再拿掉底色那层，浪往下退
+  // 新页面：先画一帧盖满的浪，拿掉底色那层，浪在原地翻着；等页面的图和脚本差不多到齐（load，最多 300ms）再往下退，
+  // 免得跟页面自己的初始化抢着卡
   if (root.hasAttribute('data-wave')) {
-    if (reduce.matches) root.removeAttribute('data-wave');
+    if (reduce.matches || !setup()) root.removeAttribute('data-wave');
     else {
-      setup();
-      frame(-OVER, now());
+      frame(-OVER);
       root.removeAttribute('data-wave');
-      run('down', REVEAL_MS, stop);
+      run('hold', 0);
+      let started = false;
+      const go = () => { if (!started) { started = true; run('down', REVEAL_MS, stop); } };
+      if (document.readyState === 'complete') go();
+      else { addEventListener('load', go, { once: true }); setTimeout(go, 300); }
     }
   }
 
   // 点站内链接：浪涌上来盖满了再走
-  let leaving = false;
   document.addEventListener('click', (e) => {
-    if (leaving || e.defaultPrevented || e.button !== 0 || e.metaKey || e.ctrlKey || e.shiftKey || e.altKey) return;
-    if (reduce.matches) return;
+    if (e.defaultPrevented || e.button !== 0 || e.metaKey || e.ctrlKey || e.shiftKey || e.altKey) return;
+    if (reduce.matches || unusable) return;
     const a = (e.target as Element | null)?.closest?.('a[href]') as HTMLAnchorElement | null;
     if (!a || a.hasAttribute('download') || a.hasAttribute('data-no-wave') || (a.target && a.target !== '_self')) return;
     const url = new URL(a.href, location.href);
@@ -271,22 +333,33 @@
     if (url.pathname === location.pathname && url.search === location.search) return;   // 只换 #
     if (/\.[a-z0-9]+$/i.test(url.pathname) && !/\.html?$/i.test(url.pathname)) return;    // 图片、文件
     e.preventDefault();
+    if (leaving) return;            // 浪已经在涌了，再点也不重来
+    if (!setup()) { location.href = url.href; return; }
     leaving = true;
     // 浪涌上来的这段时间先把新页面拿下来
     const pre = document.createElement('link');
     pre.rel = 'prefetch';
     pre.href = url.href;
     document.head.append(pre);
-    setup();
     cv!.style.pointerEvents = 'auto';
     run('up', COVER_MS, () => {
       try { sessionStorage.setItem('wave', String(Date.now())); } catch {}
       location.href = url.href;
-      // 万一没走成（比如被浏览器拦了），四秒以后把浪退掉
-      setTimeout(() => { if (document.visibilityState === 'visible') { leaving = false; run('down', REVEAL_MS, stop); } }, 4000);
-    }, true);
+      run('hold', 0);
+      // 网慢就一直盖着等（浪还在翻）；过了 15 秒还在这一页（换页被拦了之类）才退回去。
+      // 第一版是 4 秒：网慢时浪先退回旧页面、过一会儿又换页，看着像浪莫名其妙冒出来
+      fallback = window.setTimeout(() => { if (leaving) run('down', REVEAL_MS, stop); }, 15000);
+    });
   });
 
-  // 从后退缓存里回来：页面停在盖满的那一帧，收掉
-  addEventListener('pageshow', (e) => { if (e.persisted) { leaving = false; stop(); } });
+  // 离开这一页：停掉计时器。页面进了后退缓存，计时器会冻住，后退回来接着走，浪会过一会儿自己冒出来（第一版的毛病）
+  addEventListener('pagehide', () => clearTimeout(fallback));
+  // 后退、前进从缓存里拿回来：页面停在盖满的那一帧，让浪接着退下去，像刚到一样
+  addEventListener('pageshow', (e) => {
+    if (!e.persisted || !cv) return;
+    clearTimeout(fallback);
+    leaving = false;
+    cv.style.pointerEvents = 'none';
+    run('down', REVEAL_MS, stop);
+  });
 </script>
