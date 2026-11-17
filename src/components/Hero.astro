@@ -1,117 +1,499 @@
 ---
-// 首屏：左边是标题和简介，右边是字符拼的头像，四周一圈字符的烟（scripts/ascii.ts）。
-// 字符画只是装饰，没有脚本、没有 canvas 时就是一块空白，文字照常。
-import portrait from '../assets/portrait.webp';
+// 首屏：一屏放下网站的大部分内容，去掉了原来的字符画头像（2026-11-17 laken 要的）。
+// 照 laken 给的一个参考站学的思路（不照搬样子）：一格一个有画面的东西，用 1px 细线拼成一张表。
+// 第三版（同一天 laken 说「不要时间，把海浪和晚霞和树放上来」）：钟拿掉，右上一块放三个实验，直接在首屏里跑、能玩。
+// 再后来首页去掉了顶栏（名字、头像就在简介那格，换主题的按钮也挪到那格右上），实验搬到单独的 /lab/ 页：
+//   简介（两格宽）        晚霞（两格宽：天要宽一点才看得出霞）
+//   SOOTY（两格宽，海报）  海浪        树
+//   实验目录（两格宽）     联系        全部项目
+// 三个实验跟 /lab/ 页是同一套组件（LabStage），自己限帧、看不见就停；首屏里藏掉它们的提示和按钮，点右上的名字进详情页。
+// 窄屏上一格一格往下排。
+import { Image } from 'astro:assets';
+import { getCollection } from 'astro:content';
 import Icon from './Icon.astro';
-import { SITE } from '../site';
+import ThemeToggle from './ThemeToggle.astro';
+import LabStage from './LabStage.astro';
+import avatar from '../assets/avatar.webp';
+import poster from '../assets/projects/sooty-og.jpg';
+import { SITE, newestFirst } from '../site';
+
+const labs = (await getCollection('labs')).sort(newestFirst);
+const projects = (await getCollection('projects', p => !p.data.hidden))
+  .sort((a, b) => a.data.order - b.data.order);
+const month = (d: Date) => d.toLocaleDateString('en', { year: 'numeric', month: 'short', timeZone: 'UTC' });
+
+// 首屏上跑的三个实验：海浪、晚霞（ASCII Clouds 的深色是黄昏，舞台一直是深的）、树（Crown Shyness）
+const pick = (id: string) => labs.find(l => l.id === id)!;
+const scenes = [
+  { area: 'dusk', word: 'Afterglow', lab: pick('ascii-clouds') },
+  { area: 'waves', word: 'Waves', lab: pick('ascii-waves') },
+  { area: 'trees', word: 'Trees', lab: pick('crown-shyness') },
+];
+
+// 目录的编号按做出来的先后，最早的是 01，新做的实验不会改动旧实验的号
+const labRows = labs.map((lab, i) => ({
+  id: lab.id,
+  no: String(labs.length - i).padStart(2, '0'),
+  title: lab.data.title,
+  href: lab.data.wip ? '/lab/' : `/lab/${lab.id}/`,
+}));
+const since = month(labs[labs.length - 1].data.date);
+const handle = '@' + new URL(SITE.x).pathname.slice(1);
 ---
-<section class="hero" data-hero data-src={portrait.src}>
-  <canvas class="ascii" aria-hidden="true"></canvas>
-  <div class="wrap grid">
-    <div class="text">
-      <p class="eyebrow rise" style="--d:0ms">Independent developer · Germany</p>
-      <h1 class="display rise" style="--d:80ms">Build stuff.<br><em>Sometimes it works.</em></h1>
-      <p class="lede rise" style="--d:200ms">
-        I’m {SITE.name}, a web and software developer working on my own.
-        Right now I’m building <a class="link" href="https://sooty.app">SOOTY</a>, a local-first asset manager for Mac, written in Rust.
-        The <a class="link" href="#lab">lab</a> below is where I try out interface ideas.
-      </p>
-      <ul class="links rise" style="--d:300ms">
-        <li><a href={SITE.github}><Icon name="github" /><span class="out">GitHub</span></a></li>
-        <li><a href={SITE.x}><Icon name="x" /><span class="out">X</span></a></li>
-        <li><a href={`mailto:${SITE.email}`}><Icon name="mail" /><span class="out">Email</span></a></li>
-      </ul>
+<section class="hero" data-hero>
+  <div class="wrap">
+    <div class="bento">
+
+      <!-- 简介 -->
+      <div class="cell intro rise" style="--d:0ms">
+        <ThemeToggle class="intro-theme" />
+        <div class="who">
+          <Image src={avatar} alt="" width={64} height={64} densities={[1, 2]} loading="eager" />
+          <div>
+            <p class="name">{SITE.name}</p>
+            <p class="role mono">Independent developer · Germany</p>
+          </div>
+        </div>
+        <div class="say">
+          <h1 class="display">Build stuff.<br><em>Sometimes it works.<span class="caret" aria-hidden="true"></span></em></h1>
+          <p class="lede">
+            A web and software developer working on my own. Right now I’m building{' '}
+            <a class="link" href="https://sooty.app">SOOTY</a>, a local-first asset manager for Mac, written in Rust.
+          </p>
+        </div>
+      </div>
+
+      <!-- 三个实验：直接跑，能玩 -->
+      {scenes.map(({ area, word, lab }, i) => (
+        <div class:list={['cell scene rise', area, { dark: lab.data.dark }]} style={`--d:${60 + i * 60}ms`}>
+          <div class="fill"><LabStage slug={lab.id} dark={lab.data.dark} size="page" /></div>
+          <div class="label">
+            <span class="tag">{word}</span>
+            <a class="tag name-link" href={`/lab/${lab.id}/`}><span class="out">{lab.data.title}</span></a>
+          </div>
+        </div>
+      ))}
+
+      <!-- SOOTY：正在做的 -->
+      <a class="cell now rise" style="--d:120ms" href="https://sooty.app" aria-label="SOOTY, a local-first asset manager for Mac — sooty.app">
+        <Image src={poster} alt="" widths={[640, 1000, 1400, 2000]} sizes="(max-width: 1079px) 100vw, 50vw" loading="eager" />
+        <div class="over">
+          <span class="tag light"><span class="dot" aria-hidden="true"></span>Now building</span>
+          <span class="tag light out">sooty.app</span>
+        </div>
+        <p class="facts mono" aria-hidden="true">
+          <span>Rust + GPUI</span><span>Local-first</span><span>On-device AI search</span><span>Wasm plugins</span>
+        </p>
+      </a>
+
+      <!-- 实验目录 -->
+      <nav class="cell lab rise" style="--d:300ms" aria-labelledby="lab-h">
+        <div class="bar">
+          <h2 class="tag" id="lab-h">Lab <span class="count">{labRows.length}</span></h2>
+          <a class="tag-r mono all" href="/lab/">Since {since} · <span class="out">All labs</span></a>
+        </div>
+        <ol class="list">
+          {labRows.map(l => (
+            <li>
+              <a class="row" href={l.href}>
+                <span class="no mono">{l.no}</span>
+                <span class="title">{l.title}</span>
+              </a>
+            </li>
+          ))}
+          <li class="more"><a class="row" href="/lab/"><span class="no mono">+{labRows.length - 5}</span><span class="title">More on the Lab page →</span></a></li>
+        </ol>
+      </nav>
+
+      <!-- 联系 -->
+      <div class="cell contact rise" style="--d:360ms" id="contact">
+        <div class="bar"><h2 class="tag">Contact</h2></div>
+        <a class="hi" href={`mailto:${SITE.email}`}>Say hi<span class="arrow" aria-hidden="true">↗</span></a>
+        <ul class="rows mono">
+          <li>
+            <span class="k">Email</span>
+            <button class="copy" type="button" data-copy={SITE.email} aria-label={`Copy ${SITE.email}`}>
+              <span class="v">{SITE.email}</span>
+              <span class="state" aria-live="polite"><Icon name="copy" size={14} class="i-copy" /><Icon name="check" size={14} class="i-check" /></span>
+            </button>
+          </li>
+          <li><span class="k">GitHub</span><a href={SITE.github}><span class="out">{handle}</span></a></li>
+          <li><span class="k">X</span><a href={SITE.x}><span class="out">{handle}</span></a></li>
+        </ul>
+      </div>
+
+      <!-- 全部项目（SOOTY 上面有海报，这里也列一行，2026-11-17 laken 要的） -->
+      <div class="cell also rise" style="--d:420ms" id="work">
+        <div class="bar"><h2 class="tag">Also</h2></div>
+        <ul>
+          {projects.map(({ data: p }) => (
+            <li>
+              <a href={p.url} title={p.summary}>
+                <Image src={p.icon} alt="" width={48} height={48} densities={[1, 2]} />
+                <span class="pn"><span class="out">{p.name}</span></span>
+                <span class="pk mono">{p.status ? `${p.kind} · ${p.status}` : p.kind}</span>
+              </a>
+            </li>
+          ))}
+        </ul>
+      </div>
+
     </div>
-    <div class="portrait" data-anchor></div>
   </div>
 </section>
 
 <style>
+  /* 底下直接是页脚（自己有一道线、留 48px），这里不再画线、不留底。
+     大屏上表跟着屏幕放大（2026-11-17 laken 说「大屏有点空」）：表高是一屏减掉上下的留白，表宽按高度的 1.4 倍（不比 1200 窄、不比屏幕宽），
+     --u 是「设计稿上的 1px」：1200 宽的时候正好 1px，表宽了就跟着变大，下面的字号、间距、图标都写成它的倍数，整张表等比例放大。
+     1240 以下 --u 就是 1px，下面几段窄屏的规则照旧 */
   .hero {
-    position: relative;
-    overflow: hidden;
-    border-bottom: 1px solid var(--line);
-    touch-action: pan-y;
+    --h0: clamp(760px, calc(100svh - 40px), 1500px);
+    --w: min(calc(100vw - var(--gutter) * 2), max(1200px, calc(var(--h0) * 1.4)), 2100px);
+    --u: max(1px, calc(var(--w) / 1200));
+    padding-top: 20px;
   }
-  /* 只盖头像四周一圈，位置和大小由 scripts/ascii.ts 按头像算好写进 style */
-  .ascii {
-    position: absolute;
-    top: 0;
-    left: 0;
-    width: 0;
-    height: 0;
-    pointer-events: none;
-    --ascii-cell: 8px; /* 字符画一格多高，宽是它的 0.6 */
-  }
-  .grid {
-    position: relative;
+  .hero .wrap { max-width: calc(var(--w) + var(--gutter) * 2); }
+  /* 一张表：格子之间 1px 的线（底色露出来就是线），跟 /lab/ 页实验的网格一个做法 */
+  .bento {
     display: grid;
-    grid-template-columns: minmax(0, 1fr) minmax(0, 480px);
-    align-items: center;
-    gap: 48px;
-    min-height: min(calc(100svh - var(--nav-h)), 720px);
-    padding-block: 64px 72px;
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+    grid-template-rows: 1.1fr 1fr 1fr;
+    grid-template-areas:
+      "intro intro dusk    dusk"
+      "now   now   waves   trees"
+      "lab   lab   contact also";
+    gap: 1px;
+    height: min(var(--h0), calc(var(--w) / 1.3));   /* 窄而高的窗口别拉得太高，格子里会空 */
+    background: var(--line);
+    border: 1px solid var(--line);
   }
-  .text { max-width: 640px; }
-  .eyebrow { margin-bottom: 20px; }
-  h1 { --size: 64px; margin-bottom: 28px; }
-  @media (max-width: 1180px) {
-    h1 { --size: 52px; }
+  .cell {
+    position: relative;
+    display: flex;
+    flex-direction: column;
+    min-width: 0;
+    min-height: 0;
+    padding: calc(18 * var(--u)) calc(20 * var(--u)) calc(20 * var(--u));
+    background: var(--bg);
+    overflow: hidden;
+  }
+  .bar {
+    display: flex;
+    align-items: baseline;
+    justify-content: space-between;
+    gap: calc(12 * var(--u));
+  }
+  .tag, .tag-r {
+    font-family: var(--mono);
+    font-size: calc(12 * var(--u));
+    line-height: 1.5;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+    color: var(--fg-3);
+    font-weight: 400;
+  }
+  .tag-r { letter-spacing: 0.02em; text-transform: none; }
+
+  /* 简介 */
+  .intro { grid-area: intro; justify-content: space-between; padding-bottom: calc(22 * var(--u)); }
+  .who { display: flex; align-items: center; gap: calc(12 * var(--u)); padding-right: calc(40 * var(--u)); }
+  /* 首页没有顶栏，换主题的按钮放在简介那格右上角 */
+  .intro :global(.intro-theme) { position: absolute; top: calc(12 * var(--u)); right: calc(12 * var(--u)); width: calc(36 * var(--u)); height: calc(36 * var(--u)); }
+  .intro :global(.intro-theme svg) { width: calc(18 * var(--u)); height: calc(18 * var(--u)); }
+  .who img { width: calc(40 * var(--u)); height: calc(40 * var(--u)); border-radius: 50%; background: var(--bg-2); }
+  .name { font-family: var(--serif); font-size: calc(24 * var(--u)); line-height: 1; }
+  .role { margin-top: calc(4 * var(--u)); font-size: calc(12 * var(--u)); color: var(--fg-3); }
+  /* 屏幕矮的时候字跟着小一点，头像那行和标题之间别挤 */
+  h1 { --size: clamp(40px, 5.2svh, calc(46 * var(--u))); }
+  .intro { gap: calc(14 * var(--u)); }
+  /* 标题末尾一个一闪一闪的方块光标：网站唯一的「我在写东西」的痕迹 */
+  .caret {
+    display: inline-block;
+    width: 0.09em;
+    height: 0.72em;
+    margin-left: 0.06em;
+    vertical-align: -0.02em;
+    background: var(--accent);
+  }
+  @media (prefers-reduced-motion: no-preference) {
+    .caret { animation: blink 1.1s steps(1, end) infinite; }
+    @keyframes blink { 50% { opacity: 0; } }
   }
   .lede {
-    font-size: 18px;
-    line-height: 1.6;
+    margin-top: calc(16 * var(--u));
+    max-width: 36em;
+    font-size: calc(15 * var(--u));
+    line-height: 1.55;
     color: var(--fg-2);
-    max-width: 34em;
     text-wrap: pretty;
   }
-  .links {
+
+  /* 三个实验：舞台铺满整格，左上一块小牌子写是什么、右上一块写实验名（点了进详情页）。
+     牌子有底色，什么画面上都看得清；只挡住它自己那一小块，别的地方鼠标照样能搅动 */
+  .scene { padding: 0; background: var(--bg-2); }
+  .waves { grid-area: waves; }
+  .dusk { grid-area: dusk; }
+  .trees { grid-area: trees; }
+  .fill { position: absolute; inset: 0; }
+  .label {
+    position: relative;
+    z-index: 1;
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+    gap: 8px;
+    padding: calc(14 * var(--u));
+    pointer-events: none;
+  }
+  .label .tag {
+    padding: 1px calc(7 * var(--u));
+    color: var(--fg-2);
+    background: color-mix(in srgb, var(--bg) 86%, transparent);
+    border: 1px solid var(--line);
+    white-space: nowrap;
+    backdrop-filter: blur(6px);
+  }
+  .label .name-link { pointer-events: auto; letter-spacing: 0.02em; text-transform: none; transition: color .15s, border-color .15s; }
+  .label .name-link:hover { color: var(--accent); }
+  /* 一直是深底的两格：牌子跟 SOOTY 海报上的标签一样，深底浅字 */
+  .scene.dark .tag { color: rgb(237 237 234 / .8); background: rgb(10 10 10 / .62); border-color: rgb(237 237 234 / .16); }
+  .scene.dark .name-link:hover { color: #fff; border-color: rgb(237 237 234 / .4); }
+  /* 首屏里只看、只玩，不要实验自己的提示和按钮（/lab/ 页和详情页里都有） */
+  .scene :global(.lab-hint), .scene :global(.tools) { display: none; }
+
+  /* SOOTY：海报铺满，上面两个小标签 */
+  .now {
+    grid-area: now;
+    padding: 0;
+    background: #0a0a0a;
+    color: #EDEDEA;
+  }
+  .now img {
+    position: absolute;
+    inset: 0;
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    object-position: 50% 42%;
+    transition: scale .8s cubic-bezier(.2, .7, .2, 1);
+  }
+  .now:hover img { scale: 1.025; }
+  .over {
+    position: relative;
+    display: flex;
+    justify-content: space-between;
+    padding: calc(18 * var(--u)) calc(20 * var(--u));
+  }
+  .tag.light { color: rgb(237 237 234 / .75); display: inline-flex; align-items: center; }
+  .now:hover .tag.light.out { color: #fff; }
+  .dot { width: calc(6 * var(--u)); height: calc(6 * var(--u)); margin-right: calc(8 * var(--u)); background: #8597FF; }
+  .facts {
+    position: absolute;
+    left: calc(20 * var(--u));
+    right: calc(20 * var(--u));
+    bottom: calc(16 * var(--u));
     display: flex;
     flex-wrap: wrap;
-    gap: 8px 24px;
-    margin-top: 28px;
-    font-family: var(--mono);
-    font-size: 14px;
+    gap: calc(6 * var(--u));
+    font-size: calc(11 * var(--u));
+    opacity: 0;
+    translate: 0 6px;
+    transition: opacity .3s, translate .4s cubic-bezier(.2, .7, .2, 1);
   }
-  .links a {
+  .facts span {
+    padding: calc(2 * var(--u)) calc(7 * var(--u));
+    color: #EDEDEA;
+    background: rgb(10 10 10 / .72);
+    border: 1px solid rgb(237 237 234 / .18);
+  }
+  .now:hover .facts, .now:focus-visible .facts { opacity: 1; translate: 0 0; }
+
+  /* 实验目录 */
+  .lab { grid-area: lab; }
+  .count { margin-left: 4px; color: var(--fg-2); }
+  .all { transition: color .15s; }
+  .all:hover { color: var(--accent); }
+  .list {
+    columns: 3;
+    column-gap: calc(20 * var(--u));
+    margin-top: auto;
+    border-top: 1px solid var(--line);
+  }
+  .list li { break-inside: avoid; }
+  .list .more { display: none; }
+  .row {
+    display: flex;
+    align-items: baseline;
+    gap: calc(8 * var(--u));
+    padding-block: calc(4 * var(--u)) calc(3 * var(--u));
+    border-bottom: 1px solid var(--line);
+    transition: color .2s;
+  }
+  .row .no { flex: none; width: calc(20 * var(--u)); font-size: calc(11 * var(--u)); color: var(--fg-3); transition: color .2s; }
+  .row .title {
+    font-family: var(--serif);
+    font-size: calc(18 * var(--u));
+    line-height: 1.2;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+  @media (hover: hover) {
+    .list:has(.row:hover) .row:not(:hover) { color: var(--fg-3); }
+  }
+  .row:hover .no, .row:focus-visible .no { color: var(--accent); }
+
+  /* 联系 */
+  .contact { grid-area: contact; }
+  .hi {
+    display: inline-flex;
+    align-items: flex-start;
+    gap: calc(6 * var(--u));
+    margin-top: auto;
+    font-family: var(--serif);
+    font-size: calc(54 * var(--u));
+    line-height: 1;
+    letter-spacing: -0.01em;
+    transition: color .2s;
+  }
+  .hi .arrow {
+    font-family: var(--mono);
+    font-size: calc(22 * var(--u));
+    line-height: 1;
+    margin-top: calc(6 * var(--u));
+    transition: transform .25s cubic-bezier(.2, .7, .2, 1);
+  }
+  .hi:hover { color: var(--accent); }
+  .hi:hover .arrow { transform: translate(3px, -3px); }
+  .rows { margin-top: calc(18 * var(--u)); border-top: 1px solid var(--line); font-size: calc(12 * var(--u)); }
+  .rows li {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: calc(12 * var(--u));
+    height: calc(34 * var(--u));
+    border-bottom: 1px solid var(--line);
+  }
+  .rows li:last-child { border-bottom: 0; height: calc(30 * var(--u)); align-items: flex-end; }
+  .k { color: var(--fg-3); }
+  .rows a, .copy { color: var(--fg); transition: color .15s; min-width: 0; }
+  .rows a:hover, .copy:hover { color: var(--accent); }
+  .copy {
     display: inline-flex;
     align-items: center;
-    gap: 8px;
-    color: var(--fg);
-    transition: color .15s;
+    gap: 6px;
+    cursor: pointer;
+    font: inherit;
   }
-  .links a:hover { color: var(--accent); }
-  .portrait {
-    width: 100%;
-    aspect-ratio: 3 / 4;
+  .copy .v { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .copy .state { display: grid; color: var(--fg-3); }
+  .copy .state :global(svg) { width: calc(14 * var(--u)); height: calc(14 * var(--u)); }
+  .copy :global(.i-check), .copy[data-done] :global(.i-copy) { display: none; }
+  .copy[data-done] :global(.i-check) { display: block; color: var(--accent); }
+
+  /* 其他项目 */
+  .also { grid-area: also; }
+  .also ul { margin-top: calc(12 * var(--u)); border-top: 1px solid var(--line); }
+  .also li { border-bottom: 1px solid var(--line); }
+  .also li:last-child { border-bottom: 0; }
+  .also a {
+    display: grid;
+    grid-template-columns: calc(32 * var(--u)) minmax(0, 1fr);
+    grid-template-areas: "icon name" "icon kind";
+    align-items: center;
+    column-gap: calc(12 * var(--u));
+    padding-block: calc(10 * var(--u));
   }
-  @media (max-width: 860px) {
-    .grid {
-      grid-template-columns: 1fr;
-      gap: 8px;
-      min-height: 0;
-      padding-block: 24px 48px;
-    }
-    .portrait {
-      order: -1;
-      width: min(280px, 72vw);
-      justify-self: center;
-    }
+  .also li:last-child a { padding-bottom: 0; }
+  .also img { grid-area: icon; width: calc(32 * var(--u)); height: calc(32 * var(--u)); border-radius: 27%; object-fit: cover; }
+  .pn { grid-area: name; font-family: var(--serif); font-size: calc(21 * var(--u)); line-height: 1.05; }
+  .pn .out::after { font-size: calc(12 * var(--u)); color: var(--fg-3); }
+  .pk { grid-area: kind; margin-top: calc(3 * var(--u)); font-size: calc(11 * var(--u)); color: var(--fg-3); }
+  .also a:hover .pn { color: var(--accent); }
+
+  /* 中等宽度：字小一点，目录的字也小一号，三列放得下 */
+  @media (max-width: 1240px) {
     h1 { --size: 38px; }
-    .lede { font-size: 17px; }
-    .ascii { --ascii-cell: 6px; } /* 头像只有 280px 宽，格子小一点五官才认得出 */
+    .intro { gap: 10px; }
+    .lede { margin-top: 12px; }
+    .hi { font-size: 46px; }
+    .list { column-gap: 16px; }
+    .row .title { font-size: 16px; }
+  }
+
+  /* 平板：两列 */
+  @media (max-width: 1079px) {
+    .bento {
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      grid-template-rows: none;
+      grid-template-areas:
+        "intro intro"
+        "dusk  dusk"
+        "waves trees"
+        "now   now"
+        "lab   lab"
+        "contact also";
+      height: auto;
+    }
+    .intro { min-height: 300px; }
+    .dusk { aspect-ratio: 2 / 1; }
+    .waves, .trees { aspect-ratio: 1; }
+    .now { aspect-ratio: 1200 / 630; }
+    .list { columns: 2; column-gap: 20px; margin-top: 14px; }
+    .row .title { font-size: 18px; }
+    .contact { min-height: 300px; }
+  }
+  /* 手机：一列（海浪和树并排） */
+  @media (max-width: 640px) {
+    .hero { padding-top: 12px; }
+    .bento {
+      grid-template-areas:
+        "intro intro"
+        "dusk  dusk"
+        "waves trees"
+        "now   now"
+        "lab   lab"
+        "contact contact"
+        "also  also";
+    }
+    .cell { padding: 16px; }
+    .scene, .now { padding: 0; }
+    .label { padding: 12px; }
+    .over { padding: 14px 16px; }
+    .intro { min-height: 0; gap: 36px; }
+    h1 { --size: 34px; }
+    .lede { font-size: 15px; }
+    .dusk { aspect-ratio: 3 / 2; }
+    /* 半格太窄，只留左边的词 */
+    .waves .name-link, .trees .name-link { display: none; }
+    .list { columns: 1; }
+    .row { padding-block: 9px 8px; }
+    /* 手机上只列最新的五个，最后一行链到 /lab/ 页 */
+    .list li:nth-child(n+6):not(.more) { display: none; }
+    .list .more { display: block; }
+    .more .no, .more .title { color: var(--fg-3); }
+    .more .title { font-family: inherit; font-size: 13px; }
+    .contact { min-height: 0; }
+    .hi { font-size: 48px; margin-top: 28px; }
+  }
+  /* 触屏没有悬停，SOOTY 那格的几个标签就不出来了（一直露着会挡住海报） */
+  @media (hover: none) {
+    .facts { display: none; }
   }
 </style>
 
 <script>
-  import { mount } from '../scripts/ascii';
-  const host = document.querySelector<HTMLElement>('[data-hero]')!;
-  const go = () => mount({
-    host,
-    canvas: host.querySelector('canvas')!,
-    anchor: host.querySelector<HTMLElement>('[data-anchor]')!,
-    src: host.dataset.src!,
-  });
-  // 不跟首屏的文字抢主线程：浏览器闲下来再挂
-  'requestIdleCallback' in window ? requestIdleCallback(go, { timeout: 600 }) : setTimeout(go, 200);
+  const hero = document.querySelector<HTMLElement>('[data-hero]');
+
+  // ── 联系：点邮箱就拷进剪贴板，图标变成对勾两秒 ──
+  for (const btn of hero?.querySelectorAll<HTMLButtonElement>('[data-copy]') ?? []) {
+    let t = 0;
+    btn.addEventListener('click', async () => {
+      try { await navigator.clipboard.writeText(btn.dataset.copy!); } catch { location.href = `mailto:${btn.dataset.copy}`; return; }
+      btn.dataset.done = '';
+      clearTimeout(t);
+      t = window.setTimeout(() => delete btn.dataset.done, 2000);
+    });
+  }
 </script>

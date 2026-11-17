@@ -1,13 +1,14 @@
 ---
-// 顶栏：左边头像和名字回首页，右边三个锚点和换主题的按钮。没有底色，只有模糊和一道淡线。
+// 顶栏：左边头像和名字回首页，右边三个链接和换主题的按钮。没有底色，只有模糊和一道淡线。
+// 首页没有顶栏（2026-11-17 laken 要的，名字和头像在首屏简介那格里），只有实验页、详情页、404 有。
 import { Image } from 'astro:assets';
-import Icon from './Icon.astro';
+import ThemeToggle from './ThemeToggle.astro';
 import avatar from '../assets/avatar.webp';
 import { SITE } from '../site';
 
 const links = [
   { href: '/#work', label: 'Work' },
-  { href: '/#lab', label: 'Lab' },
+  { href: '/lab/', label: 'Lab' },
   { href: '/#contact', label: 'Contact' },
 ];
 ---
@@ -18,11 +19,8 @@ const links = [
       <span>{SITE.name}</span>
     </a>
     <nav aria-label="Main">
-      {links.map(l => <a class="mono" href={l.href}>{l.label}</a>)}
-      <button class="theme" type="button" aria-label="Switch between light and dark">
-        <Icon name="sun" class="sun" />
-        <Icon name="moon" class="moon" />
-      </button>
+      {links.map(l => <a class="mono" href={l.href} aria-current={l.href === '/lab/' && Astro.url.pathname.startsWith('/lab') ? 'page' : undefined}>{l.label}</a>)}
+      <ThemeToggle class="toggle" />
     </nav>
   </div>
 </header>
@@ -68,39 +66,9 @@ const links = [
     color: var(--fg-2);
     transition: color .15s;
   }
-  nav a:hover { color: var(--fg); }
-  .theme {
-    display: grid;
-    place-items: center;
-    width: 36px;
-    height: 36px;
-    margin-left: 4px;
-    color: var(--fg-2);
-    cursor: pointer;
-    transition: color .15s;
-  }
-  .theme:hover { color: var(--fg); }
-  /* 浅色时显示月亮（点了换深色），深色时显示太阳 */
-  .theme :global(.sun) { display: none; }
-  :global(:root[data-theme="dark"]) .theme :global(.sun) { display: block; }
-  :global(:root[data-theme="dark"]) .theme :global(.moon) { display: none; }
-  @media (prefers-color-scheme: dark) {
-    :global(:root:not([data-theme="light"])) .theme :global(.sun) { display: block; }
-    :global(:root:not([data-theme="light"])) .theme :global(.moon) { display: none; }
-  }
+  nav a:hover, nav a[aria-current] { color: var(--fg); }
+  nav :global(.toggle) { margin-left: 4px; }
   @media (max-width: 420px) {
     nav a { padding: 6px 7px; }
   }
 </style>
-
-<script>
-  // 换主题：记进 localStorage，页面上的字符画听 data-theme 的变化自己重画
-  const root = document.documentElement;
-  const dark = matchMedia('(prefers-color-scheme: dark)');
-  document.querySelector('.theme')?.addEventListener('click', () => {
-    const now = root.dataset.theme ?? (dark.matches ? 'dark' : 'light');
-    const next = now === 'dark' ? 'light' : 'dark';
-    root.dataset.theme = next;
-    try { localStorage.setItem('theme', next); } catch {}
-  });
-</script>

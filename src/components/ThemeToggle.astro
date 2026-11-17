@@ -1,0 +1,44 @@
+---
+// 换主题的小按钮：浅色时显示月亮（点了换深色），深色时显示太阳。顶栏和首页简介那格各放一个，做的是同一件事：
+// 写 <html data-theme> 并记进 localStorage 的 theme；实验听 data-theme 的变化自己重画。
+import Icon from './Icon.astro';
+interface Props { class?: string }
+const { class: cls } = Astro.props;
+---
+<button class:list={['theme', cls]} type="button" aria-label="Switch between light and dark" data-theme-toggle>
+  <Icon name="sun" class="sun" />
+  <Icon name="moon" class="moon" />
+</button>
+
+<style>
+  .theme {
+    display: grid;
+    place-items: center;
+    width: 36px;
+    height: 36px;
+    color: var(--fg-2);
+    cursor: pointer;
+    transition: color .15s;
+  }
+  .theme:hover { color: var(--fg); }
+  .theme :global(.sun) { display: none; }
+  :global(:root[data-theme="dark"]) .theme :global(.sun) { display: block; }
+  :global(:root[data-theme="dark"]) .theme :global(.moon) { display: none; }
+  @media (prefers-color-scheme: dark) {
+    :global(:root:not([data-theme="light"])) .theme :global(.sun) { display: block; }
+    :global(:root:not([data-theme="light"])) .theme :global(.moon) { display: none; }
+  }
+</style>
+
+<script>
+  const root = document.documentElement;
+  const dark = matchMedia('(prefers-color-scheme: dark)');
+  for (const btn of document.querySelectorAll('[data-theme-toggle]')) {
+    btn.addEventListener('click', () => {
+      const now = root.dataset.theme ?? (dark.matches ? 'dark' : 'light');
+      const next = now === 'dark' ? 'light' : 'dark';
+      root.dataset.theme = next;
+      try { localStorage.setItem('theme', next); } catch {}
+    });
+  }
+</script>
