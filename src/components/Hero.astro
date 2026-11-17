@@ -1,22 +1,24 @@
 ---
 // 首屏：一屏放下网站的大部分内容，去掉了原来的字符画头像（2026-11-17 laken 要的）。
 // 照 laken 给的一个参考站学的思路（不照搬样子）：一格一个有画面的东西，用 1px 细线拼成一张表。
-// 第三版（同一天 laken 说「不要时间，把海浪和晚霞和树放上来」）：钟拿掉，右上一块放三个实验，直接在首屏里跑、能玩：
+// 第三版（同一天 laken 说「不要时间，把海浪和晚霞和树放上来」）：钟拿掉，右上一块放三个实验，直接在首屏里跑、能玩。
+// 再后来首页去掉了顶栏（名字、头像就在简介那格，换主题的按钮也挪到那格右上），实验搬到单独的 /lab/ 页：
 //   简介（两格宽）        晚霞（两格宽：天要宽一点才看得出霞）
 //   SOOTY（两格宽，海报）  海浪        树
-//   实验目录（两格宽）     联系        其他项目
-// 三个实验跟下面「Lab」那节是同一套组件（LabStage），自己限帧、看不见就停；首屏里藏掉它们的提示和按钮，点右上的名字进详情页。
+//   实验目录（两格宽）     联系        全部项目
+// 三个实验跟 /lab/ 页是同一套组件（LabStage），自己限帧、看不见就停；首屏里藏掉它们的提示和按钮，点右上的名字进详情页。
 // 窄屏上一格一格往下排。
 import { Image } from 'astro:assets';
 import { getCollection } from 'astro:content';
 import Icon from './Icon.astro';
+import ThemeToggle from './ThemeToggle.astro';
 import LabStage from './LabStage.astro';
 import avatar from '../assets/avatar.webp';
 import poster from '../assets/projects/sooty-og.jpg';
 import { SITE, newestFirst } from '../site';
 
 const labs = (await getCollection('labs')).sort(newestFirst);
-const projects = (await getCollection('projects', p => !p.data.hidden && p.data.name !== 'SOOTY'))
+const projects = (await getCollection('projects', p => !p.data.hidden))
   .sort((a, b) => a.data.order - b.data.order);
 const month = (d: Date) => d.toLocaleDateString('en', { year: 'numeric', month: 'short', timeZone: 'UTC' });
 
@@ -33,7 +35,7 @@ const labRows = labs.map((lab, i) => ({
   id: lab.id,
   no: String(labs.length - i).padStart(2, '0'),
   title: lab.data.title,
-  href: lab.data.wip ? '#lab' : `/lab/${lab.id}/`,
+  href: lab.data.wip ? '/lab/' : `/lab/${lab.id}/`,
 }));
 const since = month(labs[labs.length - 1].data.date);
 const handle = '@' + new URL(SITE.x).pathname.slice(1);
@@ -44,6 +46,7 @@ const handle = '@' + new URL(SITE.x).pathname.slice(1);
 
       <!-- 简介 -->
       <div class="cell intro rise" style="--d:0ms">
+        <ThemeToggle class="intro-theme" />
         <div class="who">
           <Image src={avatar} alt="" width={40} height={40} densities={[1, 2]} loading="eager" />
           <div>
@@ -87,7 +90,7 @@ const handle = '@' + new URL(SITE.x).pathname.slice(1);
       <nav class="cell lab rise" style="--d:300ms" aria-labelledby="lab-h">
         <div class="bar">
           <h2 class="tag" id="lab-h">Lab <span class="count">{labRows.length}</span></h2>
-          <a class="tag-r mono all" href="#lab">Since {since} · play below ↓</a>
+          <a class="tag-r mono all" href="/lab/">Since {since} · <span class="out">All labs</span></a>
         </div>
         <ol class="list">
           {labRows.map(l => (
@@ -98,7 +101,7 @@ const handle = '@' + new URL(SITE.x).pathname.slice(1);
               </a>
             </li>
           ))}
-          <li class="more"><a class="row" href="#lab"><span class="no mono">+{labRows.length - 5}</span><span class="title">More below, all playable ↓</span></a></li>
+          <li class="more"><a class="row" href="/lab/"><span class="no mono">+{labRows.length - 5}</span><span class="title">More on the Lab page →</span></a></li>
         </ol>
       </nav>
 
@@ -119,16 +122,15 @@ const handle = '@' + new URL(SITE.x).pathname.slice(1);
         </ul>
       </div>
 
-      <!-- 其他项目 -->
+      <!-- 全部项目（SOOTY 上面有海报，这里也列一行，2026-11-17 laken 要的） -->
       <div class="cell also rise" style="--d:420ms" id="work">
         <div class="bar"><h2 class="tag">Also</h2></div>
         <ul>
           {projects.map(({ data: p }) => (
             <li>
-              <a href={p.url}>
+              <a href={p.url} title={p.summary}>
                 <Image src={p.icon} alt="" width={32} height={32} densities={[1, 2]} />
                 <span class="pn"><span class="out">{p.name}</span></span>
-                <span class="ps">{p.summary}</span>
                 <span class="pk mono">{p.status ? `${p.kind} · ${p.status}` : p.kind}</span>
               </a>
             </li>
@@ -141,11 +143,9 @@ const handle = '@' + new URL(SITE.x).pathname.slice(1);
 </section>
 
 <style>
-  .hero {
-    padding-block: 20px 28px;
-    border-bottom: 1px solid var(--line);
-  }
-  /* 一张表：格子之间 1px 的线（底色露出来就是线），跟下面实验的网格一个做法 */
+  /* 底下直接是页脚（自己有一道线、留 48px），这里不再画线、不留底 */
+  .hero { padding-top: 20px; }
+  /* 一张表：格子之间 1px 的线（底色露出来就是线），跟 /lab/ 页实验的网格一个做法 */
   .bento {
     display: grid;
     grid-template-columns: repeat(4, minmax(0, 1fr));
@@ -155,7 +155,7 @@ const handle = '@' + new URL(SITE.x).pathname.slice(1);
       "now   now   waves   trees"
       "lab   lab   contact also";
     gap: 1px;
-    height: clamp(760px, calc(100svh - var(--nav-h) - 48px), 920px);
+    height: clamp(760px, calc(100svh - 40px), 960px);
     background: var(--line);
     border: 1px solid var(--line);
   }
@@ -188,7 +188,9 @@ const handle = '@' + new URL(SITE.x).pathname.slice(1);
 
   /* 简介 */
   .intro { grid-area: intro; justify-content: space-between; padding-bottom: 22px; }
-  .who { display: flex; align-items: center; gap: 12px; }
+  .who { display: flex; align-items: center; gap: 12px; padding-right: 40px; }
+  /* 首页没有顶栏，换主题的按钮放在简介那格右上角 */
+  .intro :global(.intro-theme) { position: absolute; top: 12px; right: 12px; }
   .who img { width: 40px; height: 40px; border-radius: 50%; background: var(--bg-2); }
   .name { font-family: var(--serif); font-size: 24px; line-height: 1; }
   .role { margin-top: 4px; font-size: 12px; color: var(--fg-3); }
@@ -247,7 +249,7 @@ const handle = '@' + new URL(SITE.x).pathname.slice(1);
   /* 一直是深底的两格：牌子跟 SOOTY 海报上的标签一样，深底浅字 */
   .scene.dark .tag { color: rgb(237 237 234 / .8); background: rgb(10 10 10 / .62); border-color: rgb(237 237 234 / .16); }
   .scene.dark .name-link:hover { color: #fff; border-color: rgb(237 237 234 / .4); }
-  /* 首屏里只看、只玩，不要实验自己的提示和按钮（下面「Lab」那节和详情页里都有） */
+  /* 首屏里只看、只玩，不要实验自己的提示和按钮（/lab/ 页和详情页里都有） */
   .scene :global(.lab-hint), .scene :global(.tools) { display: none; }
 
   /* SOOTY：海报铺满，上面两个小标签 */
@@ -387,7 +389,8 @@ const handle = '@' + new URL(SITE.x).pathname.slice(1);
   .also a {
     display: grid;
     grid-template-columns: 32px minmax(0, 1fr);
-    grid-template-areas: "icon name" "icon sum" "icon kind";
+    grid-template-areas: "icon name" "icon kind";
+    align-items: center;
     column-gap: 12px;
     padding-block: 10px;
   }
@@ -395,7 +398,6 @@ const handle = '@' + new URL(SITE.x).pathname.slice(1);
   .also img { grid-area: icon; width: 32px; height: 32px; border-radius: 27%; object-fit: cover; }
   .pn { grid-area: name; font-family: var(--serif); font-size: 21px; line-height: 1.05; }
   .pn .out::after { font-size: 12px; color: var(--fg-3); }
-  .ps { grid-area: sum; margin-top: 2px; font-size: 13px; line-height: 1.4; color: var(--fg-2); }
   .pk { grid-area: kind; margin-top: 3px; font-size: 11px; color: var(--fg-3); }
   .also a:hover .pn { color: var(--accent); }
 
@@ -433,7 +435,7 @@ const handle = '@' + new URL(SITE.x).pathname.slice(1);
   }
   /* 手机：一列（海浪和树并排） */
   @media (max-width: 640px) {
-    .hero { padding-block: 12px 24px; }
+    .hero { padding-top: 12px; }
     .bento {
       grid-template-areas:
         "intro intro"
@@ -456,7 +458,7 @@ const handle = '@' + new URL(SITE.x).pathname.slice(1);
     .waves .name-link, .trees .name-link { display: none; }
     .list { columns: 1; }
     .row { padding-block: 9px 8px; }
-    /* 手机上只列最新的五个，其余的下面「Lab」那节都能玩 */
+    /* 手机上只列最新的五个，最后一行链到 /lab/ 页 */
     .list li:nth-child(n+6):not(.more) { display: none; }
     .list .more { display: block; }
     .more .no, .more .title { color: var(--fg-3); }

@@ -1,11 +1,9 @@
 ---
-// 首页：首屏一屏放下简介、SOOTY、项目、实验目录和联系方式（Hero），往下是全部实验，能直接玩
+// 首页：只有首屏（Hero），一屏放下简介、SOOTY、三个直接跑着的实验、实验目录、联系方式和项目。
+// 没有顶栏（2026-11-17 laken 要的）；全部实验在单独的 /lab/ 页。
 import Base from '../layouts/Base.astro';
 import Hero from '../components/Hero.astro';
-import Section from '../components/Section.astro';
-import Labs from '../components/Labs.astro';
 ---
-<Base>
+<Base nav={false}>
   <Hero />
-  <Section id="lab" label="Lab"><Labs /></Section>
 </Base>
