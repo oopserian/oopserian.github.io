@@ -12,7 +12,8 @@
         按这一格的亮度从 . : - = + * # % @ 里挑（越亮越浓），天是淡的点，云是浓的字；
         字顺着明暗的等高线转，云边一圈的字绕着云走，跟海浪里字顺着浪头转是一个做法。
         深色主题是黄昏：太阳贴着地平线，云被照成金色、粉色，背光的地方是紫的，字就用底稿的颜色；
-        浅色主题是白天：太阳在身后，蓝天白云，字照 ASCII Waves 的规矩按浓淡上墨，越浓墨越深，云是一团深蓝的字，不是白底上的洞。
+        浅色主题是白天，纸上的墨，正片：天是一道道钴蓝的横排线 - =，越往头顶越密越深；云是留白，受光的地方只有淡淡的点，
+        背光的云底才用灰蓝的 + * 压出来，云边的排线绕着云走，一朵朵就被天勾出来。
         画布是透明的，字以外露出网页自己的底色，所以铺满整块也跟网站接得上。
 
    鼠标、手指划过：从画面上那一点往天上打一条线，落在云层中间的点连成一笔，跟着风飘。这一笔把云拨开一道沟，跟着划的路线拐弯：
@@ -52,13 +53,14 @@ const SKIES = {
     sun: [-0.45, 0.62, 0.65], sunCol: [1.6, 1.55, 1.45], disc: 0,
     zenith: [0.2, 0.42, 0.82], mid: [0.42, 0.62, 0.9], horizon: [0.72, 0.82, 0.94], glow: [0, 0, 0],
     ambTop: [0.62, 0.74, 0.95], ambBot: [0.38, 0.47, 0.66],
-    ink: [[0.62, 0.72, 0.84], [0.36, 0.53, 0.78], [0.16, 0.32, 0.62], [0.05, 0.12, 0.3]],
+    ink: [[0.6, 0.65, 0.73], [0.5, 0.55, 0.65], [0.4, 0.45, 0.56], [0.3, 0.35, 0.47]],
+    skyInk: [[0.48, 0.63, 0.82], [0.12, 0.34, 0.66]], stroke: [5.5, 4],
   },
   dusk: {
     sun: [0.75, -0.03, -1], sunCol: [2.6, 1.15, 0.55], disc: 0,
     zenith: [0.07, 0.07, 0.2], mid: [0.42, 0.24, 0.42], horizon: [1.0, 0.5, 0.3], glow: [1.0, 0.62, 0.32],
     ambTop: [0.24, 0.2, 0.42], ambBot: [0.34, 0.17, 0.28],
-    ink: null,
+    ink: null, stroke: [3, 3],
   },
 };
 
@@ -98,10 +100,10 @@ function makeDetail(n = 32) {   // 返回 { data, n }，传给显卡见 create()
 const GLYPHS = [".", ":", "-", "=", "+", "*", "#", "%", "@"];
 const GROOVE = 64, GROOVE_LIFE = 4;   // 拨开的沟最多记几个点、一个点留几秒
 const T = 64;
-function drawAtlas(c) {
+function drawAtlas(c, stroke = [3, 3]) {   // stroke：横线 - =、别的字的描边
   const g = c.getContext("2d");
   c.width = T * GLYPHS.length; c.height = T;
-  g.fillStyle = g.strokeStyle = "#fff"; g.lineJoin = "round"; g.lineWidth = 3;
+  g.fillStyle = g.strokeStyle = "#fff"; g.lineJoin = "round";
   g.textAlign = "left"; g.textBaseline = "alphabetic";
   g.font = '500 50px "DM Mono", ui-monospace, monospace';
   GLYPHS.forEach((ch, i) => {
@@ -111,6 +113,7 @@ function drawAtlas(c) {
     g.save();
     g.translate(i * T + T / 2, T / 2); g.scale(sx, 1);
     const x = -(r - l) / 2, y = (up - dn) / 2;
+    g.lineWidth = ch === "-" || ch === "=" ? stroke[0] : stroke[1];
     g.fillText(ch, x, y); g.strokeText(ch, x, y);
     g.restore();
   });
@@ -253,13 +256,18 @@ const COMP_FS = /* glsl */ `
   uniform float uCell, uN;          // 一格多少设备像素、字有几个
   uniform vec4 uRange;              // 天的亮度从 x 到 y、云的亮度从 z 到 w
   uniform float uInk;               // 1：浅色主题，按浓淡上墨；0：深色主题，用底稿的颜色
-  uniform vec3 uC0, uC1, uC2, uC3;  // 浅色主题的墨
+  uniform vec3 uC0, uC1, uC2, uC3;  // 浅色主题云的墨：由受光到背光
+  uniform vec3 uS0, uS1;            // 浅色主题天的墨：由地平线到头顶
   float hash(vec2 p) { return fract(sin(dot(p, vec2(12.9898, 78.233))) * 43758.5453); }
   vec3 ramp(float t) {
     t = clamp(t, 0.0, 1.0) * 3.0;
     return t < 1.0 ? mix(uC0, uC1, t) : t < 2.0 ? mix(uC1, uC2, t - 1.0) : mix(uC2, uC3, t - 2.0);
   }
   float lum(vec3 c) { return dot(c, vec3(0.3, 0.55, 0.15)); }
+  float bayer(vec2 c) {             // 4×4 的 Bayer 矩阵，这一格的阈值（0~1）
+    ivec2 p = ivec2(mod(c, 4.0)), lo = p & 1, hi = p >> 1;
+    return (float(4 * (2 * (lo.x ^ lo.y) + lo.y) + 2 * (hi.x ^ hi.y) + hi.y) + 0.5) / 16.0;
+  }
   vec4 at(vec2 cell, float lod) { return textureLod(uScene, vec2((cell.x + 0.5) / uCells.x, 1.0 - (cell.y + 0.5) / uCells.y), lod); }
   // 这一格该多浓（0~1）：天只用最淡的三个字 . : -，越亮越浓；云用后面的 = + * # % @，也是越亮越浓
   float level(vec4 s) {
@@ -282,9 +290,28 @@ const COMP_FS = /* glsl */ `
     a *= smoothstep(0.03, 0.12, length(g));
     float lv = clamp(level(s) + (hash(cell) - 0.5) * 0.06, 0.0, 0.999);
     float gi = floor(lv * uN);
-    // 颜色：深色主题取底稿的色相，亮度跟着字的浓淡走，最淡的也看得见；浅色主题按浓淡上墨
+    // 颜色：深色主题取底稿的色相，亮度跟着字的浓淡走，最淡的也看得见
     vec3 hue = s.rgb / max(max(s.r, s.g), max(s.b, 0.02));
-    vec3 col = mix(hue * (0.4 + 0.65 * lv), ramp(lv), uInk);
+    vec3 col = hue * (0.4 + 0.65 * lv);
+    if (uInk > 0.5) {
+      // 浅色主题是纸上的墨，正片：越暗墨越重。天是一道道横的排线 - =（版画里画天的做法），越往头顶越密越蓝；
+      // 云是留白，受光的地方只有淡淡的点，背光的云底才用 + * 压出来。云边的排线顺着云边转，一朵朵就被勾出来
+      float L = lum(s.rgb), j = hash(cell) - 0.5;
+      float cov = smoothstep(0.2, 0.65, s.a);
+      if (cov + (hash(cell + 7.7) - 0.5) * 0.3 < 0.5) {
+        // 单线、双线按 4×4 的 Bayer 矩阵交错，渐变是一格格排出来的，不是随机的噪点；
+        // 头顶也留三成单线、地平线也有一成双线，排线一直是疏密交错的，不铺成一整块
+        float t = clamp((uRange.y - L) / (uRange.y - uRange.x), 0.0, 1.0);
+        gi = 0.1 + 0.6 * t > bayer(cell) ? 3.0 : 2.0;
+        col = mix(uS0, uS1, t);
+      } else {
+        // 云大半是白的：受光的地方只有淡淡的 . :，越背光墨越重，最重也只到灰蓝的 *，不压成一团黑
+        float t = clamp(pow(clamp((uRange.w - L) / (uRange.w - uRange.z), 0.0, 1.0), 1.3) * 0.85 + j * 0.08, 0.0, 0.999);
+        const float CG[4] = float[4](0.0, 1.0, 4.0, 5.0);
+        gi = CG[int(t * 4.0)];
+        col = ramp(t);
+      }
+    }
     vec2 loc = (fc - (cell + 0.5) * uCell) / uCell;
     vec2 q = vec2(cos(a) * loc.x + sin(a) * loc.y, -sin(a) * loc.x + cos(a) * loc.y);
     float ink = 0.0;
@@ -337,9 +364,11 @@ function create(canvas, { period = 12000, cell = 8, fps = 30 } = {}) {
   let W = 0, H = 0, dpr = 1, raf = 0, visible = true, last = -1e9, dead = false, sky = SKIES.day, dark = false;
 
   // 主题：浅色是白天，深色是黄昏
+  let weight = SKIES.dusk.stroke;   // 图集现在按哪套描边画的：浅色主题深字在浅底上显细，描粗一点
   function readTheme() {
     dark = getComputedStyle(canvas).colorScheme.includes("dark");
     sky = SKIES[dark ? "dusk" : "day"];
+    if (sky.stroke !== weight) { weight = sky.stroke; drawAtlas(atlasCanvas, weight); atlas.update(); }
   }
   const sunDir = () => { const [x, y, z] = sky.sun, l = Math.hypot(x, y, z); return [x / l, y / l, z / l]; };
   function relayout() {
@@ -424,8 +453,8 @@ function create(canvas, { period = 12000, cell = 8, fps = 30 } = {}) {
     const ink = sky.ink || SKIES.day.ink;
     compP.use({
       uScene: [sceneRT.tex, 0], uAtlas: [atlas.tex, 1], uRes: [canvas.width, canvas.height], uCells: [cols, rows],
-      uCell: cell * dpr, uN: GLYPHS.length, uRange: dark ? [0.18, 0.4, 0.32, 0.56] : [0.45, 0.56, 0.42, 0.72], uInk: sky.ink ? 1 : 0,
-      uC0: ink[0], uC1: ink[1], uC2: ink[2], uC3: ink[3],
+      uCell: cell * dpr, uN: GLYPHS.length, uRange: dark ? [0.18, 0.4, 0.32, 0.56] : [0.46, 0.555, 0.42, 0.72], uInk: sky.ink ? 1 : 0,
+      uC0: ink[0], uC1: ink[1], uC2: ink[2], uC3: ink[3], uS0: SKIES.day.skyInk[0], uS1: SKIES.day.skyInk[1],
     });
     tri.draw();
     if (!still || busy) schedule();
@@ -445,7 +474,7 @@ function create(canvas, { period = 12000, cell = 8, fps = 30 } = {}) {
   // 字的图集用网站的 DM Mono 画，字体晚到了重画一遍
   document.fonts?.load('500 50px "DM Mono"').then(() => {
     if (dead) return;
-    drawAtlas(atlasCanvas); atlas.update(); paint(true);
+    drawAtlas(atlasCanvas, weight); atlas.update(); paint(true);
   }, () => {});
 
   relayout();

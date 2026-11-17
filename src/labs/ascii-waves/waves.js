@@ -7,8 +7,8 @@
         浪花只在三道最大的浪的浪尖上一簇一簇地起，往后拖一段渐淡的尾巴，每簇自己冒出来、再散掉；
         浪尖挤到一起（雅可比行列式变小）的地方、手划过的尾迹上也有。
      2. 合成（composite）：整块切成 8px 见方的格子，每格都有字，不留空：
-        浪花够浓的格子画浪花的字 . : * o @（越浓越大），深色主题是白的，浅色主题是最深的墨，不转；浪花边上零星撒几个点当飞沫。
-        别的格子画水：按亮度从 - ~ = 里挑，颜色沿一条色带走（深色主题由深蓝到浅蓝，浅色主题由浅灰蓝到深蓝），
+        浪花够浓的格子画浪花的字 . : * o @（越浓越大），深色主题是白的，浅色主题是留白里淡淡的蓝，不转；浪花边上零星撒几个点当飞沫。
+        别的格子画水：按亮度从 - ~ = 里挑，颜色沿一条色带走（深色主题越亮越浓，由深蓝到浅蓝；浅色主题反过来越暗越浓，由浅灰蓝到深蓝），
         字再转到浪头的走向上，一道道浪就被横着的字描出来，尾迹推出去的浪上的字也顺着那道浪转，
         跟最早那版草浪里字顺着草叶转是一个做法。
         画布是透明的，字以外露出网页自己的底色，所以铺满整块也跟网站接得上。
@@ -57,10 +57,18 @@ function thin(list, pos, isStart) {
 function rng(seed) { let s = (seed >>> 0) || 1; return () => ((s = (Math.imul(s, 1664525) + 1013904223) >>> 0) / 4294967296); }
 
 // 颜色：水的字沿一条四个颜色的色带走，由淡的字到浓的字；浪花的字由淡到浓两个颜色。
-// 深色主题水由深蓝到浅蓝、浪花由浅蓝到白（越浓越亮）；浅色主题水由浅灰蓝到深蓝、浪花是最深的墨（越浓越重）
+// 深色主题越亮的水字越浓：水由深蓝到浅蓝、浪花由浅蓝到白（越浓越亮）。
+// 浅色主题是纸上的墨，反过来越暗的水字越浓（flip），跟首屏的字符画一样两边都是正片：浪谷是浓的深蓝，
+// 迎着光的浪面淡下去，浪花是留白，只剩一圈圈淡的字。浅色的字描粗一点（stroke：水、浪花的描边），深字在浅底上显细
 const COLORS = {
-  dark: { water: [[0.1, 0.26, 0.5], [0.13, 0.42, 0.76], [0.27, 0.65, 0.92], [0.55, 0.84, 1.0]], foam: [[0.62, 0.86, 1.0], [1.0, 1.0, 1.0]] },
-  light: { water: [[0.6, 0.7, 0.8], [0.33, 0.52, 0.75], [0.17, 0.37, 0.65], [0.09, 0.23, 0.5]], foam: [[0.1, 0.22, 0.42], [0.02, 0.06, 0.17]] },
+  dark: {
+    water: [[0.1, 0.26, 0.5], [0.13, 0.42, 0.76], [0.27, 0.65, 0.92], [0.55, 0.84, 1.0]], foam: [[0.62, 0.86, 1.0], [1.0, 1.0, 1.0]],
+    flip: 0, stroke: [4.5, 3],
+  },
+  light: {
+    water: [[0.56, 0.66, 0.8], [0.33, 0.48, 0.72], [0.16, 0.31, 0.6], [0.06, 0.15, 0.38]], foam: [[0.46, 0.58, 0.78], [0.68, 0.76, 0.89]],
+    flip: 1, stroke: [6.5, 4.5],
+  },
 };
 
 // ---------- 波 ----------
@@ -90,7 +98,7 @@ function makeWaves(period) {
 // 后 5 个是浪花，由淡到浓 . : * o @，不拉宽。每个字按墨迹居中，再描一圈边，笔画粗一点
 const GLYPHS = ["-", "~", "=", ".", ":", "*", "o", "@"], WATER = 3;
 const T = 64;
-function drawAtlas(c) {
+function drawAtlas(c, stroke = [4.5, 3]) {
   const g = c.getContext("2d");
   c.width = T * GLYPHS.length; c.height = T;
   g.fillStyle = g.strokeStyle = "#fff"; g.lineJoin = "round";
@@ -103,7 +111,7 @@ function drawAtlas(c) {
     g.save();
     g.translate(i * T + T / 2, T / 2); g.scale(sx, 1);
     const x = -(r - l) / 2, y = (up - dn) / 2;
-    g.lineWidth = i < WATER ? 4.5 : 3;   // 水的字是细线，描粗一点才压得住整块
+    g.lineWidth = i < WATER ? stroke[0] : stroke[1];   // 水的字是细线，描粗一点才压得住整块
     g.fillText(ch, x, y); g.strokeText(ch, x, y);
     g.restore();
   });
@@ -300,6 +308,7 @@ const COMP_FS = /* glsl */ `
   uniform vec2 uRange;              // 水的亮度从 x 到 y 铺满由淡到浓的水的字
   uniform vec3 uC0, uC1, uC2, uC3;  // 水的色带
   uniform vec3 uF0, uF1;            // 浪花由淡到浓的颜色
+  uniform float uFlip;              // 1：浅色主题，越暗的水字越浓
   float hash(vec2 p) { return fract(sin(dot(p, vec2(12.9898, 78.233))) * 43758.5453); }
   vec3 ramp(float t) {
     t = clamp(t, 0.0, 1.0) * 3.0;
@@ -323,6 +332,7 @@ const COMP_FS = /* glsl */ `
       vec2 t2 = textureLod(uScene, vec2(c0.x, 1.0 - c0.y), uLod + 1.5).gb * 2.0 - 1.0;   // 方向取周围几格一起的，不跟着一格里的小起伏乱转
       a = dot(t2, t2) > 1e-12 ? 0.5 * atan(t2.y, t2.x) * smoothstep(0.05, 0.25, length(t2)) : 0.0;   // atan(0, 0) 没定义，有的显卡算出 NaN
       float lv = clamp((s.r - uRange.x) / (uRange.y - uRange.x) + (r1 - 0.5) * 0.08, 0.0, 0.999);
+      if (uFlip > 0.5) lv = 0.999 - lv;
       gi = floor(lv * ${WATER}.0);
       col = ramp(lv);
     }
@@ -406,7 +416,11 @@ function create(canvas, { period = 12000, cell = 8, fps = 30 } = {}) {
 
   let W = 0, H = 0, dpr = 1, raf = 0, visible = true, last = -1e9, dead = false, colors = COLORS.light;
 
-  function readTheme() { colors = COLORS[getComputedStyle(canvas).colorScheme.includes("dark") ? "dark" : "light"]; }
+  let weight = COLORS.dark.stroke;   // 图集现在按哪套描边画的
+  function readTheme() {
+    colors = COLORS[getComputedStyle(canvas).colorScheme.includes("dark") ? "dark" : "light"];
+    if (colors.stroke !== weight) { weight = colors.stroke; drawAtlas(atlasCanvas, weight); atlas.update(); }
+  }
   function relayout() {
     W = canvas.clientWidth; H = canvas.clientHeight;
     if (!W || !H) return;
@@ -492,7 +506,7 @@ function create(canvas, { period = 12000, cell = 8, fps = 30 } = {}) {
     compP.use({
       uScene: [sceneRT.tex, 0], uAtlas: [atlas.tex, 1], uRes: [canvas.width, canvas.height], uCell: cell * dpr,
       uLod: Math.log2(cell * dpr) - 0.5, uN: GLYPHS.length, uRange: [0.25, 0.8],
-      uC0: C.water[0], uC1: C.water[1], uC2: C.water[2], uC3: C.water[3], uF0: C.foam[0], uF1: C.foam[1],
+      uC0: C.water[0], uC1: C.water[1], uC2: C.water[2], uC3: C.water[3], uF0: C.foam[0], uF1: C.foam[1], uFlip: C.flip,
     });
     tri.draw();
     if (!still || busy) schedule();
@@ -512,7 +526,7 @@ function create(canvas, { period = 12000, cell = 8, fps = 30 } = {}) {
   // 字的图集用网站的 DM Mono 画，字体晚到了重画一遍
   document.fonts?.load('400 54px "DM Mono"').then(() => document.fonts.load('500 54px "DM Mono"')).then(() => {
     if (dead) return;
-    drawAtlas(atlasCanvas); atlas.update(); paint(true);
+    drawAtlas(atlasCanvas, weight); atlas.update(); paint(true);
   }, () => {});
 
   relayout();

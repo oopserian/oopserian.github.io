@@ -28,7 +28,8 @@ prompt: |-
 
   3. Themes
   - Dark: the water runs along a ramp from deep to pale blue, and the foam from pale blue to white.
-  - Light: the water runs from grey-blue to navy, and the foam is the darkest ink.
+  - Light: ink on paper, so flip the scale and give darker water the denser strokes. The water runs from grey-blue to navy, the troughs carry the ink, and the foam is left pale, in two light blues.
+  - In light mode, paint the atlas with a heavier outline (about 1.5× the dark mode's), since dark strokes on a pale ground read thinner than pale strokes on a dark one.
   - Update when my theme switch changes the theme.
 
   4. Wake

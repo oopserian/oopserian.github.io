@@ -44,15 +44,16 @@ function thin(list) {
 
 // 颜色：沙的字沿一条四个颜色的色带走，由淡的字到浓的字；扬起来的沙一个颜色。
 // 深色主题是黄昏：背光的地方是暗紫，往亮里走是灰玫瑰、琥珀、浅金（越亮越浓）；
-// 浅色主题像钢笔画：由浅沙色到深褐，越暗越浓，影子是一片密密的墨
+// 浅色主题像钢笔画：由浅沙色到深褐，越暗越浓，影子是一片密密的墨；天也反过来，地平线跟远处的雾接上，越往上墨越淡。
+// 浅色的字描粗一点（stroke：沙、扬起的沙的描边），深字在浅底上显细
 const COLORS = {
   dark: {
     sand: [[0.3, 0.26, 0.5], [0.72, 0.42, 0.45], [1.0, 0.66, 0.36], [1.0, 0.92, 0.7]], spray: [1.0, 0.95, 0.85],
-    range: [0.31, 0.62], dense: 1.8,
+    range: [0.31, 0.62], dense: 1.8, stroke: [4.5, 3],
   },
   light: {
-    sand: [[0.55, 0.43, 0.3], [0.45, 0.32, 0.2], [0.33, 0.21, 0.12], [0.18, 0.1, 0.05]], spray: [0.5, 0.32, 0.16],
-    range: [0.31, 0.62], dense: 1,
+    sand: [[0.72, 0.48, 0.24], [0.57, 0.33, 0.15], [0.39, 0.19, 0.09], [0.21, 0.09, 0.06]], spray: [0.5, 0.27, 0.11],
+    range: [0.31, 0.62], dense: 1, stroke: [6.5, 4.5],
   },
 };
 
@@ -133,7 +134,7 @@ function duneH(x, z) {
 // 后 3 个是扬起来的沙，由淡到浓 . : *，不拉宽。每个字按墨迹居中，再描一圈边，笔画粗一点
 const GLYPHS = ["-", "~", "=", ".", ":", "*"], SAND = 3;
 const T = 64;
-function drawAtlas(c) {
+function drawAtlas(c, stroke = [4.5, 3]) {
   const g = c.getContext("2d");
   c.width = T * GLYPHS.length; c.height = T;
   g.clearRect(0, 0, c.width, c.height);
@@ -147,7 +148,7 @@ function drawAtlas(c) {
     g.save();
     g.translate(i * T + T / 2, T / 2); g.scale(sx, 1);
     const x = -(r - l) / 2, y = (up - dn) / 2;
-    g.lineWidth = i < SAND ? 4.5 : 3;   // 沙的字是细线，描粗一点才压得住整块
+    g.lineWidth = i < SAND ? stroke[0] : stroke[1];   // 沙的字是细线，描粗一点才压得住整块
     g.fillText(ch, x, y); g.strokeText(ch, x, y);
     g.restore();
   });
@@ -174,6 +175,7 @@ const SAND_FS = /* glsl */ `
   uniform float uTrailN;
   uniform vec4 uTap[${TAPS}];         // 沙堆：x、z、过了几秒、随机数
   uniform float uTapN;
+  uniform float uLight;               // 1：浅色主题，天的明暗反过来，越往上越亮（合成时浓淡也翻过来，就是越往上墨越淡）
   const vec3 RO = vec3(0.0, ${CAM_H}, 0.0);
   ${GLSL_TERRAIN}
   // 沙纹：顺风方向上第几道，弯一点，一圈往下风挪一道
@@ -248,8 +250,10 @@ const SAND_FS = /* glsl */ `
       if (t > ${TMAX}.0) break;
     }
     if (hit < 0.0) {
-      // 天：字横着放
-      o = vec4(clamp(skyL(rd), 0.0, 1.0), 0.0, 0.5, 0.5);
+      // 天：字横着放。浅色主题是白天的纸：地平线上那层沙尘跟雾接上，越往上越淡，不压成一道深色的边
+      float sl = skyL(rd);
+      if (uLight > 0.5) sl = 1.04 - sl;
+      o = vec4(clamp(sl, 0.0, 1.0), 0.0, 0.5, 0.5);
       return;
     }
     vec3 P = RO + rd * hit;
@@ -437,7 +441,12 @@ function create(canvas, { period = 12000, cell = 8, fps = 30 } = {}) {
 
   let W = 0, H = 0, dpr = 1, raf = 0, visible = true, last = -1e9, dead = false, dark = false;
 
-  function readTheme() { dark = getComputedStyle(canvas).colorScheme.includes("dark"); }
+  let weight = COLORS.dark.stroke;   // 图集现在按哪套描边画的：浅色主题深字在浅底上显细，描粗一点
+  function readTheme() {
+    dark = getComputedStyle(canvas).colorScheme.includes("dark");
+    const C = COLORS[dark ? "dark" : "light"];
+    if (C.stroke !== weight) { weight = C.stroke; drawAtlas(atlasCanvas, weight); atlas.update(); }
+  }
   function relayout() {
     W = canvas.clientWidth; H = canvas.clientHeight;
     if (!W || !H) return;
@@ -519,7 +528,7 @@ function create(canvas, { period = 12000, cell = 8, fps = 30 } = {}) {
     sandP.use({
       uCamR: cam.R, uCamU: cam.U, uCamF: cam.F, uTan: cam.tan, uU: u, uFoot: (2 * cam.tan[1]) / sandRT.h, uSun: sun,
       uGroove: 0.05, uPile: 0.2,
-      uTrail: trailU, uTrailN: trail.length, uTap: tapU, uTapN: taps.length,
+      uTrail: trailU, uTrailN: trail.length, uTap: tapU, uTapN: taps.length, uLight: dark ? 0 : 1,
     });
     tri.draw();
     sandRT.mip();
@@ -551,7 +560,7 @@ function create(canvas, { period = 12000, cell = 8, fps = 30 } = {}) {
   // 字的图集用网站的 DM Mono 画，字体晚到了重画一遍
   document.fonts?.load('500 50px "DM Mono"').then(() => {
     if (dead) return;
-    drawAtlas(atlasCanvas); atlas.update(); paint(true);
+    drawAtlas(atlasCanvas, weight); atlas.update(); paint(true);
   }, () => {});
 
   relayout();
