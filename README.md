@@ -84,7 +84,7 @@ pnpm check      # 类型检查
 - 动效曲线用 `--lab-ease`（一般的过渡）和 `--lab-spring`（弹出来，稍微冲过头）。系统开了「减弱动态效果」，`kit.css` 把实验里的过渡和动画都缩到一瞬。
 - 鼠标、触屏、键盘都要能玩：悬停才有的效果，触屏上换成点一下；能点的东西用 `button`，或者加上 `role` 和 `tabIndex`。舞台底下一行 `.lab-hint` 告诉人怎么玩，鼠标、触屏玩法不一样就写两句（`.for-mouse`、`.for-touch`），按设备只露一句。按钮用 `.lab-btn`。
 - 省：指针移动时不改 React 的状态，位置写进 CSS 变量或者直接写 `transform`；动的只有 `transform`、`opacity`（和 `translate`、`rotate`、`scale` 这几个单独的属性）；一直转的用 CSS 动画，暂停用 `animation-play-state`；`backdrop-filter` 这种贵的层只在用的时候挂上。
-- 不用动画库和图标库：原来几个实验的 Motion 动画换成了 CSS 过渡、`@starting-style` 和 Web Animations，Tabler 图标换成了 Phosphor（跟网站一样），这样实验只下载 React 和自己那一小段。要加图标，从 `@phosphor-icons/core` 的 `assets/regular/` 里把 `<path>` 的 `d` 拷进 `icons.tsx`。
+- 不用动画库和图标库：原来几个实验的 Motion 动画换成了 CSS 过渡、`@starting-style` 和 Web Animations，Tabler 图标换成了 Phosphor（跟网站一样），这样实验只下载 React 和自己那一小段。要加图标，从 `@phosphor-icons/core` 的 `assets/regular/` 里把 `<path>` 的 `d` 拷进 `icons.tsx`。不经过 React、由脚本自己建的元素（比如 Paper Attachments 里拖进来才有的附件小图）用同一个文件里的 `iconSvg(name, size)` 拿 SVG 字符串。
 
 ## 加一个项目
 
@@ -132,6 +132,7 @@ pnpm check      # 类型检查
   - OGL（1.0，Unlicense）：小，接口跟 Three.js 像，但 2025 年初以后没再发版。
   - regl（2.1，MIT）：函数式的写法很省，但只支持 WebGL1，着色器得改写成 GLSL 1.0，2024 年以后没再发版。
 - **Crown Shyness 用 CPU 一个像素一个像素地画，不用 WebGL**：画面就是一张约 3.6 万个像素的小图（放大几倍按舞台面积定），再整数倍放大；每个像素要知道归哪棵树、离缝多远、被哪一团叶子盖住、落在色带的哪一档，在 JS 里扫几遍数组最直接，颜色也能一档一档地管住（像素画靠的就是这个）。写成着色器的话，叶团、主枝、近处的叶团这种按先后叠的东西得拆成好几遍渲染，省不了多少。无头 Chromium 里（没有显卡）一帧二十毫秒上下，平时限 30 帧，滚出屏幕就停。2026-11-12 先做成发帖用的单页（照 laken 给的一张林冠照片，像素风参考 feralui.dev/pixel-play），11-13 放进 lab 时把「按宽度排林子、一行一百八十像素」改成按面积：详情页的舞台又宽又矮，按宽度排的话树冠被放得很大、像素也粗。
+- **Paper Attachments 直接写 WebGL2，纸的物理在 CPU 上算，不引 Three.js 和物理库**：拿起来的纸是一张 13 列的网格，用 Verlet 积分加距离约束（相邻、对角，再加隔 2、4、8 格的长约束给它纸的硬度），每步再做一次形状匹配，弯得宽而顺、不会在一行上折死；手捏住的是纸宽 17% 的一小块圆，手每步带着纸走七成，快速一甩会摆，但不会皱成一团。一张纸两百来个点（提案是 13 × 18），无头 Chromium 里一帧（两步）算半毫秒左右，写成着色器反而要来回倒数据。画的部分是透视镜头、一张带法线和折角的网格、一张离屏影子图（主光影子按高度往右下滑、贴着纸的环境影子，横竖各模糊一遍），杂活还是 `_kit/gl.js` 那几样，透视矩阵自己写。2026-11-16 先做成发帖用的单页，那一版用的是 Three.js（r128）；放进 lab 时改成原生 WebGL2，省掉这一个实验要下的 Three.js。桌上的小图、附件、发出去的页都是普通的 DOM，只有纸在空中时画布才画，落定了就停；没有 WebGL2 时换成扁平的卡片走同样的路线。
 - **分享图用 Playwright 截**（1.63，Apache-2.0，只是开发时用的依赖，不进页面）：实验的样子就是页面本身，截真页面最准，也不用另写一套画图的代码。比较过 Satori（Vercel 的 JSX 转 SVG，MIT）：画标题和字很方便，但画不了实验本身（WebGL、CSS 3D、背景模糊都不支持），只能放一张事先截好的图进去，等于还是要截图；Astro 的 `astro:assets` 只能处理已有的图，不能截图。
 - **图标**：Phosphor 的 regular 粗细，几个用到的直接写成内联 SVG（网站的在 `components/Icon.astro`，实验的在 `src/labs/_kit/icons.tsx`），不引图标库。
 
