@@ -7,11 +7,11 @@ import { labSource } from '../site';
 
 interface Props { lab: CollectionEntry<'labs'> }
 const { lab } = Astro.props;
-const { title, tags, inspiration, wip, summary, date } = lab.data;
+const { title, tags, inspiration, wip, dark, summary, date } = lab.data;
 const when = date.toLocaleDateString('en', { year: 'numeric', month: 'short', timeZone: 'UTC' }); // 做出来的年月，比如 Jan 2025
 ---
 <article class="card" id={lab.id}>
-  <LabStage slug={lab.id} wip={wip} />
+  <LabStage slug={lab.id} wip={wip} dark={dark} />
   <div class="foot">
     <div class="text">
       {wip

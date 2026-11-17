@@ -9,7 +9,7 @@
         朝着它的面一块块闪亮，亮面跟着光滑过去；斜着的面映着一点天光；鼠标是第二盏灯，悬在煤上，跟着鼠标走。
         越远越暗，远处没进黑里。缝里住着冷的蓝光：平时只有几处亮，沿着缝慢慢挪，把缝两边的煤块底下也映蓝。
         底稿存三样：亮度、蓝光有多亮、字该朝哪个方向放（煤面的等高线投到画面上，存成二倍角）。
-     3. 合成（composite）：整块切成 6px 见方的格子，每格都有字，不留空。跟 ASCII Waves 一个做法：
+     3. 合成（composite）：整块切成 5px 见方的格子，每格都有字，不留空。跟 ASCII Waves 一个做法：
         煤面按亮度从 - = # 里挑，颜色沿一条色带走，字再转到等高线的走向上，同一个面上的字朝一个方向，换一个面就换一个方向，
         一块块煤的棱角就被字描出来；蓝光把字染蓝，最亮的地方（裂开时炸开的那一下）是不转的 . : * o @。
         画布是透明的，字以外露出网页自己的底色。
@@ -454,7 +454,7 @@ const compFS = (T) => /* glsl */ `
  * @param {HTMLCanvasElement} canvas
  * @param {{ period?: number, cell?: number, fps?: number }} [opts]
  */
-function create(canvas, { period = 12000, cell = 6, fps = 30 } = {}) {
+function create(canvas, { period = 12000, cell = 5, fps = 30 } = {}) {
   const P = DEF;
   const gl = context(canvas);   // 没有 WebGL2 就抛错，交给调用的人接
   const software = softwareGL(gl);

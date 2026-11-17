@@ -6,7 +6,7 @@
         水的亮度（浪顶比浪谷亮，迎着光的浪面、反光更亮，远处被雾抹到中间）、浪头在画面上的走向、浪花有多浓。
         浪花只在三道最大的浪的浪尖上一簇一簇地起，往后拖一段渐淡的尾巴，每簇自己冒出来、再散掉；
         浪尖挤到一起（雅可比行列式变小）的地方、手划过的尾迹上也有。
-     2. 合成（composite）：整块切成 6px 见方的格子，每格都有字，不留空：
+     2. 合成（composite）：整块切成 5px 见方的格子，每格都有字，不留空：
         浪花够浓的格子画浪花的字 . : * o @（越浓越大），深色主题是白的，浅色主题是留白里淡淡的蓝，不转；浪花边上零星撒几个点当飞沫。
         别的格子画水：按亮度从 - ~ = 里挑，颜色沿一条色带走（深色主题越亮越浓，由深蓝到浅蓝；浅色主题反过来越暗越浓，由浅灰蓝到深蓝），
         字再转到浪头的走向上，一道道浪就被横着的字描出来，尾迹推出去的浪上的字也顺着那道浪转，
@@ -365,7 +365,7 @@ function lookAt(eye, at) {
  * @param {HTMLCanvasElement} canvas
  * @param {{ period?: number, cell?: number, fps?: number }} [opts]
  */
-function create(canvas, { period = 12000, cell = 6, fps = 30 } = {}) {
+function create(canvas, { period = 12000, cell = 5, fps = 30 } = {}) {
   const gl = context(canvas);   // 没有 WebGL2 就抛错，交给调用的人接
   const software = softwareGL(gl);
   const motion = matchMedia("(prefers-reduced-motion: reduce)");

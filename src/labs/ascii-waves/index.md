@@ -3,6 +3,7 @@ title: ASCII Waves
 summary: Ocean waves drawn entirely in ASCII characters, from a 3D sea rendered live in a shader that you never see. Sweep across the water and it leaves a wake.
 tags: [WebGL, Shaders]
 date: 2026-11-04
+dark: true
 order: 10
 prompt: |-
   Add an ASCII sea to my project: a 3D ocean rendered live in a WebGL2 shader and shown only as ASCII characters, where the pointer leaves a wake like a boat's. Use raw WebGL2 with no 3D library: one engine file, plus a thin component in my existing framework. The canvas is transparent and fills its container; don't change my page's styles.
@@ -21,7 +22,7 @@ prompt: |-
   - Render into a target with depth and mipmaps, and read each cell from the mip level that matches the cell size.
 
   2. Characters
-  - Cut the canvas into 6 px cells. Every cell gets a character.
+  - Cut the canvas into 5 px cells. Every cell gets a character.
   - Cells with enough foam get an upright . : * o @, denser for more foam, with a few stray dots around the foam as spray.
   - Other cells get - ~ = by brightness, turned along the crest direction, so each wave is traced by sideways strokes. Stretch them sideways until each one, outline included, is exactly a cell wide, so neighbours join end to end into unbroken lines. Guard the angle where the direction vector is zero, because atan(0, 0) is NaN on some GPUs.
   - Draw the characters from a glyph atlas painted with the canvas 2D API in my site's monospace font. Repaint it once the font has loaded.

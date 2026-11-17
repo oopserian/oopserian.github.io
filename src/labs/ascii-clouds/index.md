@@ -3,6 +3,7 @@ title: ASCII Clouds
 summary: Cumulus clouds drawn entirely in ASCII characters, from a sky raymarched live in a shader that you never see. Sweep through them to part the clouds.
 tags: [WebGL, Shaders]
 date: 2026-11-02
+dark: true
 order: 9
 prompt: |-
   Add an ASCII cloud sky to my project: cumulus clouds rendered live in a WebGL2 shader, shown only as ASCII characters, that part when the pointer sweeps through them. Use raw WebGL2 with no 3D library: one engine file, plus a thin component in my existing framework. The canvas is transparent and fills its container; don't change my page's styles.
@@ -18,7 +19,7 @@ prompt: |-
   - Render this draft at only 2 pixels per character cell into a mipmapped render target. Nobody sees it directly.
 
   2. Characters
-  - Cut the canvas into 6 px cells. Every cell gets a character; none is left empty.
+  - Cut the canvas into 5 px cells. Every cell gets a character; none is left empty.
   - Pick from . : - = + * # % @ by brightness. The sky uses only . : - and the clouds use the rest (light mode inks them differently, see Themes).
   - Turn each character along the brightness contour, perpendicular to the gradient across neighbouring cells, so the strokes flow around each cloud. Stretch - and = sideways until each one, outline included, is exactly a cell wide, so the hatching joins end to end. Guard the angle where the gradient is zero, because atan(0, 0) is NaN on some GPUs.
   - Draw the characters from a glyph atlas painted with the canvas 2D API in my site's monospace font. Repaint it once the font has loaded.

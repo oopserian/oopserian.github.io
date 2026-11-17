@@ -6,9 +6,9 @@
      2. 云（clouds）：镜头站在地上往前上方看，画面最下沿刚好是地平线，整块都是天。每个像素往天上打一条光线，
         在 1 到 2.6 公里高的云层里走 48 步：云底平、云顶圆（云越厚顶越高），再用一张 32³ 的立体噪声（几层 Worley 反过来，
         一团一团鼓起来的）把边咬碎；每步往太阳那边再取三个点，算这里被挡掉多少光，加上天光，远处被雾抹成地平线的颜色。
-        这张图只画到「一格两个像素」那么细（字一格 6px，再细也看不出来），比整屏画便宜几十倍。
+        这张图只画到「一格两个像素」那么细（字一格 5px，再细也看不出来），比整屏画便宜几十倍。
         底稿存颜色和这一格有多少云。
-     3. 合成（composite）：整块切成 6px 见方的格子，每格都有字，不留空：
+     3. 合成（composite）：整块切成 5px 见方的格子，每格都有字，不留空：
         按这一格的亮度从 . : - = + * # % @ 里挑（越亮越浓），天是淡的点，云是浓的字；
         字顺着明暗的等高线转，云边一圈的字绕着云走，跟海浪里字顺着浪头转是一个做法。
         深色主题是黄昏：太阳贴着地平线，云被照成金色、粉色，背光的地方是紫的，字就用底稿的颜色；
@@ -326,7 +326,7 @@ const COMP_FS = /* glsl */ `
  * @param {HTMLCanvasElement} canvas
  * @param {{ period?: number, cell?: number, fps?: number }} [opts]
  */
-function create(canvas, { period = 12000, cell = 6, fps = 30 } = {}) {
+function create(canvas, { period = 12000, cell = 5, fps = 30 } = {}) {
   const gl = context(canvas);   // 没有 WebGL2 就抛错，交给调用的人接
   const software = softwareGL(gl);
   const motion = matchMedia("(prefers-reduced-motion: reduce)");

@@ -7,7 +7,7 @@
         太阳低低地挂在左后方：朝着镜头的迎风坡亮，背风坡背着光，沙丘的影子拖得很长（往太阳那边走几步看挡没挡住）；
         越远越被沙尘的雾抹平，到地平线跟天接上。棱上不时被风扬起一缕缕沙，顺着风往下飘。
         底稿存三样：亮度、扬起的沙有多少、字该朝哪个方向放（沙纹的走向，没有沙纹就顺着沙丘的等高线，投到画面上，存成二倍角）。
-     2. 合成（composite）：整块切成 6px 见方的格子，每格都有字，不留空。跟 ASCII Waves 一个做法：
+     2. 合成（composite）：整块切成 5px 见方的格子，每格都有字，不留空。跟 ASCII Waves 一个做法：
         沙按亮度从 - ~ = 里挑，颜色沿一条色带走，字再转到沙纹的走向上，一道道沙纹就被字描出来，跟着透视往远处收；
         扬起来的沙是另一个颜色的 . : *，不转。画布是透明的，字以外露出网页自己的底色。
 
@@ -406,7 +406,7 @@ const COMP_FS = /* glsl */ `
  * @param {HTMLCanvasElement} canvas
  * @param {{ period?: number, cell?: number, fps?: number }} [opts]
  */
-function create(canvas, { period = 12000, cell = 6, fps = 30 } = {}) {
+function create(canvas, { period = 12000, cell = 5, fps = 30 } = {}) {
   const gl = context(canvas);   // 没有 WebGL2 就抛错，交给调用的人接
   const software = softwareGL(gl);
   const motion = matchMedia("(prefers-reduced-motion: reduce)");

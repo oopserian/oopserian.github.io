@@ -9,7 +9,7 @@
         盘上一道道气流按开普勒转：里圈快、外圈慢。
         底稿存三样：亮度、星星有多亮、字该朝哪个方向放（气体绕着转的方向，按屏幕上算的，
         所以绕到黑洞上面的那道光环，字也跟着绕过去），方向存成二倍角。
-     2. 合成（composite）：整块切成 6px 见方的格子。跟另外几个字符画一个做法：
+     2. 合成（composite）：整块切成 5px 见方的格子。跟另外几个字符画一个做法：
         盘按亮度从 - ~ = 里挑，颜色沿一条色带走，字再转到气体的流向上，一圈圈轨道就被字描出来；
         星星是另一个颜色的 . + *，不转；黑洞和空的天上没有字，露出网页自己的底色。
 
@@ -296,7 +296,7 @@ const compFS = () => /* glsl */ `
  * @param {HTMLCanvasElement} canvas
  * @param {{ period?: number, cell?: number, fps?: number }} [opts]
  */
-function create(canvas, { period = 12000, cell = 6, fps = 30 } = {}) {
+function create(canvas, { period = 12000, cell = 5, fps = 30 } = {}) {
   const gl = context(canvas);   // 没有 WebGL2 就抛错，交给调用的人接
   const software = softwareGL(gl);
   const motion = matchMedia("(prefers-reduced-motion: reduce)");
