@@ -13,7 +13,7 @@ prompt: |-
 
   1. One stage, three arrangements
   - Lay everything out in design pixels inside one inner box and scale that box with a CSS transform to fit the container, keeping 30 px at the bottom for a hint line. A canvas covers the same box at the same scale, with a pixel ratio of scale × min(2, devicePixelRatio).
-  - Wide (width ≥ 560 and width ÷ height ≥ 1.15): files on the left, the chat on the right, the pair centred in at most 840 px; scale clamp(min(w ÷ 720, h ÷ 400), 0.9, 1.45). Tall (height ≥ 410): the chat on top, the files in a row underneath; scale clamp(min(w ÷ 400, h ÷ 540), 0.82, 1.25). Anything smaller is compact: the files in a narrow column on the left; scale clamp(min(w ÷ 390, h ÷ 250), 0.72, 1.1).
+  - Wide (width ≥ 560 and width ÷ height ≥ 1.15): files on the left, the chat on the right, the pair centred in at most 840 px; scale min(clamp(min(w ÷ 720, h ÷ 400), 0.9, 1.45), w ÷ 760). The three files with their names and sizes need about 350 px in a row, so the layout needs 760 px of design width before the files run under the chat; if that would take the scale below 0.9 (a half-width card on a desktop grid), it isn't wide. Tall (height ≥ 410): the chat on top, the files in a row underneath; scale clamp(min(w ÷ 400, h ÷ 540), 0.82, 1.25). Anything else is compact: the files in a column on the left, clamp(138, 30% of the width, 184) px wide, with the chat 22 px past it; scale clamp(min(w ÷ 390, h ÷ 250), 0.72, 1.1).
   - Thumbnails are 58, 84 or clamp(0.3 × height, 86, 124) px tall (compact, tall, wide). A sheet in the hand is 104, 132 or clamp(0.36 × height, 120, 146) px wide, the photo 4% wider. Attachment tiles are 44 px tall in compact and 56 px otherwise.
 
   2. The pages

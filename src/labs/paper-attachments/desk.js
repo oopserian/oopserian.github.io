@@ -1,12 +1,13 @@
 /* 桌上三份文件、一个对话框：拿起、拖着走、放进对话框、发出去。纸本身在 paper.js，这里管页面上的那一份和整个流程。
    舞台按大小选三种排法：宽的（首页卡片、详情页）文件在左、对话在右；竖的（手机详情页）对话在上、文件在下；
-   又矮又窄的（手机上的首页卡片）文件排成一列小图。里面都按设计像素排，再整体缩放到舞台上，WebGL 的画布跟着同一个比例。 */
+   又矮又窄的（手机上的卡片），和宽是宽、却放不下文件横排加对话框的（桌面上的半宽卡片），文件排成一列小图。里面都按设计像素排，再整体缩放到舞台上，WebGL 的画布跟着同一个比例。 */
 import { iconSvg } from "../_kit/icons";
 import { motion, clamp, easeIO } from "./motion.js";
 import { createPaper } from "./paper.js";
 import { pagesReady, paintProposal, paintCover, paintBudget, PHOTO } from "./pages.js";
 
 const HINT = 30;   // 舞台底下留给提示那一行的高度（屏幕像素）
+const WIDE = 760;  // 文件在左、对话在右那种排法最少要多宽（设计像素）
 const FILES = [
   { key: "proposal", name: "Proposal.pdf", meta: "12 pages · 2.4 MB", paint: paintProposal, ar: Math.SQRT2, ear: true, gloss: 0.06, shine: 10 },
   // 封面是一张真的照片：文件名、尺寸、大小都照相机原图
@@ -102,7 +103,10 @@ export function create(root) {
     const w = root.clientWidth, h = root.clientHeight - HINT;
     if (w < 40 || h < 40) return;
     let mode, s;
-    if (w >= 560 && w / (h + HINT) >= 1.15) { mode = "wide"; s = clamp(Math.min(w / 720, h / 400), 0.9, 1.45); }
+    // 宽的排法里三份文件连名字和大小横着排要三百五十来设计像素，再加上对话框，排开至少要 WIDE 设计像素宽：
+    // 舞台不够就缩小一点凑够；缩到 0.9 倍还不够（桌面上的半宽卡片），文件会压到对话框底下，换别的排法
+    const ws = Math.min(clamp(Math.min(w / 720, h / 400), 0.9, 1.45), w / WIDE);
+    if (w >= 560 && w / (h + HINT) >= 1.15 && ws >= 0.9) { mode = "wide"; s = ws; }
     else if (h >= 410) { mode = "tall"; s = clamp(Math.min(w / 400, h / 540), 0.82, 1.25); }
     else { mode = "compact"; s = clamp(Math.min(w / 390, h / 250), 0.72, 1.1); }
     SCALE = s; W = w / s; H = h / s;

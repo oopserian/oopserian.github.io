@@ -13,6 +13,9 @@
     -webkit-touch-callout: none;
 }
 .sel-lab .si { position: absolute; left: 0; top: 0; transform-origin: 0 0; }
+/* 舞台矮的时候操作栏落在提示那一行上：栏出来提示淡掉，收起再回来 */
+.sel-lab .lab-hint { transition: opacity 0.3s ease 0.2s; }
+.sel-lab[data-tight]:is([data-bar="bar"], [data-bar="undo"]) .lab-hint { opacity: 0; transition: opacity 0.12s ease; }
 
 /* ───────── 窗口 ───────── */
 .sel-lab .win {
