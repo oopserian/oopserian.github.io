@@ -33,8 +33,10 @@
 .paper-lab[data-mode="wide"] .desk { left: var(--side); right: calc(var(--side) + var(--cw) + 24px); top: 20px; bottom: 4px; }
 .paper-lab[data-mode="tall"] .chat { left: 16px; right: 16px; top: 16px; bottom: calc(var(--th) + 64px); }
 .paper-lab[data-mode="tall"] .desk { left: 16px; right: 16px; bottom: 6px; height: calc(var(--th) + 46px); }
-.paper-lab[data-mode="compact"] .chat { right: 12px; top: 12px; bottom: 2px; left: 160px; }
-.paper-lab[data-mode="compact"] .desk { left: 10px; top: 12px; bottom: 2px; width: 138px; }
+/* 又矮又窄（手机上的卡片），或者不够宽的那种排法（桌面上的半宽卡片）：文件一列在左、对话在右；舞台宽一点，文件那一列跟着宽，名字离对话框不挤 */
+.paper-lab[data-mode="compact"] { --dw: clamp(138px, 30%, 184px); }
+.paper-lab[data-mode="compact"] .chat { right: 12px; top: 12px; bottom: 2px; left: calc(var(--dw) + 22px); }
+.paper-lab[data-mode="compact"] .desk { left: 10px; top: 12px; bottom: 2px; width: var(--dw); }
 
 /* ───────── 滚动的字 ───────── */
 .paper-lab .roll { display: inline-flex; flex: none; white-space: pre; vertical-align: top; }

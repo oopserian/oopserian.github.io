@@ -5,9 +5,11 @@
 import { motion, clamp, lerp, easeIO, easeSuck, easeOutBack, Spring, Roll, fly, dtOf } from "./motion.js";
 import { FILES, fileIcon, fmtSize, byName, pack } from "./files.js";
 
-const HINT = 30;                          // 舞台底下留给提示那一行（屏幕像素）；提示藏起来时（分享图里）不留
+const HINT = 30;                          // 提示那一行占舞台底下多高（屏幕像素），窗口不压它；提示藏起来时（分享图里）不算
 const HEAD = 42, ROWH = 96, BOXH = 88, ICON = 64, PADX = 10, PADB = 8;   // 窗口：标题栏、一行多高、一格多高、图标格、左右和底下的留白
-const BH = 52, GAP = 14, TOP = 10, BOT = 4, SIDE = 12;                  // 操作栏多高、离窗口多远，四周最少留多少
+const BH = 52, GAP = 14, SIDE = 12;                                     // 操作栏多高、离窗口多远，两边最少留多少
+const RES = GAP + BH + 8 + 10;            // 窗口底下给操作栏留的一截：离窗口 14、栏 52 高、四周 8 的底色、离舞台底边 10
+const LIFT = 0.75;                        // 舞台矮的时候窗口上面最少留 RES 的这么多：比正中略高一点，看着是居中的
 const CAP = 1.4;                          // 最多放大到 1.4 倍，再大就不是一个小组件了
 const SLOTS = 8;                          // 文件最多八个（压缩只会变少，解压回到原来的数）
 const ARRANGE = [{ cols: 4, colw: 104 }, { cols: 3, colw: 112 }, { cols: 8, colw: 104 }];   // 一样大时排在前面的优先
@@ -35,24 +37,28 @@ export function create(root) {
   on(rm, "change", () => { motion.reduce = rm.matches; });
 
   const st = { items: [], sel: new Set(), drag: null, busy: false, focus: 0, trash: [], undo: null, px: 0, py: 0, touch: false };
-  let SCALE = 1, W = 0, H = 0, L = null;
+  let SCALE = 1, W = 0, H = 0, L = null, posed = false;
 
   /* ───────── 排法 ───────── */
   function layout() {
-    const w = root.clientWidth, h = root.clientHeight - (hint.offsetParent ? HINT : 0);
+    const w = root.clientWidth, h = root.clientHeight, hr = hint.offsetParent ? HINT : 0;
     if (w < 40 || h < 40) return;
+    // 窗口在整个舞台里居中，底下至少留一截 RES 给操作栏（栏出来落在这截里，跟提示那一行叠着）；不够就往上挪，上面最少留 LIFT 截
     let best = null;
     for (const a of ARRANGE) {
-      const rows = Math.ceil(SLOTS / a.cols), ww = a.cols * a.colw + 2 * PADX + 2 * SIDE, hh = TOP + HEAD + rows * ROWH + PADB + GAP + BH + BOT;
-      const s = Math.min(CAP, w / ww, h / hh);
+      const rows = Math.ceil(SLOTS / a.cols), ww = a.cols * a.colw + 2 * PADX + 2 * SIDE, wh = HEAD + rows * ROWH + PADB;
+      const s = Math.min(CAP, w / ww, h / (wh + (1 + LIFT) * RES), (h - 2 * hr) / wh);
       if (!best || s > best.s + 0.01) best = { ...a, rows, s };
     }
     SCALE = best.s; W = w / SCALE; H = h / SCALE;
     const winW = best.cols * best.colw + 2 * PADX, winH = HEAD + best.rows * ROWH + PADB;
-    const winX = (W - winW) / 2, winY = Math.max(TOP, (H - winH - GAP - BH) / 2);
+    // 分享图里操作栏一直在：窗口连同底下的栏一起居中
+    const winX = (W - winW) / 2, winY = posed ? (H - winH - GAP - BH) / 2 : Math.min((H - winH) / 2, H - winH - RES);
     const bw = Math.min(336, winW - 12);
     L = { ...best, winW, winH, winX, winY, bw, boxw: best.colw - 4, slotX: W / 2, slotY: winY + winH + GAP + BH / 2 };
     root.dataset.cols = best.cols;
+    // 操作栏（连同它四周 8px 的底色）够到提示那一行时，栏一出来提示就淡掉
+    root.toggleAttribute("data-tight", hr > 0 && (L.slotY + BH / 2 + 8) * SCALE > h - hr);
     si.style.width = W + "px"; si.style.height = H + "px"; si.style.transform = `scale(${SCALE})`;
     Object.assign(win.style, { left: winX + "px", top: winY + "px", width: winW + "px", height: winH + "px" });
     win.style.setProperty("--boxw", L.boxw + "px");
@@ -136,7 +142,7 @@ export function create(root) {
   function setMode(mode) {
     const prev = B.mode;
     if (prev !== mode) {
-      B.mode = mode; bar.dataset.s = mode;
+      B.mode = mode; bar.dataset.s = mode; root.dataset.bar = mode;
       if (mode !== "off") bar.dataset.tone = mode === "ride" ? "accent" : "ink";
       rowMain.inert = mode !== "bar"; rowUndo.inert = mode !== "undo";
       if (mode === "ride" && prev === "off") { const [x, y] = rideXY(); B.x.snap(x); B.y.snap(y); B.w.snap(6); B.h.snap(6); }
@@ -449,7 +455,7 @@ export function create(root) {
   return {
     /** 分享图的样子：照片随笔里的四样（两张照片、提案、图注）选中，栏停在底下 */
     pose() {
-      layout();   // 分享图把提示藏了，底下不用再留那一行
+      posed = true; layout();   // 分享图把提示藏了，底下不用再留那一行
       st.sel = new Set(st.items.filter((it) => ["Captions.docx", "DSC_8647.JPG", "Proposal.pdf", "Ridge.jpg"].includes(it.f.name)));
       paintSel(); syncBar();
     },
