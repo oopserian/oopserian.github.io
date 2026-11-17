@@ -1,0 +1,161 @@
+/* 舞台上一个文件夹窗口，窗口底下一条浮起来的操作栏。.si 里按设计像素排，folder.js 按舞台大小挑排法
+   （根元素的 data-cols：4 列 2 行、3 列 3 行、8 列 1 行）再整体缩放。
+   窗口和按钮用实验共用的颜色、圆角、阴影；文件图标是单色的纸页，只有照片带颜色，选中的名字用强调色。 */
+.sel-lab {
+    --fd-back: light-dark(color-mix(in oklab, var(--lab-accent) 62%, white), color-mix(in oklab, var(--lab-accent) 70%, black));
+    --fd-front: light-dark(color-mix(in oklab, var(--lab-accent) 48%, white), color-mix(in oklab, var(--lab-accent) 88%, black));
+    /* 栏用 clip-path 变形，box-shadow 会被裁掉，影子改用跟 --lab-shadow-2 差不多的 drop-shadow */
+    --bar-sh: drop-shadow(0 10px 12px light-dark(rgb(20 20 20 / 0.18), rgb(0 0 0 / 0.55))) drop-shadow(0 1px 2px light-dark(rgb(20 20 20 / 0.1), rgb(0 0 0 / 0.4)));
+    --fly-sh: drop-shadow(0 8px 14px light-dark(rgb(20 20 20 / 0.18), rgb(0 0 0 / 0.5))) drop-shadow(0 1px 3px light-dark(rgb(20 20 20 / 0.08), rgb(0 0 0 / 0.3)));
+    display: block;
+    user-select: none;
+    -webkit-user-select: none;
+    -webkit-touch-callout: none;
+}
+.sel-lab .si { position: absolute; left: 0; top: 0; transform-origin: 0 0; }
+
+/* ───────── 窗口 ───────── */
+.sel-lab .win {
+    position: absolute;
+    box-sizing: border-box;
+    border-radius: var(--lab-r-xl);
+    background: var(--lab-surface);
+    box-shadow: 0 0 0 1px var(--lab-line), var(--lab-shadow-1);
+    /* 触屏上竖着划还是滚页面，横着划才拉框（跟相册里划着多选一样） */
+    touch-action: pan-y;
+}
+.sel-lab .hd { display: flex; align-items: center; gap: 10px; height: 42px; padding: 2px 16px 0 18px; box-sizing: border-box; }
+.sel-lab .hd b { font: 600 14px/20px var(--sans); letter-spacing: -0.01em; white-space: nowrap; }
+.sel-lab .ct { margin-left: auto; font: 11px/16px var(--mono); color: var(--lab-fg-3); }
+.sel-lab .fd { display: block; flex: none; }
+.sel-lab .fdb { fill: var(--fd-back); }
+.sel-lab .fdf { fill: var(--fd-front); }
+.sel-lab .files { position: absolute; inset: 0; }
+
+.sel-lab .it {
+    all: unset;
+    position: absolute;
+    left: 0;
+    top: 0;
+    width: var(--boxw);
+    height: 88px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    cursor: default;
+    transition: transform 0.5s var(--lab-ease), opacity 0.3s ease, filter 0.3s ease;
+}
+.sel-lab .ic { width: 64px; height: 64px; border-radius: var(--lab-r-md); display: grid; place-items: center; transition: background-color 0.16s ease, transform 0.3s var(--lab-ease); }
+.sel-lab .nm {
+    box-sizing: border-box;
+    max-width: 100%;
+    margin-top: 6px;
+    padding: 0 6px;
+    height: 18px;
+    border-radius: var(--lab-r-sm);
+    font: 500 12px/18px var(--sans);
+    color: var(--lab-fg);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    transition: background-color 0.16s ease, color 0.16s ease, transform 0.3s var(--lab-ease);
+}
+.sel-lab .it.on .ic { background: color-mix(in srgb, var(--lab-fg) 7%, transparent); }
+.sel-lab .it.on .nm { background: var(--lab-accent); color: var(--lab-on-accent); }
+.sel-lab .it:focus-visible { outline: none; }
+.sel-lab .it:focus-visible .ic { outline: 2px solid var(--lab-accent); outline-offset: 1px; }
+/* 新来的先瞬间站好；正在飞的那份是复制出来的，原来的藏起来；删掉的模糊、缩小、淡掉；撤销回来的反过来 */
+.sel-lab .it.now { transition: none !important; }
+.sel-lab .it.wait, .sel-lab .it.away { opacity: 0; transition: none; }
+.sel-lab .it.gone, .sel-lab .it.born { opacity: 0; filter: blur(6px); pointer-events: none; }
+.sel-lab .it.gone .ic, .sel-lab .it.gone .nm, .sel-lab .it.born .ic, .sel-lab .it.born .nm { transform: scale(0.7); }
+
+/* 纸页：底比窗口深一点，细线描边，页上的图示和扩展名是同一种灰 */
+.sel-lab .page { display: block; overflow: visible; }
+.sel-lab .page .pg { fill: var(--lab-surface-2); stroke: var(--lab-line-strong); stroke-width: 1.5; }
+.sel-lab .page .fold { fill: var(--lab-surface); stroke: var(--lab-line-strong); stroke-width: 1.5; stroke-linejoin: round; }
+.sel-lab .page .gl { fill: none; stroke: var(--lab-fg-3); stroke-width: 1.5; stroke-linecap: round; stroke-linejoin: round; opacity: 0.65; }
+.sel-lab .page .gl .fill { fill: var(--lab-fg-3); stroke: none; }
+.sel-lab .page .gl .zp { stroke-width: 2.5; stroke-linecap: butt; }
+.sel-lab .page text { font: 500 7px var(--mono); letter-spacing: 0.06em; fill: var(--lab-fg-2); }
+/* 照片：直角、一圈白边，像洗出来的小样（跟 Paper Attachments 的纸一样不加圆角） */
+.sel-lab .pic { display: block; overflow: hidden; background: var(--lab-sunken); box-shadow: 0 0 0 2px light-dark(#FFFFFF, #E6E6E3), var(--lab-shadow-1); }
+.sel-lab .pic img { display: block; width: 100%; height: 100%; object-fit: cover; pointer-events: none; -webkit-user-drag: none; }
+
+/* 框：1px 强调色的边，很淡的底 */
+.sel-lab .mq {
+    position: absolute;
+    left: 0;
+    top: 0;
+    z-index: 2;
+    box-sizing: border-box;
+    border: 1px solid var(--lab-accent);
+    background: var(--lab-accent-soft);
+    opacity: 0;
+    pointer-events: none;
+    transition: opacity 0.15s ease;
+}
+.sel-lab .mq.on { opacity: 1; transition: none; }
+
+.sel-lab .empty { position: absolute; left: 0; right: 0; top: 42px; bottom: 8px; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 12px; font: 13px/18px var(--sans); color: var(--lab-fg-3); }
+.sel-lab .empty[hidden] { display: none; }
+
+/* 飞着的那份：浮起来有影子 */
+.sel-lab .fly { position: absolute; left: 0; top: 0; z-index: 30; width: 64px; height: 64px; display: grid; place-items: center; pointer-events: none; will-change: transform; filter: var(--fly-sh); }
+
+/* ───────── 操作栏：计数是强调色的小药丸，整条是反色的（浅色主题里是黑的） ───────── */
+.sel-lab .bar { position: absolute; left: 0; top: 0; z-index: 20; width: var(--bw); height: 52px; filter: var(--bar-sh); transition: opacity 0.14s ease; }
+.sel-lab .bar[data-s="off"] { opacity: 0; pointer-events: none; transition: opacity 0.2s ease; }
+.sel-lab .bar .bg { position: absolute; inset: -8px; background: var(--lab-fg); color: var(--lab-surface); transition: background-color 0.25s ease, color 0.25s ease; }
+.sel-lab .bar[data-tone="accent"] .bg { background: var(--lab-accent); color: var(--lab-on-accent); }
+.sel-lab .cnt { position: absolute; inset: 0; display: grid; place-items: center; font: 600 12px/16px var(--sans); font-variant-numeric: tabular-nums; opacity: 0; transition: opacity 0.12s ease; }
+.sel-lab .bar[data-s="ride"] .cnt { opacity: 1; }
+.sel-lab .row { position: absolute; top: 8px; height: 52px; box-sizing: border-box; display: flex; align-items: center; opacity: 0; filter: blur(4px); transition: opacity 0.18s ease, filter 0.18s ease; }
+.sel-lab .row.main { left: 8px; width: var(--bw); padding: 0 6px; gap: 2px; }
+.sel-lab .row.undo { left: calc(8px + (var(--bw) - var(--uw)) / 2); width: var(--uw); padding: 0 8px 0 20px; }
+.sel-lab .bar[data-s="bar"] .row.main, .sel-lab .bar[data-s="undo"] .row.undo { opacity: 1; filter: none; transition: opacity 0.24s ease 0.08s, filter 0.24s ease 0.08s; }
+
+.sel-lab .b { all: unset; position: relative; flex: none; width: 40px; height: 40px; border-radius: 50%; display: grid; place-items: center; cursor: pointer; transition: background-color 0.15s ease, transform 0.15s var(--lab-ease), opacity 0.2s ease; }
+.sel-lab .b svg { display: block; }
+.sel-lab .b.x { background: color-mix(in srgb, currentColor 13%, transparent); }
+@media (hover: hover) {
+    .sel-lab .b:hover { background: color-mix(in srgb, currentColor 16%, transparent); }
+    .sel-lab .ub:hover { background: color-mix(in srgb, currentColor 20%, transparent); }
+}
+.sel-lab .b:active { transform: scale(0.92); }
+.sel-lab .b:focus-visible, .sel-lab .ub:focus-visible { outline: 2px solid currentColor; outline-offset: 1px; }
+.sel-lab.busy .b { cursor: default; }
+/* 压缩、解压的时候只有转圈的那个按钮亮着 */
+.sel-lab.busy .b:not(.zip) { opacity: 0.35; }
+.sel-lab .tx { flex: 1; min-width: 0; padding-left: 10px; display: flex; flex-direction: column; }
+.sel-lab .t1, .sel-lab .u1 { font: 600 14px/19px var(--sans); letter-spacing: -0.01em; white-space: pre; }
+.sel-lab .t2 { display: flex; font: 12px/16px var(--sans); opacity: 0.62; white-space: pre; font-variant-numeric: tabular-nums; }
+.sel-lab .pc { font-style: normal; opacity: 0; filter: blur(3px); transition: opacity 0.3s ease, filter 0.3s ease; }
+.sel-lab .pc.on { opacity: 1; filter: none; }
+.sel-lab .ub { all: unset; flex: none; height: 36px; padding: 0 16px; border-radius: 18px; font: 600 13px/36px var(--sans); background: color-mix(in srgb, currentColor 14%, transparent); cursor: pointer; transition: background-color 0.15s ease, transform 0.15s var(--lab-ease); }
+.sel-lab .ub:active { transform: scale(0.95); }
+
+/* 压缩时按钮外面转一圈（类名别用 ring、grid 这种 Tailwind 也有的词，会被它的工具类盖上） */
+.sel-lab .prog { position: absolute; inset: 0; width: 40px; height: 40px; transform: rotate(-90deg); opacity: 0; transition: opacity 0.2s ease; }
+.sel-lab .prog circle { fill: none; stroke: currentColor; stroke-width: 2.5; stroke-linecap: round; stroke-dasharray: 114.7; stroke-dashoffset: 114.7; }
+.sel-lab .prog.run, .sel-lab .prog.full { opacity: 1; }
+.sel-lab .prog.run circle { stroke-dashoffset: 0; transition: stroke-dashoffset var(--ring, 0.9s) cubic-bezier(0.45, 0, 0.2, 1); }
+.sel-lab .prog.full circle { stroke-dashoffset: 0; }
+
+/* 两个图标换来换去：链接 → 对勾，压缩 → 解压 */
+.sel-lab .icm { position: relative; width: 18px; height: 18px; }
+.sel-lab .icm svg { position: absolute; inset: 0; transition: opacity 0.2s ease, transform 0.36s var(--lab-spring), filter 0.2s ease; }
+.sel-lab .icm .b2 { opacity: 0; transform: scale(0.4) rotate(-45deg); filter: blur(2px); }
+.sel-lab .icm.on .a { opacity: 0; transform: scale(0.4) rotate(45deg); filter: blur(2px); }
+.sel-lab .icm.on .b2 { opacity: 1; transform: none; filter: none; }
+
+/* ───────── 滚动的字 ───────── */
+.sel-lab .roll { display: inline-flex; flex: none; white-space: pre; vertical-align: top; }
+.sel-lab .rc { position: relative; display: inline-block; flex: none; transition: width 0.42s var(--lab-ease); }
+.sel-lab .rg { display: inline-block; transition: transform 0.42s var(--lab-ease), opacity 0.28s ease, filter 0.28s ease; }
+.sel-lab .rg.old { position: absolute; left: 0; top: 0; opacity: 0; filter: blur(3px); transform: translateY(var(--dy)) scale(0.92); }
+.sel-lab .rg.new { opacity: 0; filter: blur(3px); transform: translateY(var(--dy)) scale(0.92); transition: none; }
+.sel-lab .rc.gone .rg { opacity: 0; filter: blur(3px); transform: scale(0.9); }
+.sel-lab .rc.cl { clip-path: inset(-60% -1px -60% 0); }
+
+.sel-lab .sr { position: absolute; width: 1px; height: 1px; margin: -1px; overflow: hidden; clip-path: inset(50%); white-space: nowrap; }
