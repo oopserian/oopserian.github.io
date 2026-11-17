@@ -17,7 +17,7 @@ prompt: |-
   - Thumbnails are 58, 84 or clamp(0.3 × height, 86, 124) px tall (compact, tall, wide). A sheet in the hand is 104, 132 or clamp(0.36 × height, 120, 146) px wide, the photo 4% wider. Attachment tiles are 44 px tall in compact and 56 px otherwise.
 
   2. The pages
-  - Paint each page once with the canvas 2D API at 768 px wide, after my display font has loaded (wait at most 3 s): a proposal with a serif title and a line drawing, a photo, a budget table. Use the same canvas as the DOM thumbnail (a JPEG data URL) and as the WebGL texture, so swapping one for the other has no seam.
+  - Use a real photograph for the image file, one of mine if I give you one: save a web-sized copy (about 1000 px wide) with the EXIF stripped, and give the file its real name, pixel size and file size, and its real aspect ratio on the desk. Paint each page once with the canvas 2D API at 768 px wide, after my display font and the photo have loaded (wait at most 3 s): a proposal with a serif title and a wide crop of the same photo printed on it, the photo itself, and a budget table whose figures add up. Use the same canvas as the DOM thumbnail (a JPEG data URL) and as the WebGL texture, so swapping one for the other has no seam.
   - Paper stays paper in both themes: off-white, square corners, a two-layer drop shadow (0 0.5px 0.6px and 0 1.5px 2.5px). In dark mode dim it to 90%. The two documents have a folded corner.
 
   3. The sheet
