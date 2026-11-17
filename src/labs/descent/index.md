@@ -1,6 +1,6 @@
 ---
 title: Descent
-summary: One unbroken shot from 16,000 km up into the sea off the Canary Islands at sunset, through the atmosphere and the clouds, past Mount Teide, and a thousand metres down. Drag or scroll to fall.
+summary: One unbroken shot from 16,000 km up into the sea off the Canary Islands at sunset, through the atmosphere and the clouds, past Mount Teide, and a thousand metres down. Drag to fall.
 tags: [WebGL2, Raymarching]
 date: 2026-11-17
 order: 17
