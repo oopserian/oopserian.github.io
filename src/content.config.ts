@@ -33,6 +33,7 @@ const labs = defineCollection({
     date: z.coerce.date(),            // 做出来的日子
     inspiration: z.url().optional(), // 照着谁的设计做的
     wip: z.boolean().default(false),  // 还没做完：卡片上不放组件，也不生成详情页
+    dark: z.boolean().default(false), // 舞台不管浅色深色都是深底，实验里也按深色画（字符画这种在浅底上发虚的）
     order: z.number(),                // 整体按 date 新的在前，同一天的按它排，越小越靠前
     prompt: z.string(),               // 详情页上的 Prompt：拷给 AI 就能照着做出这个实验的一段话
   }),

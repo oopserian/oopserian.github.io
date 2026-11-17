@@ -6,9 +6,9 @@
      2. 云（clouds）：镜头站在地上往前上方看，画面最下沿刚好是地平线，整块都是天。每个像素往天上打一条光线，
         在 1 到 2.6 公里高的云层里走 48 步：云底平、云顶圆（云越厚顶越高），再用一张 32³ 的立体噪声（几层 Worley 反过来，
         一团一团鼓起来的）把边咬碎；每步往太阳那边再取三个点，算这里被挡掉多少光，加上天光，远处被雾抹成地平线的颜色。
-        这张图只画到「一格两个像素」那么细（字一格 8px，再细也看不出来），比整屏画便宜几十倍。
+        这张图只画到「一格两个像素」那么细（字一格 5px，再细也看不出来），比整屏画便宜几十倍。
         底稿存颜色和这一格有多少云。
-     3. 合成（composite）：整块切成 8px 见方的格子，每格都有字，不留空：
+     3. 合成（composite）：整块切成 5px 见方的格子，每格都有字，不留空：
         按这一格的亮度从 . : - = + * # % @ 里挑（越亮越浓），天是淡的点，云是浓的字；
         字顺着明暗的等高线转，云边一圈的字绕着云走，跟海浪里字顺着浪头转是一个做法。
         深色主题是黄昏：太阳贴着地平线，云被照成金色、粉色，背光的地方是紫的，字就用底稿的颜色；
@@ -96,7 +96,7 @@ function makeDetail(n = 32) {   // 返回 { data, n }，传给显卡见 create()
 }
 
 // ---------- 字的图集 ----------
-// 一行 9 格，一格 64 见方（字要转，格子得是正方形），由淡到浓：. : - = + * # % @。每个字按墨迹居中，横线稍微拉宽一点，再描一圈边，笔画粗一点
+// 一行 9 格，一格 64 见方（字要转，格子得是正方形），由淡到浓：. : - = + * # % @。每个字按墨迹居中，横线 - = 拉满整格、左右首尾相接，再描一圈边，笔画粗一点
 const GLYPHS = [".", ":", "-", "=", "+", "*", "#", "%", "@"];
 const GROOVE = 64, GROOVE_LIFE = 4;   // 拨开的沟最多记几个点、一个点留几秒
 const T = 64;
@@ -109,11 +109,12 @@ function drawAtlas(c, stroke = [3, 3]) {   // stroke：横线 - =、别的字的
   GLYPHS.forEach((ch, i) => {
     const m = g.measureText(ch);
     const l = m.actualBoundingBoxLeft, r = m.actualBoundingBoxRight, up = m.actualBoundingBoxAscent, dn = m.actualBoundingBoxDescent;
-    const sx = ch === "-" || ch === "=" ? Math.max(1, Math.min(1.5, (0.8 * T) / (l + r))) : 1;
+    const lw = ch === "-" || ch === "=" ? stroke[0] : stroke[1];
+    const sx = ch === "-" || ch === "=" ? Math.max(1, T / (l + r + lw)) : 1;   // 横线连描边一起拉到正好一格宽：左右两格的字首尾相接，连成一整道
     g.save();
     g.translate(i * T + T / 2, T / 2); g.scale(sx, 1);
     const x = -(r - l) / 2, y = (up - dn) / 2;
-    g.lineWidth = ch === "-" || ch === "=" ? stroke[0] : stroke[1];
+    g.lineWidth = lw;
     g.fillText(ch, x, y); g.strokeText(ch, x, y);
     g.restore();
   });
@@ -325,7 +326,7 @@ const COMP_FS = /* glsl */ `
  * @param {HTMLCanvasElement} canvas
  * @param {{ period?: number, cell?: number, fps?: number }} [opts]
  */
-function create(canvas, { period = 12000, cell = 8, fps = 30 } = {}) {
+function create(canvas, { period = 12000, cell = 5, fps = 30 } = {}) {
   const gl = context(canvas);   // 没有 WebGL2 就抛错，交给调用的人接
   const software = softwareGL(gl);
   const motion = matchMedia("(prefers-reduced-motion: reduce)");

@@ -8,7 +8,7 @@
 
    做法：自己起一个小服务器放 dist/，用 Playwright 按 1200×630、2 倍像素开实验详情页的整窗模式（?focus，录屏用的那个），
    再加一段样式调成卡片：上面是标题和一句话（最多两行），下面是带 1px 细线的舞台撑满剩下的高度，底下那行日期和 @oopserian 换成右下角的 eooo.me；
-   等实验画出来，按 1 倍（scale: "css"）截下来：字符画一格只有 8px，按 2 倍画再缩小才不糊。
+   等实验画出来，按 1 倍（scale: "css"）截下来：字符画一格只有 5px，按 2 倍画再缩小才不糊。
    无头浏览器没有显卡，WebGL 的实验只画一帧静止的，正好拿来截。
    要 Playwright 的 Chromium：第一次先跑 pnpm exec playwright install chromium。 */
 import http from "node:http";

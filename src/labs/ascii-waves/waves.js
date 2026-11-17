@@ -6,7 +6,7 @@
         水的亮度（浪顶比浪谷亮，迎着光的浪面、反光更亮，远处被雾抹到中间）、浪头在画面上的走向、浪花有多浓。
         浪花只在三道最大的浪的浪尖上一簇一簇地起，往后拖一段渐淡的尾巴，每簇自己冒出来、再散掉；
         浪尖挤到一起（雅可比行列式变小）的地方、手划过的尾迹上也有。
-     2. 合成（composite）：整块切成 8px 见方的格子，每格都有字，不留空：
+     2. 合成（composite）：整块切成 5px 见方的格子，每格都有字，不留空：
         浪花够浓的格子画浪花的字 . : * o @（越浓越大），深色主题是白的，浅色主题是留白里淡淡的蓝，不转；浪花边上零星撒几个点当飞沫。
         别的格子画水：按亮度从 - ~ = 里挑，颜色沿一条色带走（深色主题越亮越浓，由深蓝到浅蓝；浅色主题反过来越暗越浓，由浅灰蓝到深蓝），
         字再转到浪头的走向上，一道道浪就被横着的字描出来，尾迹推出去的浪上的字也顺着那道浪转，
@@ -94,8 +94,8 @@ function makeWaves(period) {
 }
 
 // ---------- 字的图集 ----------
-// 一行 8 格，一格 64 见方（字要转，格子得是正方形）。前 3 个是水，由淡到浓 - ~ =，横着拉宽，一格接一格连成一道道浪；
-// 后 5 个是浪花，由淡到浓 . : * o @，不拉宽。每个字按墨迹居中，再描一圈边，笔画粗一点
+// 一行 8 格，一格 64 见方（字要转，格子得是正方形）。前 3 个是水，由淡到浓 - ~ =，横着拉满整格，左右首尾相接，连成一道道浪；
+// 后 5 个是浪花，由淡到浓 . : * o @，不拉。每个字按墨迹居中，再描一圈边，笔画粗一点
 const GLYPHS = ["-", "~", "=", ".", ":", "*", "o", "@"], WATER = 3;
 const T = 64;
 function drawAtlas(c, stroke = [4.5, 3]) {
@@ -107,11 +107,12 @@ function drawAtlas(c, stroke = [4.5, 3]) {
   GLYPHS.forEach((ch, i) => {
     const m = g.measureText(ch);
     const l = m.actualBoundingBoxLeft, r = m.actualBoundingBoxRight, up = m.actualBoundingBoxAscent, dn = m.actualBoundingBoxDescent;
-    const sx = i < WATER ? Math.max(1, Math.min(1.8, (0.84 * T) / (l + r))) : 1;
+    const lw = i < WATER ? stroke[0] : stroke[1];   // 水的字是细线，描粗一点才压得住整块
+    const sx = i < WATER ? Math.max(1, T / (l + r + lw)) : 1;   // 横线连描边一起拉到正好一格宽：左右两格的字首尾相接，连成一整道
     g.save();
     g.translate(i * T + T / 2, T / 2); g.scale(sx, 1);
     const x = -(r - l) / 2, y = (up - dn) / 2;
-    g.lineWidth = i < WATER ? stroke[0] : stroke[1];   // 水的字是细线，描粗一点才压得住整块
+    g.lineWidth = lw;
     g.fillText(ch, x, y); g.strokeText(ch, x, y);
     g.restore();
   });
@@ -364,7 +365,7 @@ function lookAt(eye, at) {
  * @param {HTMLCanvasElement} canvas
  * @param {{ period?: number, cell?: number, fps?: number }} [opts]
  */
-function create(canvas, { period = 12000, cell = 8, fps = 30 } = {}) {
+function create(canvas, { period = 12000, cell = 5, fps = 30 } = {}) {
   const gl = context(canvas);   // 没有 WebGL2 就抛错，交给调用的人接
   const software = softwareGL(gl);
   const motion = matchMedia("(prefers-reduced-motion: reduce)");
