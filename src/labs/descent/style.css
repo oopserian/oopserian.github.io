@@ -1,0 +1,200 @@
+/* Descent：整块是画布，上面压一层仪表：左下高度读数和这一层大气或海水的名字，右边对数高度尺（可以拖、可以聚焦用键盘走），
+   左上经纬度，右下播放。舞台一直是深底（index.md 里 dark: true），字都压在画面上，带一圈很淡的暗光，亮云上也看得清。
+   舞台矮于 400px（卡片）时读数挪到左上，经纬度藏起来，播放只剩图标。 */
+.descent {
+  /* 仪表的几档字色都从 kit 的字色调出来，比 fg-2、fg-3 亮：底下可能是黑的太空，也可能是亮的晚霞和云 */
+  --hud: var(--lab-fg);
+  --hud-2: color-mix(in srgb, var(--lab-fg) 82%, transparent);
+  --hud-3: color-mix(in srgb, var(--lab-fg) 66%, transparent);
+  --hud-line: color-mix(in srgb, var(--lab-fg) 52%, transparent);
+  --hud-glow: 0 0 1px rgb(0 0 0 / 0.3), 0 1px 12px rgb(0 0 0 / 0.32);
+  container-type: size;
+  background: #010203;
+  color: var(--hud);
+}
+.descent canvas {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  display: block;
+  opacity: 0;
+  touch-action: pan-y;   /* 卡片上手指上下划还是滚页面 */
+  transition: opacity 0.9s var(--lab-ease);
+}
+.descent.big canvas { touch-action: none; }   /* 详情页的大舞台上，手指上下划是下坠 */
+.descent.ready canvas { opacity: 1; }
+.descent .poster {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  object-position: 46% 50%;   /* 竖的舞台裁掉两边时，太阳整个留在画里，不在边上露一角 */
+}
+
+.descent .hud {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  text-shadow: var(--hud-glow);
+}
+.descent .hud p { margin: 0; }
+.descent .geo {
+  position: absolute;
+  left: 20px;
+  top: 18px;
+  font: 10.5px/1 var(--mono);
+  letter-spacing: 0.08em;
+  color: var(--hud-3);
+  text-transform: uppercase;
+}
+.descent .readout {
+  position: absolute;
+  left: 20px;
+  bottom: 38px;
+  display: grid;
+  gap: 9px;
+}
+.descent .alt {
+  display: flex;
+  align-items: baseline;
+  gap: 7px;
+  font-family: var(--mono);
+  font-variant-numeric: tabular-nums;
+}
+.descent .num { font-size: 34px; font-weight: 300; line-height: 1; letter-spacing: -0.02em; }
+.descent .unit { font-size: 12px; color: var(--hud-2); letter-spacing: 0.04em; }
+.descent .zone {
+  font: 10.5px/1 var(--mono);
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--hud-2);
+}
+
+/* 高度尺：40px 宽的一条都能按，细线贴在右边；刻度字往左伸 */
+.descent .gauge {
+  position: absolute;
+  right: 8px;
+  top: 16%;
+  bottom: 24%;
+  width: 40px;
+  pointer-events: auto;
+  touch-action: none;
+  cursor: ns-resize;
+  border-radius: var(--lab-r-sm);
+}
+.descent .gauge[aria-disabled="true"] { cursor: default; }
+.descent .gauge:focus-visible { outline-offset: 4px; }
+.descent .track {
+  position: absolute;
+  right: 14px;
+  top: 0;
+  bottom: 0;
+  width: 1px;
+  background: var(--hud-line);
+  box-shadow: 0 0 6px rgb(0 0 0 / 0.22);
+}
+.descent .tick {
+  position: absolute;
+  right: 0;
+  width: 7px;
+  height: 1px;
+  background: var(--hud-line);
+}
+.descent .tick span {
+  position: absolute;
+  right: 14px;
+  top: -6px;
+  font: 10px/12px var(--mono);
+  letter-spacing: 0.04em;
+  color: var(--hud-3);
+  white-space: nowrap;
+  font-variant-numeric: tabular-nums;
+}
+.descent .tick.sea { width: 15px; background: var(--hud-2); }
+.descent .tick.sea span { color: var(--hud-2); }
+.descent .mark { position: absolute; inset: 0; will-change: transform; }
+.descent .mark::before {
+  content: "";
+  position: absolute;
+  right: -4px;
+  top: -4px;
+  width: 7px;
+  height: 7px;
+  box-sizing: border-box;
+  border: 1px solid var(--hud);
+  background: #010203;
+  transform: rotate(45deg);
+}
+.descent.poster .gauge, .descent.loading .gauge { cursor: default; }
+
+.descent .tools {
+  position: absolute;
+  right: 20px;
+  bottom: 30px;
+  display: flex;
+  gap: 8px;
+}
+/* 按钮压在画面上：kit 的按钮，底色透一点。不用背景虚化：底下的画面一直在重画，虚化每帧都要重算 */
+.descent .lab-btn {
+  pointer-events: auto;
+  background: color-mix(in srgb, var(--lab-surface) 78%, transparent);
+  text-shadow: none;
+}
+.descent .play { min-width: 82px; }
+.descent.poster .tools, .descent.poster .lab-hint { display: none; }
+
+.descent .lab-hint {
+  color: var(--hud-2);
+  text-shadow: var(--hud-glow);
+  transition: opacity 0.6s var(--lab-ease);
+}
+.descent.started .lab-hint { opacity: 0; }
+
+/* 到了一千米：中间一句话，回到轨道 */
+.descent .end {
+  position: absolute;
+  inset: 0;
+  display: grid;
+  place-content: center;
+  justify-items: center;
+  gap: 10px;
+  padding: 0 24px;
+  text-align: center;
+  opacity: 0;
+  transform: translateY(8px);
+  transition: opacity 1.8s var(--lab-ease), transform 1.8s var(--lab-ease);
+}
+.descent .end.show { opacity: 1; transform: none; }
+.descent .end:not(.show) .lab-btn { pointer-events: none; }
+.descent .end p { font-size: 15px; letter-spacing: 0.02em; text-wrap: balance; }
+.descent .end small { font: 11px/1.4 var(--mono); color: var(--hud-3); letter-spacing: 0.02em; }
+.descent .end .lab-btn { margin-top: 14px; }
+@media (hover: none) { .descent .end .for-mouse { display: none; } }
+@media (hover: hover) { .descent .end .for-touch { display: none; } }
+
+/* 卡片：读数挪到左上，经纬度不要，刻度只留三处，播放只剩图标 */
+@container (max-height: 399px) {
+  .descent .geo { display: none; }
+  .descent .readout { top: 14px; bottom: auto; left: 14px; gap: 7px; }
+  .descent .num { font-size: 24px; }
+  .descent .gauge { top: 16px; bottom: 54px; right: 4px; }
+  .descent .tick span { display: none; }
+  .descent .tick.key span { display: block; }
+  .descent .tools { right: 12px; bottom: 10px; }
+  .descent .play { min-width: 0; width: 30px; padding: 0; }
+  .descent .play span { display: none; }
+  .descent .end { gap: 6px; }
+  .descent .end p { font-size: 13px; }
+  .descent .end .lab-btn { margin-top: 8px; }
+}
+/* 窄的大舞台（手机上的详情页）：刻度只留三处 */
+@container (max-width: 520px) {
+  .descent .tick span { display: none; }
+  .descent .tick.key span { display: block; }
+  .descent .num { font-size: 28px; }
+  .descent .readout { left: 16px; }
+  .descent .geo { left: 16px; }
+  .descent .tools { right: 16px; }
+}
