@@ -25,8 +25,8 @@ prompt: |-
   - Render at 2 pixels per character cell into a mipmapped target, and read each cell from mip level 1.
 
   2. Characters
-  - Cut the canvas into 8 px cells. Every cell gets a character.
-  - Sand gets - ~ = by brightness, turned along the stored direction, so each ripple and dune is traced by sideways strokes that converge with the perspective. Stretch them to 0.84 of the cell's width so neighbours join into lines. Read the direction from a blurrier mip level (2.5) than the brightness, so it doesn't jitter with every small bump, and guard the angle where the direction vector is zero, because atan(0, 0) is NaN on some GPUs.
+  - Cut the canvas into 6 px cells. Every cell gets a character.
+  - Sand gets - ~ = by brightness, turned along the stored direction, so each ripple and dune is traced by sideways strokes that converge with the perspective. Stretch them sideways until each one, outline included, is exactly a cell wide, so neighbours join end to end into unbroken lines. Read the direction from a blurrier mip level (2.5) than the brightness, so it doesn't jitter with every small bump, and guard the angle where the direction vector is zero, because atan(0, 0) is NaN on some GPUs.
   - Map brightness 0.31–0.62 across the glyphs, push it through a gentle S-curve for contrast, and raise it to a power before picking the glyph (1.8 in dark mode), so most cells are the thin - and ~ and only the brightest get =. The colour ramp carries most of the tone.
   - Blown sand gets upright . : * in its own colour, with a few stray grains around it.
   - Draw the characters from a glyph atlas painted with the canvas 2D API in my site's monospace font, and repaint it once the font has loaded.

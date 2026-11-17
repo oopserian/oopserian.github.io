@@ -7,7 +7,7 @@
         太阳低低地挂在左后方：朝着镜头的迎风坡亮，背风坡背着光，沙丘的影子拖得很长（往太阳那边走几步看挡没挡住）；
         越远越被沙尘的雾抹平，到地平线跟天接上。棱上不时被风扬起一缕缕沙，顺着风往下飘。
         底稿存三样：亮度、扬起的沙有多少、字该朝哪个方向放（沙纹的走向，没有沙纹就顺着沙丘的等高线，投到画面上，存成二倍角）。
-     2. 合成（composite）：整块切成 8px 见方的格子，每格都有字，不留空。跟 ASCII Waves 一个做法：
+     2. 合成（composite）：整块切成 6px 见方的格子，每格都有字，不留空。跟 ASCII Waves 一个做法：
         沙按亮度从 - ~ = 里挑，颜色沿一条色带走，字再转到沙纹的走向上，一道道沙纹就被字描出来，跟着透视往远处收；
         扬起来的沙是另一个颜色的 . : *，不转。画布是透明的，字以外露出网页自己的底色。
 
@@ -130,8 +130,8 @@ function duneH(x, z) {
 }
 
 // ---------- 字的图集 ----------
-// 一行一格 64 见方（字要转，格子得是正方形）。前 3 个是沙，由淡到浓 - ~ =，横着拉宽，一格接一格连成一道道沙纹；
-// 后 3 个是扬起来的沙，由淡到浓 . : *，不拉宽。每个字按墨迹居中，再描一圈边，笔画粗一点
+// 一行一格 64 见方（字要转，格子得是正方形）。前 3 个是沙，由淡到浓 - ~ =，横着拉满整格，左右首尾相接，连成一道道沙纹；
+// 后 3 个是扬起来的沙，由淡到浓 . : *，不拉。每个字按墨迹居中，再描一圈边，笔画粗一点
 const GLYPHS = ["-", "~", "=", ".", ":", "*"], SAND = 3;
 const T = 64;
 function drawAtlas(c, stroke = [4.5, 3]) {
@@ -144,11 +144,12 @@ function drawAtlas(c, stroke = [4.5, 3]) {
   GLYPHS.forEach((ch, i) => {
     const m = g.measureText(ch);
     const l = m.actualBoundingBoxLeft, r = m.actualBoundingBoxRight, up = m.actualBoundingBoxAscent, dn = m.actualBoundingBoxDescent;
-    const sx = i < SAND ? Math.max(1, Math.min(1.8, (0.84 * T) / (l + r))) : 1;
+    const lw = i < SAND ? stroke[0] : stroke[1];   // 沙的字是细线，描粗一点才压得住整块
+    const sx = i < SAND ? Math.max(1, T / (l + r + lw)) : 1;   // 横线连描边一起拉到正好一格宽：左右两格的字首尾相接，连成一整道
     g.save();
     g.translate(i * T + T / 2, T / 2); g.scale(sx, 1);
     const x = -(r - l) / 2, y = (up - dn) / 2;
-    g.lineWidth = i < SAND ? stroke[0] : stroke[1];   // 沙的字是细线，描粗一点才压得住整块
+    g.lineWidth = lw;
     g.fillText(ch, x, y); g.strokeText(ch, x, y);
     g.restore();
   });
@@ -405,7 +406,7 @@ const COMP_FS = /* glsl */ `
  * @param {HTMLCanvasElement} canvas
  * @param {{ period?: number, cell?: number, fps?: number }} [opts]
  */
-function create(canvas, { period = 12000, cell = 8, fps = 30 } = {}) {
+function create(canvas, { period = 12000, cell = 6, fps = 30 } = {}) {
   const gl = context(canvas);   // 没有 WebGL2 就抛错，交给调用的人接
   const software = softwareGL(gl);
   const motion = matchMedia("(prefers-reduced-motion: reduce)");

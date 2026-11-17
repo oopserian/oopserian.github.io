@@ -21,9 +21,9 @@ prompt: |-
   - Render into a target with depth and mipmaps, and read each cell from the mip level that matches the cell size.
 
   2. Characters
-  - Cut the canvas into 8 px cells. Every cell gets a character.
+  - Cut the canvas into 6 px cells. Every cell gets a character.
   - Cells with enough foam get an upright . : * o @, denser for more foam, with a few stray dots around the foam as spray.
-  - Other cells get - ~ = by brightness, turned along the crest direction, so each wave is traced by sideways strokes. Guard the angle where the direction vector is zero, because atan(0, 0) is NaN on some GPUs.
+  - Other cells get - ~ = by brightness, turned along the crest direction, so each wave is traced by sideways strokes. Stretch them sideways until each one, outline included, is exactly a cell wide, so neighbours join end to end into unbroken lines. Guard the angle where the direction vector is zero, because atan(0, 0) is NaN on some GPUs.
   - Draw the characters from a glyph atlas painted with the canvas 2D API in my site's monospace font. Repaint it once the font has loaded.
 
   3. Themes

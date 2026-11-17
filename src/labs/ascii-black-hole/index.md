@@ -24,8 +24,8 @@ prompt: |-
   - Render at 2 pixels per character cell into a mipmapped target, and read each cell from mip level 1.
 
   2. Characters
-  - Cut the canvas into 8 px cells. The hole and empty space get no character.
-  - The disk gets - ~ = by brightness, turned along the stored direction, so the orbits are traced by sideways strokes that bend around the hole. Stretch them to 0.84 of the cell's width so neighbours join into arcs. Read the direction from mip level 1.5, and guard the angle where the direction vector is zero, because atan(0, 0) is NaN on some GPUs.
+  - Cut the canvas into 6 px cells. The hole and empty space get no character.
+  - The disk gets - ~ = by brightness, turned along the stored direction, so the orbits are traced by sideways strokes that bend around the hole. Stretch them sideways until each one, outline included, is exactly a cell wide, so neighbours join end to end into unbroken arcs. Read the direction from mip level 1.5, and guard the angle where the direction vector is zero, because atan(0, 0) is NaN on some GPUs.
   - Map brightness 0.06–0.85 across the glyphs with a gentle S-curve, and raise it to a power before picking the glyph (1.4 in dark mode, 1.2 in light), so most cells are the thin - and ~ and only the brightest get =.
   - Where gas or a star the visitor added makes most of the light, lift the cell to at least 60% and tint it toward a hotter colour.
   - Stars get upright . + * in their own colour, only in cells with no disk.

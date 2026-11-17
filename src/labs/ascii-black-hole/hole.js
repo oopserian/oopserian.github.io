@@ -9,7 +9,7 @@
         盘上一道道气流按开普勒转：里圈快、外圈慢。
         底稿存三样：亮度、星星有多亮、字该朝哪个方向放（气体绕着转的方向，按屏幕上算的，
         所以绕到黑洞上面的那道光环，字也跟着绕过去），方向存成二倍角。
-     2. 合成（composite）：整块切成 8px 见方的格子。跟另外几个字符画一个做法：
+     2. 合成（composite）：整块切成 6px 见方的格子。跟另外几个字符画一个做法：
         盘按亮度从 - ~ = 里挑，颜色沿一条色带走，字再转到气体的流向上，一圈圈轨道就被字描出来；
         星星是另一个颜色的 . + *，不转；黑洞和空的天上没有字，露出网页自己的底色。
 
@@ -60,8 +60,8 @@ const COLORS = {
 };
 
 // ---------- 字的图集 ----------
-// 一行一格 64 见方（字要转，格子得是正方形）。前 3 个是盘，由淡到浓 - ~ =，横着拉宽，一格接一格连成一道道弧；
-// 后 3 个是星星，由暗到亮 . + *，不拉宽。每个字按墨迹居中，再描一圈边，笔画粗一点
+// 一行一格 64 见方（字要转，格子得是正方形）。前 3 个是盘，由淡到浓 - ~ =，横着拉满整格，左右首尾相接，连成一道道弧；
+// 后 3 个是星星，由暗到亮 . + *，不拉。每个字按墨迹居中，再描一圈边，笔画粗一点
 const GLYPHS = ["-", "~", "=", ".", "+", "*"], DISK = 3;
 const T = 64;
 function drawAtlas(c) {
@@ -74,11 +74,12 @@ function drawAtlas(c) {
   GLYPHS.forEach((ch, i) => {
     const m = g.measureText(ch);
     const l = m.actualBoundingBoxLeft, r = m.actualBoundingBoxRight, up = m.actualBoundingBoxAscent, dn = m.actualBoundingBoxDescent;
-    const sx = i < DISK ? Math.max(1, Math.min(1.8, (0.84 * T) / (l + r))) : 1;
+    const lw = i < DISK ? 4.5 : 3;
+    const sx = i < DISK ? Math.max(1, T / (l + r + lw)) : 1;   // 横线连描边一起拉到正好一格宽：左右两格的字首尾相接，连成一整道
     g.save();
     g.translate(i * T + T / 2, T / 2); g.scale(sx, 1);
     const x = -(r - l) / 2, y = (up - dn) / 2;
-    g.lineWidth = i < DISK ? 4.5 : 3;
+    g.lineWidth = lw;
     g.fillText(ch, x, y); g.strokeText(ch, x, y);
     g.restore();
   });
@@ -295,7 +296,7 @@ const compFS = () => /* glsl */ `
  * @param {HTMLCanvasElement} canvas
  * @param {{ period?: number, cell?: number, fps?: number }} [opts]
  */
-function create(canvas, { period = 12000, cell = 8, fps = 30 } = {}) {
+function create(canvas, { period = 12000, cell = 6, fps = 30 } = {}) {
   const gl = context(canvas);   // 没有 WebGL2 就抛错，交给调用的人接
   const software = softwareGL(gl);
   const motion = matchMedia("(prefers-reduced-motion: reduce)");
