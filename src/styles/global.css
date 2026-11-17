@@ -37,7 +37,7 @@
 }
 
 /* 配色。浅色是默认；深色两处写：跟随系统（没手动选过浅色时），和手动选了深色。
-   灰是略带暖的中性灰，强调色只有一个：钴蓝，只给链接、当前位置和字符画里被搅动的字。 */
+   灰是略带暖的中性灰，强调色只有一个：钴蓝，只给链接和当前的状态（比如首屏预览框里正放着的那一行）。 */
 :root {
   --bg: #F7F7F5;
   --bg-2: #EEEEEB;      /* 实验的舞台、代码块 */
@@ -47,8 +47,6 @@
   --line: #E0E0DC;
   --accent: #2F4BE8;    /* 对比度 6.0 */
   --accent-soft: rgb(47 75 232 / 0.1);
-  --ascii: #141414;     /* 字符画的字 */
-  --ascii-hot: #3355FF; /* 字符画里被鼠标搅动的字 */
 
   --serif: "Instrument Serif", ui-serif, Georgia, "Times New Roman", serif;
   --mono: "DM Mono", ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
@@ -71,8 +69,6 @@
     --line: #242422;
     --accent: #8597FF;
     --accent-soft: rgb(133 151 255 / 0.12);
-    --ascii: #EDEDEA;
-    --ascii-hot: #8597FF;
     color-scheme: dark;
   }
 }
@@ -85,8 +81,6 @@
   --line: #242422;
   --accent: #8597FF;
   --accent-soft: rgb(133 151 255 / 0.12);
-  --ascii: #EDEDEA;
-  --ascii-hot: #8597FF;
   color-scheme: dark;
 }
 

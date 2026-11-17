@@ -1,78 +1,208 @@
 ---
-// 首屏：左边是标题和简介，右边是字符拼的头像，四周一圈字符的烟（scripts/ascii.ts）。
-// 字符画只是装饰，没有脚本、没有 canvas 时就是一块空白，文字照常。
-import portrait from '../assets/portrait.webp';
+// 首屏：一屏放下网站的大部分内容（2026-11-17 laken 要的，同时去掉了字符画头像）。
+// 宽屏上是一个由 1px 细线分成的「田」字：
+//   左上 简介：一句话标题、介绍、联系方式        右上 预览框：默认是 SOOTY 的海报，下面一行说明
+//   左下 实验目录：全部实验，编号、名字、年月    右下 项目：一行一个
+// 指到（或用键盘选到）目录里的实验、项目，右上的预览框换成它的图（实验的小图由 tools/og.mjs 截，浅色深色各一张），
+// 说明跟着换，点预览框就打开它。没有脚本时预览框一直是 SOOTY，目录照样是链接。
+// 窄屏上从上到下排：简介、预览框、项目、实验目录。
+import fs from 'node:fs';
+import { Image, getImage } from 'astro:assets';
+import { getCollection } from 'astro:content';
 import Icon from './Icon.astro';
-import { SITE } from '../site';
+import poster from '../assets/projects/sooty-og.jpg';
+import { SITE, newestFirst } from '../site';
+
+const labs = (await getCollection('labs')).sort(newestFirst);
+const projects = (await getCollection('projects', p => !p.data.hidden)).sort((a, b) => a.data.order - b.data.order);
+
+// 预览框里的图都是 1200:630（SOOTY 海报的比例），按 2 倍给
+const posterImg = await getImage({ src: poster, width: 1000, format: 'webp' });
+const thumb = (slug: string, theme: string) => `/thumb/lab/${slug}-${theme}.webp`;
+const hasThumb = (slug: string) => fs.existsSync(`${process.cwd()}/public${thumb(slug, 'light')}`); // 构建在仓库根目录跑
+
+// 预览框下面的说明只放一句话的第一句（后面一般是「怎么玩」），两行放得下
+const firstSentence = (t: string) => t.match(/^.*?[.!?](?=\s|$)/)?.[0] ?? t;
+const SOOTY_SUM = 'A local-first asset manager for Mac. Images, videos, fonts and 3D models in one fast library.';
+const NOW = 'Now · In development, macOS first';
+const month = (d: Date) => d.toLocaleDateString('en', { year: 'numeric', month: 'short', timeZone: 'UTC' });
+const host = (url: string) => {
+  const u = new URL(url);
+  return u.host.replace(/^www\./, '') + (u.host === 'github.com' ? u.pathname.replace(/\/$/, '') : '');
+};
+
+// 目录的编号按做出来的先后，最早的是 01，所以新做的实验不会改动旧实验的号
+// 年月只在换月份的那一行写，同一个月的后面几行空着，像账本，一列「Nov 2026」不用重复七遍
+const labRows = labs.map((lab, i) => ({
+  id: lab.id,
+  no: String(labs.length - i).padStart(2, '0'),
+  title: lab.data.title,
+  summary: firstSentence(lab.data.summary),
+  when: i > 0 && month(labs[i - 1].data.date) === month(lab.data.date) ? '' : month(lab.data.date),
+  meta: `No. ${String(labs.length - i).padStart(2, '0')} · ${month(lab.data.date)} · ${lab.data.tags.join(' · ')}`,
+  href: lab.data.wip ? '' : `/lab/${lab.id}/`,
+  thumb: !lab.data.wip && hasThumb(lab.id),
+}));
+
+const projectRows = await Promise.all(projects.map(async ({ id, data: p }) => ({
+  id,
+  name: p.name,
+  summary: p.summary,
+  kind: p.status ? `${p.kind} · ${p.status}` : p.kind,
+  url: p.url,
+  where: host(p.url),
+  icon: (await getImage({ src: p.icon, width: 160, format: 'webp' })).src,
+  data: p,
+})));
+const sooty = projectRows.find(p => p.name === 'SOOTY');
 ---
-<section class="hero" data-hero data-src={portrait.src}>
-  <canvas class="ascii" aria-hidden="true"></canvas>
+<section class="hero" data-hero>
   <div class="wrap grid">
-    <div class="text">
+    <div class="cell intro">
       <p class="eyebrow rise" style="--d:0ms">Independent developer · Germany</p>
-      <h1 class="display rise" style="--d:80ms">Build stuff.<br><em>Sometimes it works.</em></h1>
-      <p class="lede rise" style="--d:200ms">
-        I’m {SITE.name}, a web and software developer working on my own.
-        Right now I’m building <a class="link" href="https://sooty.app">SOOTY</a>, a local-first asset manager for Mac, written in Rust.
-        The <a class="link" href="#lab">lab</a> below is where I try out interface ideas.
-      </p>
-      <ul class="links rise" style="--d:300ms">
-        <li><a href={SITE.github}><Icon name="github" /><span class="out">GitHub</span></a></li>
-        <li><a href={SITE.x}><Icon name="x" /><span class="out">X</span></a></li>
-        <li><a href={`mailto:${SITE.email}`}><Icon name="mail" /><span class="out">Email</span></a></li>
-      </ul>
+      <div class="intro-main">
+        <h1 class="display rise" style="--d:60ms">Build stuff.<br><em>Sometimes it works.</em></h1>
+        <p class="lede rise" style="--d:140ms">
+          I’m {SITE.name}, a web and software developer working on my own.
+          Right now I’m building <a class="link" href="https://sooty.app">SOOTY</a>, a local-first asset manager for Mac, written in Rust.
+          The <a class="link" href="#lab">lab</a> is where I try out interface ideas.
+        </p>
+        <ul class="links mono rise" id="contact" style="--d:200ms">
+          <li><a href={`mailto:${SITE.email}`}><Icon name="mail" /><span class="out">{SITE.email}</span></a></li>
+          <li><a href={SITE.github}><Icon name="github" /><span class="out">GitHub</span></a></li>
+          <li><a href={SITE.x}><Icon name="x" /><span class="out">X</span></a></li>
+        </ul>
+      </div>
     </div>
-    <div class="portrait" data-anchor></div>
+
+    <!-- 预览框：鼠标的便利，内容跟下面的目录重复，所以读屏和键盘跳过它 -->
+    <figure class="cell viewer rise" style="--d:120ms" data-viewer aria-hidden="true">
+      <a class="screen" href="https://sooty.app" tabindex="-1" data-screen>
+        <div class="layer">
+          <Image src={poster} alt="" widths={[640, 1000]} sizes="(max-width: 760px) 100vw, 480px" loading="eager" fetchpriority="high" />
+        </div>
+        <span class="open mono">Open<span aria-hidden="true"> ↗</span></span>
+      </a>
+      <figcaption data-now>
+        <p class="meta mono" data-meta>{NOW}</p>
+        <p class="name" data-name>SOOTY</p>
+        <p class="sum" data-sum>{SOOTY_SUM}</p>
+      </figcaption>
+    </figure>
+
+    <nav class="cell index" aria-labelledby="index-h">
+      <div class="head rise" style="--d:180ms">
+        <h2 class="eyebrow" id="index-h">Lab <span class="count">{labRows.length}</span></h2>
+        <a class="mono all" href="#lab">Play with them below<span aria-hidden="true"> ↓</span></a>
+      </div>
+      <ol class="list">
+        {labRows.map((l, i) => (
+          <li class="rise" style={`--d:${220 + i * 22}ms`}>
+            <a class="row" href={l.href || '#lab'} data-item={`lab:${l.id}`}
+              data-kind={l.thumb ? 'thumb' : 'stripes'} data-slug={l.id}
+              data-meta={l.meta} data-name={l.title} data-sum={l.summary}>
+              <span class="no mono">{l.no}</span>
+              <span class="title">{l.title}</span>
+              <span class="when mono">{l.when}</span>
+            </a>
+          </li>
+        ))}
+      </ol>
+    </nav>
+
+    <div class="cell work" id="work">
+      <h2 class="eyebrow rise" style="--d:180ms">Projects</h2>
+      <ol>
+        {projectRows.map((p, i) => (
+          <li class="rise" style={`--d:${260 + i * 40}ms`}>
+            <a class="row" href={p.url} data-item={`project:${p.id}`}
+              data-kind={p === sooty ? 'poster' : 'icon'} data-icon={p.icon} data-on={p === sooty ? '' : undefined}
+              data-meta={p === sooty ? NOW : `${p.kind} · ${p.where}`}
+              data-name={p.name}
+              data-sum={p === sooty ? SOOTY_SUM : p.summary}>
+              <Image src={p.data.icon} alt="" width={36} height={36} densities={[1, 2]} />
+              <span class="name"><span class="out">{p.name}</span></span>
+              <span class="kind mono">{p.kind}</span>
+              <span class="summary">{p.summary}</span>
+            </a>
+          </li>
+        ))}
+      </ol>
+    </div>
   </div>
+  <template data-poster><img src={posterImg.src} alt="" width="1000" height="525" /></template>
 </section>
 
 <style>
   .hero {
-    position: relative;
-    overflow: hidden;
     border-bottom: 1px solid var(--line);
-    touch-action: pan-y;
+    --gap: 40px;      /* 细线两边的空 */
+    --side: 480px;    /* 右边一栏（预览框、项目）的宽 */
   }
-  /* 只盖头像四周一圈，位置和大小由 scripts/ascii.ts 按头像算好写进 style */
-  .ascii {
+  /* 田字格：中间一道竖线、一道横线，横线跟外面的一样通到窗口两边
+     （box-shadow 往四周铺开，再用 clip-path 只留左右，不撑宽页面） */
+  .grid {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) var(--side);
+    grid-template-rows: auto 1fr;
+    grid-template-areas: "intro viewer" "index work";
+    min-height: max(600px, calc(100svh - var(--nav-h)));
+  }
+  .cell { min-width: 0; }
+  .intro, .index { padding-right: var(--gap); border-right: 1px solid var(--line); }
+  .viewer, .work { padding-left: var(--gap); }
+  .index, .work { position: relative; }
+  .index::before {
+    content: "";
     position: absolute;
     top: 0;
     left: 0;
-    width: 0;
-    height: 0;
-    pointer-events: none;
-    --ascii-cell: 8px; /* 字符画一格多高，宽是它的 0.6 */
+    right: -1px;
+    height: 1px;
+    background: var(--line);
+    box-shadow: 0 0 0 100vmax var(--line);
+    clip-path: inset(0 0 0 -100vmax);
   }
-  .grid {
-    position: relative;
-    display: grid;
-    grid-template-columns: minmax(0, 1fr) minmax(0, 480px);
-    align-items: center;
-    gap: 48px;
-    min-height: min(calc(100svh - var(--nav-h)), 720px);
-    padding-block: 64px 72px;
+  .work::before {
+    content: "";
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    height: 1px;
+    background: var(--line);
+    box-shadow: 0 0 0 100vmax var(--line);
+    clip-path: inset(0 -100vmax 0 0);
   }
-  .text { max-width: 640px; }
-  .eyebrow { margin-bottom: 20px; }
-  h1 { --size: 64px; margin-bottom: 28px; }
-  @media (max-width: 1180px) {
-    h1 { --size: 52px; }
+
+  /* 左上：简介。上面一行小字贴顶，标题、介绍、联系方式贴底，跟右边的预览框上下对齐 */
+  .intro {
+    grid-area: intro;
+    display: flex;
+    flex-direction: column;
+    justify-content: space-between;
+    gap: 32px;
+    padding-block: 44px 40px;
   }
+  /* 小字的行高比字大，往上挪一点，字的顶边才跟右边预览框的上沿齐 */
+  .intro .eyebrow { margin-top: -5px; }
+  h1 { --size: 56px; }
   .lede {
-    font-size: 18px;
+    margin-top: 24px;
+    max-width: 33em;
+    font-size: 17px;
     line-height: 1.6;
     color: var(--fg-2);
-    max-width: 34em;
     text-wrap: pretty;
   }
   .links {
     display: flex;
     flex-wrap: wrap;
     gap: 8px 24px;
-    margin-top: 28px;
-    font-family: var(--mono);
+    margin-top: 24px;
     font-size: 14px;
   }
+  .links li { display: flex; }
   .links a {
     display: inline-flex;
     align-items: center;
@@ -81,37 +211,357 @@ import { SITE } from '../site';
     transition: color .15s;
   }
   .links a:hover { color: var(--accent); }
-  .portrait {
-    width: 100%;
-    aspect-ratio: 3 / 4;
+
+  /* 右上：预览框 */
+  .viewer {
+    grid-area: viewer;
+    display: flex;
+    flex-direction: column;
+    justify-content: space-between;
+    gap: 16px;
+    padding-block: 44px 40px;
   }
-  @media (max-width: 860px) {
+  .screen {
+    position: relative;
+    display: block;
+    aspect-ratio: 1200 / 630;
+    overflow: hidden;
+    background: var(--bg-2);
+    outline: 1px solid var(--line);
+    outline-offset: -1px;
+  }
+  /* 预览框里的一层层是脚本建的，没有 Astro 给的作用域属性，所以用 :global */
+  .screen :global(.layer) {
+    position: absolute;
+    inset: 0;
+    display: grid;
+    place-items: center;
+    background: var(--bg-2);
+  }
+  .screen :global(.layer > img) {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+  }
+  .screen :global(.layer > img.icon) {
+    width: 88px;
+    height: 88px;
+    border-radius: 27%;
+  }
+  .screen :global(.layer.stripes) {
+    background:
+      repeating-linear-gradient(-45deg, transparent 0 14px, color-mix(in srgb, var(--fg) 6%, transparent) 14px 15px),
+      var(--bg-2);
+  }
+  /* 指到预览框上：图稍微放大，右下角露出「Open」，告诉人点了就打开 */
+  .screen :global(.layer > img) { transition: scale .6s cubic-bezier(.2, .7, .2, 1); }
+  .screen:hover :global(.layer:last-of-type > img) { scale: 1.02; }
+  .open {
+    position: absolute;
+    right: 12px;
+    bottom: 12px;
+    z-index: 2;
+    padding: 3px 8px;
+    font-size: 12px;
+    color: var(--fg);
+    background: var(--bg);
+    border: 1px solid var(--line);
+    opacity: 0;
+    translate: 0 4px;
+    transition: opacity .2s, translate .3s cubic-bezier(.2, .7, .2, 1);
+  }
+  .screen:hover .open { opacity: 1; translate: 0 0; }
+  /* 框线压在图上面，深色的海报在浅色主题里也有边 */
+  .screen::after {
+    content: "";
+    position: absolute;
+    inset: 0;
+    border: 1px solid color-mix(in srgb, var(--fg) 10%, transparent);
+    pointer-events: none;
+  }
+  figcaption { display: grid; }
+  .viewer .meta { color: var(--fg-3); font-size: 12px; }
+  /* 放的是正在做的 SOOTY 时，「Now」前面一个蓝色小方块，表示进行中 */
+  figcaption[data-now] .meta::before {
+    content: "";
+    display: inline-block;
+    width: 6px;
+    height: 6px;
+    margin-right: 8px;
+    vertical-align: 1px;
+    background: var(--accent);
+  }
+  .viewer .name {
+    margin-top: 4px;
+    font-family: var(--serif);
+    font-size: 28px;
+    line-height: 1.1;
+  }
+  .viewer .sum {
+    margin-top: 6px;
+    color: var(--fg-2);
+    font-size: 14px;
+    line-height: 1.5;
+    min-height: 3em;
+    display: -webkit-box;
+    -webkit-box-orient: vertical;
+    -webkit-line-clamp: 2;
+    overflow: hidden;
+    text-wrap: pretty;
+  }
+
+  /* 左下：实验目录，新做的在前。一张表分成两列（CSS columns，自动对半分），窗口矮的时候分三列、不写年月 */
+  .index {
+    grid-area: index;
+    padding-block: 28px 40px;
+  }
+  .head {
+    display: flex;
+    align-items: baseline;
+    justify-content: space-between;
+    gap: 16px;
+    padding-bottom: 12px;
+    border-bottom: 1px solid var(--line);
+  }
+  .count { margin-left: 6px; color: var(--fg-2); }
+  .all {
+    font-size: 12px;
+    color: var(--fg-3);
+    transition: color .15s;
+  }
+  .all:hover { color: var(--accent); }
+  .list {
+    columns: 2;
+    column-gap: 32px;
+  }
+  .list li { break-inside: avoid; }
+  .index .row {
+    display: grid;
+    grid-template-columns: 30px minmax(0, 1fr) auto;
+    align-items: baseline;
+    gap: 8px;
+    padding-block: 6px 5px;
+    border-bottom: 1px solid var(--line);
+    transition: color .2s;
+  }
+  .no, .when { font-size: 12px; color: var(--fg-3); transition: color .2s; }
+  .index .title {
+    font-family: var(--serif);
+    font-size: 21px;
+    line-height: 1.15;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+
+  /* 右下：项目 */
+  .work {
+    grid-area: work;
+    padding-block: 28px 40px;
+  }
+  .work h2 { margin-bottom: 12px; }  /* 跟左边目录的表头一样高，两边的第一道线齐 */
+  .work .row {
+    display: grid;
+    grid-template-columns: 36px minmax(0, 1fr) auto;
+    grid-template-areas: "icon name kind" "icon summary summary";
+    align-items: baseline;
+    column-gap: 14px;
+    row-gap: 2px;
+    padding-block: 12px 13px;
+    border-top: 1px solid var(--line);
+    transition: color .2s;
+  }
+  .work li:last-child .row { border-bottom: 1px solid var(--line); }
+  .work img {
+    grid-area: icon;
+    align-self: center;
+    width: 36px;
+    height: 36px;
+    object-fit: cover;
+    border-radius: 27%;
+  }
+  .work .name { grid-area: name; font-family: var(--serif); font-size: 23px; line-height: 1.1; }
+  .work .kind { grid-area: kind; font-size: 12px; color: var(--fg-3); text-align: right; }
+  .work .name .out::after { font-size: 13px; color: var(--fg-3); transition: color .15s, transform .15s; }
+  .work .summary {
+    grid-area: summary;
+    font-size: 14px;
+    line-height: 1.5;
+    color: var(--fg-2);
+    text-wrap: pretty;
+    transition: color .2s;
+  }
+
+  /* 指到一行时别的行都淡下去，指着的那行编号变蓝（当前的状态） */
+  @media (hover: hover) {
+    .index:has(.row:hover) .row:not(:hover),
+    .work:has(.row:hover) .row:not(:hover) { color: var(--fg-3); }
+    .work:has(.row:hover) .row:not(:hover) .summary { color: var(--fg-3); }
+    .row:hover .no, .row:hover .name .out::after { color: var(--accent); }
+  }
+  /* 预览框里正放着的那一行（指针离开以后也留着），编号变蓝 */
+  .row[data-on] .no, .row[data-on] .kind, .row:focus-visible .no { color: var(--accent); }
+
+  /* 中等宽度：右栏窄一点，标题小一点 */
+  @media (max-width: 1240px) {
+    .hero { --side: 420px; --gap: 32px; }
+    h1 { --size: 52px; }
+  }
+
+  /* 宽但矮的窗口（1280×800 这类笔记本，浏览器里只剩七百来像素高）：留白收一点，目录分三列，一屏还是放得下 */
+  @media (min-width: 1080px) and (max-height: 860px) {
+    .intro, .viewer { padding-block: 32px 28px; }
+    h1 { --size: 50px; }
+    .index, .work { padding-block: 22px 28px; }
+    .list { columns: 3; }
+    .index .when { display: none; }
+    .index .row { grid-template-columns: 28px minmax(0, 1fr); }
+  }
+
+  /* 窄屏：一栏，从上到下 简介、预览框、项目、实验目录，细线全部横着通到两边 */
+  @media (max-width: 1079px) {
     .grid {
-      grid-template-columns: 1fr;
-      gap: 8px;
+      grid-template-columns: minmax(0, 1fr);
+      grid-template-rows: none;
+      grid-template-areas: "intro" "viewer" "work" "index";
       min-height: 0;
-      padding-block: 24px 48px;
     }
-    .portrait {
-      order: -1;
-      width: min(280px, 72vw);
-      justify-self: center;
-    }
+    .intro, .index { padding-right: 0; border-right: 0; }
+    .viewer, .work { padding-left: 0; }
+    .intro { padding-block: 40px 36px; }
+    .viewer { padding-block: 0 32px; }
+    .index::before, .work::before { right: 0; clip-path: inset(0 -100vmax); }
+    .work, .index { padding-block: 28px 36px; }
+    /* 平板宽度：预览框不铺满，图在左，说明在右下 */
+    .viewer { flex-direction: row; align-items: flex-end; gap: 32px; }
+    .screen { flex: 0 0 58%; }
+    figcaption { flex: 1; min-width: 0; }
+  }
+  /* 触屏上预览框不换，一直是 SOOTY，项目里就不再列一遍 SOOTY */
+  @media (hover: none) {
+    .work li:has([data-kind="poster"]) { display: none; }
+  }
+  @media (max-width: 760px) {
+    .viewer { flex-direction: column; align-items: stretch; gap: 16px; }
     h1 { --size: 38px; }
-    .lede { font-size: 17px; }
-    .ascii { --ascii-cell: 6px; } /* 头像只有 280px 宽，格子小一点五官才认得出 */
+    .intro { padding-block: 32px 28px; gap: 24px; }
+    .lede { margin-top: 20px; font-size: 16px; }
+    .links { margin-top: 20px; gap: 6px 20px; font-size: 13px; }
+    .viewer .name { font-size: 24px; }
+    .list { columns: 1; }
+    .index .row { padding-block: 10px 9px; }
   }
 </style>
 
 <script>
-  import { mount } from '../scripts/ascii';
-  const host = document.querySelector<HTMLElement>('[data-hero]')!;
-  const go = () => mount({
-    host,
-    canvas: host.querySelector('canvas')!,
-    anchor: host.querySelector<HTMLElement>('[data-anchor]')!,
-    src: host.dataset.src!,
-  });
-  // 不跟首屏的文字抢主线程：浏览器闲下来再挂
-  'requestIdleCallback' in window ? requestIdleCallback(go, { timeout: 600 }) : setTimeout(go, 200);
+  // 预览框跟着目录换图。只在有鼠标（能悬停）的设备上换；触屏点一下就是打开，预览框一直是 SOOTY。
+  // 换的时候新图从指针移动的方向擦进来（clip-path），里面的图从 1.06 倍缩回原大，说明的字淡出、换字、淡入；
+  // 系统开了「减弱动态效果」就直接换。实验的小图按当前主题挑，换主题时当前那张跟着换。
+  const hero = document.querySelector<HTMLElement>('[data-hero]');
+  const viewer = hero?.querySelector<HTMLElement>('[data-viewer]');
+  const screen = viewer?.querySelector<HTMLAnchorElement>('[data-screen]');
+  const posterTpl = hero?.querySelector<HTMLTemplateElement>('template[data-poster]');
+  if (hero && viewer && screen && posterTpl && matchMedia('(hover: hover)').matches) {
+    const root = document.documentElement;
+    const darkMq = matchMedia('(prefers-color-scheme: dark)');
+    const reduce = matchMedia('(prefers-reduced-motion: reduce)');
+    const theme = () => root.dataset.theme ?? (darkMq.matches ? 'dark' : 'light');
+    const caption = viewer.querySelector('figcaption')!;
+    const fields = {
+      meta: viewer.querySelector<HTMLElement>('[data-meta]')!,
+      name: viewer.querySelector<HTMLElement>('[data-name]')!,
+      sum: viewer.querySelector<HTMLElement>('[data-sum]')!,
+    };
+    const rows = [...hero.querySelectorAll<HTMLAnchorElement>('[data-item]')];
+    let current = hero.querySelector<HTMLAnchorElement>('[data-kind="poster"]');
+    let token = 0;
+
+    const src = (row: HTMLElement) =>
+      row.dataset.kind === 'thumb' ? `/thumb/lab/${row.dataset.slug}-${theme()}.webp`
+      : row.dataset.kind === 'icon' ? row.dataset.icon!
+      : row.dataset.kind === 'poster' ? posterTpl.content.querySelector('img')!.getAttribute('src')!
+      : '';
+
+    // 一层：一个铺满的块，里面一张图（或者斜条纹）
+    const makeLayer = (row: HTMLElement) => {
+      const layer = document.createElement('div');
+      layer.className = 'layer';
+      const url = src(row);
+      let img: HTMLImageElement | null = null;
+      if (url) {
+        img = new Image();
+        img.alt = '';
+        img.src = url;
+        if (row.dataset.kind === 'icon') img.className = 'icon';
+      } else layer.classList.add('stripes');
+      if (img) layer.append(img);
+      return { layer, img };
+    };
+
+    const settle = (keep: Element) => {
+      for (const el of screen.querySelectorAll('.layer')) if (el !== keep) el.remove();
+    };
+
+    const show = async (row: HTMLAnchorElement, animate = true) => {
+      const prev = current;
+      current = row;
+      const my = ++token;
+      const { layer, img } = makeLayer(row);
+      if (img) await img.decode().catch(() => {});
+      if (my !== token) return;
+      // 往下移就从上往下擦，往上移就从下往上擦
+      const down = !prev || rows.indexOf(row) >= rows.indexOf(prev);
+      const under = screen.querySelector('.layer:last-of-type > img');
+      screen.href = row.href;
+      screen.append(layer);
+      prev?.removeAttribute('data-on');
+      row.setAttribute('data-on', '');
+      const motion = animate && !reduce.matches;
+      if (motion) {
+        layer.animate(
+          [{ clipPath: down ? 'inset(0 0 100% 0)' : 'inset(100% 0 0 0)' }, { clipPath: 'inset(0 0 0 0)' }],
+          { duration: 560, easing: 'cubic-bezier(.2, .7, .2, 1)' },
+        ).finished.then(() => my === token && settle(layer), () => {});
+        img?.animate([{ scale: 1.06 }, { scale: 1 }], { duration: 900, easing: 'cubic-bezier(.2, .7, .2, 1)' });
+        // 被盖住的那张顺着擦的方向往外让一点，有前后的层次
+        under?.animate([{ translate: '0 0' }, { translate: `0 ${down ? 5 : -5}%` }], { duration: 560, easing: 'cubic-bezier(.2, .7, .2, 1)', fill: 'forwards' });
+        caption.getAnimations().forEach(a => a.cancel());
+        caption.animate([{ opacity: 0, translate: `0 ${down ? 6 : -6}px` }, { opacity: 1, translate: '0 0' }], { duration: 320, easing: 'cubic-bezier(.2, .7, .2, 1)' });
+      } else settle(layer);
+      caption.toggleAttribute('data-now', row.dataset.kind === 'poster');
+      fields.meta.textContent = row.dataset.meta ?? '';
+      fields.name.textContent = row.dataset.name ?? '';
+      fields.sum.textContent = row.dataset.sum ?? '';
+    };
+
+    const pick = (row: HTMLAnchorElement) => { if (row !== current) show(row); };
+    for (const row of rows) {
+      row.addEventListener('pointerenter', (e) => { if (e.pointerType === 'mouse' || e.pointerType === 'pen') pick(row); });
+      row.addEventListener('focus', () => pick(row));
+    }
+
+    // 第一次指到目录时，趁空把当前主题的实验小图都先拿下来，换的时候不用等
+    let warmed = '';
+    const warm = () => {
+      const t = theme();
+      if (warmed === t) return;
+      warmed = t;
+      const urls = rows.filter(r => r.dataset.kind === 'thumb' || r.dataset.kind === 'icon').map(src);
+      const next = () => {
+        const url = urls.shift();
+        if (!url) return;
+        const im = new Image();
+        im.onload = im.onerror = () => ('requestIdleCallback' in window ? requestIdleCallback(next) : setTimeout(next, 50));
+        im.src = url;
+      };
+      next();
+    };
+    hero.querySelector('.index')?.addEventListener('pointerenter', warm);
+    hero.querySelector('.work')?.addEventListener('pointerenter', warm);
+
+    // 换主题：当前是实验小图的话换成另一个主题的那张，不带动画
+    const retheme = () => { if (current?.dataset.kind === 'thumb') show(current, false); };
+    new MutationObserver(retheme).observe(root, { attributes: true, attributeFilter: ['data-theme'] });
+    darkMq.addEventListener('change', retheme);
+  }
 </script>

@@ -10,8 +10,6 @@ export default defineConfig({
   integrations: [react(), sitemap()],
   vite: {
     plugins: [tailwindcss()],
-    // 压缩脚本时默认连 /*! 开头的许可证注释一起删掉。src/scripts/ascii.ts 开头 React Bits 的许可证要跟着代码发出去，留着
-    build: { rolldownOptions: { output: { comments: { legal: true } } } },
   },
   devToolbar: { enabled: false },
 });
