@@ -1,4 +1,4 @@
-import{t as e}from"./react.CadLv9_P.js";import{t}from"./jsx-runtime.C2DLLpjJ.js";import{a as n,i as r,n as i,o as a,r as o,t as s}from"./gl.B6Qi3-Xr.js";var c=e(),l=Math.PI*2,u=64,d=4,f=6,p=4;function m(e){let t=0,n=1/0;for(let r=1;r<e.length-1;r++){if(e[r].start||e[r+1].start)continue;let i=e[r-1],a=e[r],o=e[r+1],s=Math.abs((a.x-i.x)*(o.y-i.y)-(a.y-i.y)*(o.x-i.x));s<n&&(n=s,t=r)}e.splice(t,1)}var ee={dark:{stone:[[.12,.13,.17],[.28,.31,.39],[.56,.6,.7],[.88,.91,.97]],glow:[[.25,.5,.95],[.82,.94,1]],glint:[1,1,1],range:[.04,.5],gamma:.6,dense:1.4,fog:0},light:{stone:[[.62,.64,.69],[.4,.42,.48],[.19,.2,.24],[.04,.04,.06]],glow:[[.15,.25,.85],[.03,.07,.5]],glint:[.04,.04,.06],range:[.04,.5],gamma:.8,dense:1,fog:1}},te={S:.6,GAP:.03,RIM:4,HA:.6,HF:.16,CAM_H:3.4,PITCH:42,FOG0:7,FOGD:9,KEY_EL:.5,KEY_SWING:1.1,AMB:.04,FILL:.15,KD:.35,KE:.45,KS:1,KP:50,LAMP:.8,LAMP_H:1.3,LAMP_F:2.5,GA:1,GT:.64,GF:.55,GLOW_UP:.6,HOT:.92,GLINT:.8,FLAT0:.2,DIRLOD:2},h=40,g=80,_=e=>Number(e).toFixed(5),v=e=>`
+import{t as e}from"./react.CadLv9_P.js";import{t}from"./jsx-runtime.C2DLLpjJ.js";import{a as n,i as r,n as i,o as a,r as o,t as s}from"./gl.B6Qi3-Xr.js";var c=e(),ee=Math.PI*2,l=64,u=4,d=6,f=4;function p(e){let t=0,n=1/0;for(let r=1;r<e.length-1;r++){if(e[r].start||e[r+1].start)continue;let i=e[r-1],a=e[r],o=e[r+1],s=Math.abs((a.x-i.x)*(o.y-i.y)-(a.y-i.y)*(o.x-i.x));s<n&&(n=s,t=r)}e.splice(t,1)}var m={dark:{stone:[[.12,.13,.17],[.28,.31,.39],[.56,.6,.7],[.88,.91,.97]],glow:[[.25,.5,.95],[.82,.94,1]],glint:[1,1,1],range:[.04,.5],gamma:.6,dense:1.4,fog:0,stroke:[4.5,3]},light:{stone:[[.62,.64,.68],[.44,.46,.51],[.29,.3,.34],[.15,.15,.18]],glow:[[.15,.25,.85],[.03,.07,.5]],glint:[.04,.04,.06],range:[.04,.65],gamma:1,dense:1,fog:1,stroke:[6.5,4.5]}},te={S:.6,GAP:.03,RIM:4,HA:.6,HF:.16,CAM_H:3.4,PITCH:42,FOG0:7,FOGD:9,KEY_EL:.5,KEY_SWING:1.1,AMB:.04,FILL:.15,KD:.35,KE:.45,KS:1,KP:50,LAMP:.8,LAMP_H:1.3,LAMP_F:2.5,GA:1,GT:.64,GF:.55,GLOW_UP:.6,HOT:.92,GLINT:.8,FLAT0:.2,DIRLOD:2},h=40,g=80,_=e=>Number(e).toFixed(5),v=e=>`
   const float S = ${_(e.S)}, GAP = ${_(e.GAP)}, RIM = ${_(e.RIM)}, HA = ${_(e.HA)}, HF = ${_(e.HF)};
   const float YMAX = ${_(1.2*e.S+.5*e.HA+.02)}, YMIN = ${_(-.35*e.S-.5*e.HA-.05)};
   uint ih(uint x) { x ^= x >> 16; x *= 0x7feb352du; x ^= x >> 15; x *= 0x846ca68bu; x ^= x >> 16; return x; }
@@ -78,18 +78,18 @@ import{t as e}from"./react.CadLv9_P.js";import{t}from"./jsx-runtime.C2DLLpjJ.js"
     float ed = (d2 - d1) / (2.0 * length(r2 - r1));
     return S * min(1.2 - 0.5 * d1, -0.35 + RIM * max(ed - GAP, 0.0)) + heap(p).x;
   }
-`,y=[`-`,`=`,`.`,`:`,`*`,`o`,`@`],b=2,x=64;function ne(e){let t=e.getContext(`2d`);e.width=x*y.length,e.height=x,t.clearRect(0,0,e.width,e.height),t.fillStyle=t.strokeStyle=`#fff`,t.lineJoin=`round`,t.textAlign=`left`,t.textBaseline=`alphabetic`,t.font=`500 50px "DM Mono", ui-monospace, monospace`,y.forEach((e,n)=>{let r=t.measureText(e),i=r.actualBoundingBoxLeft,a=r.actualBoundingBoxRight,o=r.actualBoundingBoxAscent,s=r.actualBoundingBoxDescent,c=n<b?Math.max(1,Math.min(1.8,.84*x/(i+a))):1;t.save(),t.translate(n*x+x/2,x/2),t.scale(c,1);let l=-(a-i)/2,u=(o-s)/2;t.lineWidth=n<b?4.5:3,t.fillText(e,l,u),t.strokeText(e,l,u),t.restore()})}var S=`
+`,y=[`-`,`=`,`.`,`:`,`*`,`o`,`@`],b=2,x=64;function S(e,t=[4.5,3]){let n=e.getContext(`2d`);e.width=x*y.length,e.height=x,n.clearRect(0,0,e.width,e.height),n.fillStyle=n.strokeStyle=`#fff`,n.lineJoin=`round`,n.textAlign=`left`,n.textBaseline=`alphabetic`,n.font=`500 50px "DM Mono", ui-monospace, monospace`,y.forEach((e,r)=>{let i=n.measureText(e),a=i.actualBoundingBoxLeft,o=i.actualBoundingBoxRight,s=i.actualBoundingBoxAscent,c=i.actualBoundingBoxDescent,ee=r<b?Math.max(1,Math.min(1.8,.84*x/(a+o))):1;n.save(),n.translate(r*x+x/2,x/2),n.scale(ee,1);let l=-(o-a)/2,u=(s-c)/2;n.lineWidth=r<b?t[0]:t[1],n.fillText(e,l,u),n.strokeText(e,l,u),n.restore()})}var C=`
   in vec2 position; out vec2 vUv;
   void main() { vUv = position.xy * 0.5 + 0.5; gl_Position = vec4(position.xy, 0.0, 1.0); }
-`,C=`
+`,w=`
   uniform vec3 uCamR, uCamU, uCamF;   // 镜头往右、往上、往前
   uniform vec2 uTan;                  // 画面右边沿、上边沿的 tan
   uniform float uCamH;                // 镜头多高（窄的画面镜头抬高一点，煤块不至于太大）
   #define RO vec3(0.0, uCamH, 0.0)
-`,re=e=>`
+`,ne=e=>`
   precision highp float;
   in vec2 vUv; out vec4 o;
-  ${C}
+  ${w}
   ${v(e)}
   float fullH(vec2 p) { vec2 id, en; float ed, hr; return bed(p, id, ed, en, hr).x; }
   vec2 enc(float v) { float u = floor(clamp(v, 0.0, 1.0) * 65535.0 + 0.5), hi = floor(u / 256.0); return vec2(hi, u - hi * 256.0) / 255.0; }
@@ -127,17 +127,17 @@ import{t as e}from"./react.CadLv9_P.js";import{t}from"./jsx-runtime.C2DLLpjJ.js"
     vec3 P = RO + rd * (0.5 * (ta + tb));
     o = vec4(enc((P.x + ${h}.0) / 80.0), enc((P.z + ${g}.0) / ${g}.0));
   }
-`,ie=e=>`
+`,re=e=>`
   precision highp float;
   in vec2 vUv; out vec4 o;
-  ${C}
+  ${w}
   uniform sampler2D uGeo;
   uniform float uU, uFoot, uFogL;     // 一圈里走到哪（0 到 1）；底稿一个像素在 1 远的地方有多宽；远处暗到哪个亮度
   uniform vec3 uKey;                  // 主光的方向
   uniform vec3 uPtr;                  // 鼠标那盏灯：x、z、亮度
-  uniform vec4 uTrail[${u}];      // 划过的点，由旧到新：x、z、过了几秒、是不是一笔的开头
+  uniform vec4 uTrail[${l}];      // 划过的点，由旧到新：x、z、过了几秒、是不是一笔的开头
   uniform float uTrailN;
-  uniform vec4 uTap[${f}];         // 裂开的地方：x、z、过了几秒、随机数
+  uniform vec4 uTap[${d}];         // 裂开的地方：x、z、过了几秒、随机数
   uniform float uTapN;
   ${v(e)}
   float dec(vec2 hl) { vec2 b = floor(hl * 255.0 + 0.5); return (b.x * 256.0 + b.y) / 65535.0; }
@@ -172,13 +172,13 @@ import{t as e}from"./react.CadLv9_P.js";import{t}from"./jsx-runtime.C2DLLpjJ.js"
     // 每道走三段、每段拐一下，越往外越细，第二段起头分一个小岔；裂纹再按噪声抖一抖，是参差的
     float crack = 0.0, cglow = 0.0, flash = 0.0;
     vec2 cdir = vec2(1.0, 0.0);
-    for (int i = 0; i < ${f}; i++) {
+    for (int i = 0; i < ${d}; i++) {
       if (float(i) >= uTapN) break;
       vec4 Pt = uTap[i];
       vec2 r = x - Pt.xy;
-      if (Pt.z > ${p}.0 || dot(r, r) > 3.0) continue;
+      if (Pt.z > ${f}.0 || dot(r, r) > 3.0) continue;
       vec2 xr = r + 0.035 * (vec2(vnoise(x * 9.0 + Pt.w * 31.0), vnoise(x * 9.0 - Pt.w * 17.0 + 3.3)) - 0.5);
-      float grow = smoothstep(0.0, 0.2, Pt.z), heal = 1.0 - smoothstep(${p}.0 - 1.6, ${p}.0, Pt.z);
+      float grow = smoothstep(0.0, 0.2, Pt.z), heal = 1.0 - smoothstep(${f}.0 - 1.6, ${f}.0, Pt.z);
       int K = 3 + int(h21(vec2(Pt.w * 97.0, 1.0)) * 2.99);
       float cm = 0.0;
       for (int k = 0; k < 6; k++) {
@@ -215,18 +215,18 @@ import{t as e}from"./react.CadLv9_P.js";import{t}from"./jsx-runtime.C2DLLpjJ.js"
     // 附近的缝也亮起来，光顺着缝往外渗，越老渗得越远、越暗
     float seep = 0.0;
     vec2 xj = x + 0.07 * (vec2(vnoise(x * 5.0 + 1.7), vnoise(x * 5.0 + 9.2)) - 0.5);
-    for (int i = 0; i < ${u}; i++) {
+    for (int i = 0; i < ${l}; i++) {
       if (float(i) >= uTrailN) break;
       vec4 B = uTrail[i], A = (i == 0 || B.w > 0.5) ? B : uTrail[max(i - 1, 0)];
       float t, d = seg(x, A.xy, B.xy, t), a = mix(A.z, B.z, t);
-      float fade = 1.0 - smoothstep(${d}.0 - 1.5, ${d}.0, a);
+      float fade = 1.0 - smoothstep(${u}.0 - 1.5, ${u}.0, a);
       float reach = 0.2 + 0.55 * pow(a, 0.7);
       seep = max(seep, 0.8 * exp(-d * d / (reach * reach)) * exp(-a / 1.6) * smoothstep(0.0, 0.05, a) * fade);
       vec2 ab = B.xy - A.xy;
       if (dot(ab, ab) > 1e-6) {
         float tj, dj = seg(xj, A.xy, B.xy, tj), aj = mix(A.z, B.z, tj);
         float w = cw * 0.6;
-        float m = (1.0 - smoothstep(w, w + cw * 0.5, dj)) * (1.0 - smoothstep(${d}.0 - 1.5, ${d}.0, aj));
+        float m = (1.0 - smoothstep(w, w + cw * 0.5, dj)) * (1.0 - smoothstep(${u}.0 - 1.5, ${u}.0, aj));
         if (m > crack) { crack = m; cdir = normalize(ab); }
         cglow = max(cglow, m * (0.55 + 0.8 * exp(-aj / 1.0)));
       }
@@ -259,10 +259,12 @@ import{t as e}from"./react.CadLv9_P.js";import{t}from"./jsx-runtime.C2DLLpjJ.js"
     // 字的方向：顺着煤面的等高线（同一个面上朝一个方向），裂纹里顺着裂纹
     vec2 gr = h.yz;
     vec2 t2 = screenDir(P, normalize(vec2(-gr.y, gr.x) + 1e-6)) * clamp(length(gr) * 3.0, 0.0, 1.0);
+    // 浅色主题远处淡成纸的颜色，那里的字横着放，像远景稀疏的排线，不然一片淡字东倒西歪看着脏
+    if (uFogL > 0.5) t2 *= exp(-max(dist / uCamH * ${_(e.CAM_H)} - ${_(e.FOG0)}, 0.0) / ${_(e.FOGD)});
     t2 = mix(t2, screenDir(P, cdir), crack);
     o = vec4(clamp(lum, 0.0, 1.0), clamp(glow, 0.0, 1.0), t2 * 0.5 + 0.5);
   }
-`,ae=e=>`
+`,ie=e=>`
   precision highp float;
   in vec2 vUv; out vec4 o;
   uniform sampler2D uShade, uAtlas;
@@ -300,8 +302,10 @@ import{t as e}from"./react.CadLv9_P.js";import{t}from"./jsx-runtime.C2DLLpjJ.js"
       // 煤面：亮度挑 - = #，字转到等高线的走向上；方向取周围几格一起的，不跟着一格里的小起伏乱转
       vec2 t2 = textureLod(uShade, uv, ${_(e.DIRLOD)}).ba * 2.0 - 1.0;
       lv = pow(lv, uGamma);
-      // 背光的暗处字都横着放，像版画里阴影的排线，亮的面才顺着面转
-      a = dot(t2, t2) > 1e-12 ? 0.5 * atan(t2.y, t2.x) * smoothstep(0.05, 0.25, length(t2)) * smoothstep(${_(e.FLAT0)}, ${_(e.FLAT0+.2)}, lv) : 0.0;   // atan(0, 0) 没定义，有的显卡算出 NaN
+      // 深色主题背光的暗处字都横着放，像版画里阴影的排线，亮的面才顺着面转。
+      // 浅色主题反过来：墨重的是背光的面，字顺着面转才勾得出一块块煤；正对着光的面淡成纸色，横着放
+      float face = uDark > 0.5 ? smoothstep(${_(e.FLAT0)}, ${_(e.FLAT0+.2)}, lv) : 1.0 - smoothstep(0.75, 0.95, lv);
+      a = dot(t2, t2) > 1e-12 ? 0.5 * atan(t2.y, t2.x) * smoothstep(0.05, 0.25, length(t2)) * face : 0.0;   // atan(0, 0) 没定义，有的显卡算出 NaN
       lv = mix(lv, lv * lv * (3.0 - 2.0 * lv), 0.3);   // 再拉开一点反差
       if (uDark < 0.5) lv = 0.999 - lv;
       float gl = clamp(glow * 1.6, 0.0, 1.0);
@@ -315,4 +319,4 @@ import{t as e}from"./react.CadLv9_P.js";import{t}from"./jsx-runtime.C2DLLpjJ.js"
     if (abs(q.x) < 0.5 && abs(q.y) < 0.5) ink = texture(uAtlas, vec2((gi + q.x + 0.5) / uN, 0.5 - q.y)).r;
     o = vec4(col * ink, ink);   // 预乘过的透明度：字以外是透明的
   }
-`;function w(e,{period:t=12e3,cell:c=8,fps:_=30}={}){let v=te,b=i(e),x=n(b),C=matchMedia(`(prefers-reduced-motion: reduce)`),w=C.matches||x,T=o(b),E=r(b,S,re(v)),oe=r(b,S,ie(v)),se=r(b,S,ae(v)),D=[],ce=new Float32Array(256),O=[],le=new Float32Array(24),k=null,A=null,j=1,M=1,N=!0,P=null,F=document.createElement(`canvas`);ne(F);let I=s(b,F),L={R:[1,0,0],U:[0,1,0],F:[0,0,-1],tan:[1,1],h:v.CAM_H};function ue(e){let t=Math.tan(22*Math.PI/180),n=t*e,r=Math.tan(20*Math.PI/180);n<r&&(n=r,t=n/e);let i=Math.max(v.PITCH*Math.PI/180,Math.atan(t)+14*Math.PI/180);L.F=[0,-Math.sin(i),-Math.cos(i)],L.U=[0,Math.cos(i),-Math.sin(i)],L.tan=[n,t],L.h=v.CAM_H*Math.min(1.6,Math.max(1,1.2/e))}let R=0,z=0,B=1,V=0,H=!0,U=-1e9,W=-1,G=!1,K=!1,q={tx:0,ty:0,x:0,y:0,on:0,k:0};function de(){K=getComputedStyle(e).colorScheme.includes(`dark`)}function fe(){R=e.clientWidth,z=e.clientHeight,R&&z&&(B=Math.min(2,window.devicePixelRatio||1),e.width=Math.round(R*B),e.height=Math.round(z*B),j=Math.ceil(R/c),M=Math.ceil(z/c),ue(j/M),k?.dispose(),A?.dispose(),k=a(b,j*2,M*2),A=a(b,j*2,M*2,{mipmaps:!0}),N=!0,P=null,de(),$(!0))}function pe(e,t){if(!k||N)return null;let n=k.w,r=k.h;P||(P=new Uint8Array(n*r*4),k.bind(),b.readPixels(0,0,n,r,b.RGBA,b.UNSIGNED_BYTE,P),b.bindFramebuffer(b.FRAMEBUFFER,null));let i=Math.floor(e/(j*c)*n),a=Math.floor((1-t/(M*c))*r);if(i<0||a<0||i>=n||a>=r)return null;let o=(a*n+i)*4,s=P;return s[o]===255&&s[o+1]===255&&s[o+2]===255&&s[o+3]===255?null:{x:(s[o]*256+s[o+1])/65535*2*h-h,y:(s[o+2]*256+s[o+3])/65535*g-g}}let J=null,Y=0,X=0,Z=-1e9;function me(e){D.push(e),D.length>u&&m(D)}function he(e,t,n,r){!J||r-J.t>250?(J={x:e.x,y:e.y,t:r,start:!0},me(J),Y=t,X=n,Z=r):Math.hypot(t-Y,n-X)>=28||r-Z>=90||D[D.length-1]!==J||J.start?(J={x:e.x,y:e.y,t:r,start:!1},me(J),Y=t,X=n,Z=r):Object.assign(J,{x:e.x,y:e.y,t:r}),$(!0)}function ge(e,t,n){let r=pe(e,t);r&&(O.push({x:r.x,y:r.y,t:n,seed:Math.random()}),O.length>f&&O.shift(),me({x:r.x,y:r.y,t:n,start:!0}),J=null,$(!0))}let _e=t=>{let n=e.getBoundingClientRect();return[t.clientX-n.left,t.clientY-n.top]},ve=e=>{if(w||!R)return;let[t,n]=_e(e),r=pe(t,n);r&&(q.on||(q.x=r.x,q.y=r.y),q.tx=r.x,q.ty=r.y,q.on=1,he(r,t,n,performance.now()))},ye=e=>{if(w||!R)return;let[t,n]=_e(e);ge(t,n,performance.now())},be=()=>{J=null,q.on=0,$(!0)};e.addEventListener(`pointermove`,ve),e.addEventListener(`pointerdown`,ye),e.addEventListener(`pointerleave`,be);function xe(n){if(V=0,G||!R||!k)return;let r=W<0?0:Math.min(.1,(n-W)/1e3);for(W=n;D.length&&(n-D[0].t)/1e3>=d;)D.shift();for(D.length||(J=null),D.forEach((e,t)=>ce.set([e.x,e.y,Math.max(0,(n-e.t)/1e3),t===0||e.start?1:0],t*4));O.length&&(n-O[0].t)/1e3>=p;)O.shift();O.forEach((e,t)=>le.set([e.x,e.y,Math.max(0,(n-e.t)/1e3),e.seed],t*4));let i=1-Math.exp(-r*10);q.x+=(q.tx-q.x)*i,q.y+=(q.ty-q.y)*i,q.k+=((w?0:q.on)-q.k)*(1-Math.exp(-r*5));let a=Math.abs(q.tx-q.x)+Math.abs(q.ty-q.y)>.002||Math.abs(q.on-q.k)>.01,o=D.length>0||O.length>0||a;if(!w&&!o&&n-U<1e3/_-2){Q();return}U=n;let s=w?.15:(n%t+t)%t/t,u={uCamR:L.R,uCamU:L.U,uCamF:L.F,uTan:L.tan,uCamH:L.h};N&&=(k.bind(),E.use(u),T.draw(),!1);let f=v.KEY_SWING*Math.sin(l*s),m=v.KEY_EL,te=[Math.cos(m)*Math.sin(f),Math.sin(m),-Math.cos(m)*Math.cos(f)],h=ee[K?`dark`:`light`];A.bind(),oe.use({...u,uGeo:[k.tex,0],uU:s,uFoot:2*L.tan[1]/A.h,uFogL:h.fog,uKey:te,uPtr:[q.x,q.y,q.k],uTrail:ce,uTrailN:D.length,uTap:le,uTapN:O.length}),T.draw(),A.mip(),b.bindFramebuffer(b.FRAMEBUFFER,null),b.viewport(0,0,e.width,e.height),b.clearColor(0,0,0,0),b.clear(b.COLOR_BUFFER_BIT),se.use({uShade:[A.tex,0],uAtlas:[I.tex,1],uRes:[e.width,e.height],uCells:[j,M],uCell:c*B,uN:y.length,uRange:h.range,uDark:+!!K,uGamma:h.gamma,uDense:h.dense,uC0:h.stone[0],uC1:h.stone[1],uC2:h.stone[2],uC3:h.stone[3],uG0:h.glow[0],uG1:h.glow[1],uGlint:h.glint}),T.draw(),(!w||o)&&Q()}function Q(){!V&&!G&&H&&!document.hidden&&(V=requestAnimationFrame(xe))}function $(e=!1){e&&(U=-1e9),Q()}let Se=new IntersectionObserver(([e])=>{H=e.isIntersecting,H&&$(!0)});Se.observe(e);let Ce=new ResizeObserver(()=>fe());Ce.observe(e);let we=()=>{W=-1,document.hidden||$(!0)};document.addEventListener(`visibilitychange`,we);let Te=()=>{w=C.matches||x,$(!0)};return C.addEventListener(`change`,Te),document.fonts?.load(`500 50px "DM Mono"`).then(()=>{G||(ne(F),I.update(),$(!0))},()=>{}),fe(),{crack(){!w&&R&&ge(R*(.25+Math.random()*.5),z*(.4+Math.random()*.45),performance.now())},refresh(){de(),$(!0)},destroy(){G=!0,cancelAnimationFrame(V),V=0,Se.disconnect(),Ce.disconnect(),e.removeEventListener(`pointermove`,ve),e.removeEventListener(`pointerdown`,ye),e.removeEventListener(`pointerleave`,be),document.removeEventListener(`visibilitychange`,we),C.removeEventListener(`change`,Te),k?.dispose(),A?.dispose(),I.dispose(),T.dispose(),E.dispose(),oe.dispose(),se.dispose()}}}var T=t();function E(){let e=(0,c.useRef)(null),t=(0,c.useRef)(null),[n,r]=(0,c.useState)(!1);return(0,c.useEffect)(()=>{let n;try{n=w(e.current,{period:12e3})}catch{r(!0);return}t.current=n;let i=()=>n.refresh(),a=new MutationObserver(i);a.observe(document.documentElement,{attributes:!0,attributeFilter:[`data-theme`]});let o=matchMedia(`(prefers-color-scheme: dark)`);return o.addEventListener(`change`,i),()=>{a.disconnect(),o.removeEventListener(`change`,i),n.destroy(),t.current=null}},[]),(0,T.jsxs)(`div`,{className:`lab-root ascii-coal`,children:[(0,T.jsx)(`canvas`,{className:`wall`,ref:e,tabIndex:0,role:`img`,onKeyDown:e=>{(e.key===`Enter`||e.key===` `)&&(e.preventDefault(),t.current?.crack())},"aria-label":`A bed of faceted coal lumps seen at an angle, with cold blue light in the seams between them, drawn entirely in ASCII characters. Press Enter to crack it.`}),n&&(0,T.jsx)(`p`,{className:`fallback`,children:`This experiment needs WebGL 2`}),(0,T.jsxs)(`p`,{className:`lab-hint`,children:[(0,T.jsx)(`span`,{className:`for-mouse`,children:`Sweep across the coal to crack it`}),(0,T.jsx)(`span`,{className:`for-touch`,children:`Tap or swipe across the coal`})]})]})}export{E as default};
+`;function T(e,{period:t=12e3,cell:c=8,fps:_=30}={}){let v=te,b=i(e),x=n(b),w=matchMedia(`(prefers-reduced-motion: reduce)`),T=w.matches||x,E=o(b),D=r(b,C,ne(v)),ae=r(b,C,re(v)),oe=r(b,C,ie(v)),O=[],se=new Float32Array(256),k=[],ce=new Float32Array(24),A=null,j=null,M=1,N=1,P=!0,F=null,I=document.createElement(`canvas`);S(I);let L=s(b,I),R={R:[1,0,0],U:[0,1,0],F:[0,0,-1],tan:[1,1],h:v.CAM_H};function le(e){let t=Math.tan(22*Math.PI/180),n=t*e,r=Math.tan(20*Math.PI/180);n<r&&(n=r,t=n/e);let i=Math.max(v.PITCH*Math.PI/180,Math.atan(t)+14*Math.PI/180);R.F=[0,-Math.sin(i),-Math.cos(i)],R.U=[0,Math.cos(i),-Math.sin(i)],R.tan=[n,t],R.h=v.CAM_H*Math.min(1.6,Math.max(1,1.2/e))}let z=0,B=0,V=1,H=0,U=!0,W=-1e9,G=-1,K=!1,q=!1,J={tx:0,ty:0,x:0,y:0,on:0,k:0},Y=m.dark.stroke;function ue(){q=getComputedStyle(e).colorScheme.includes(`dark`);let t=m[q?`dark`:`light`];t.stroke!==Y&&(Y=t.stroke,S(I,Y),L.update())}function de(){z=e.clientWidth,B=e.clientHeight,z&&B&&(V=Math.min(2,window.devicePixelRatio||1),e.width=Math.round(z*V),e.height=Math.round(B*V),M=Math.ceil(z/c),N=Math.ceil(B/c),le(M/N),A?.dispose(),j?.dispose(),A=a(b,M*2,N*2),j=a(b,M*2,N*2,{mipmaps:!0}),P=!0,F=null,ue(),$(!0))}function fe(e,t){if(!A||P)return null;let n=A.w,r=A.h;F||(F=new Uint8Array(n*r*4),A.bind(),b.readPixels(0,0,n,r,b.RGBA,b.UNSIGNED_BYTE,F),b.bindFramebuffer(b.FRAMEBUFFER,null));let i=Math.floor(e/(M*c)*n),a=Math.floor((1-t/(N*c))*r);if(i<0||a<0||i>=n||a>=r)return null;let o=(a*n+i)*4,s=F;return s[o]===255&&s[o+1]===255&&s[o+2]===255&&s[o+3]===255?null:{x:(s[o]*256+s[o+1])/65535*2*h-h,y:(s[o+2]*256+s[o+3])/65535*g-g}}let X=null,Z=0,Q=0,pe=-1e9;function me(e){O.push(e),O.length>l&&p(O)}function he(e,t,n,r){!X||r-X.t>250?(X={x:e.x,y:e.y,t:r,start:!0},me(X),Z=t,Q=n,pe=r):Math.hypot(t-Z,n-Q)>=28||r-pe>=90||O[O.length-1]!==X||X.start?(X={x:e.x,y:e.y,t:r,start:!1},me(X),Z=t,Q=n,pe=r):Object.assign(X,{x:e.x,y:e.y,t:r}),$(!0)}function ge(e,t,n){let r=fe(e,t);r&&(k.push({x:r.x,y:r.y,t:n,seed:Math.random()}),k.length>d&&k.shift(),me({x:r.x,y:r.y,t:n,start:!0}),X=null,$(!0))}let _e=t=>{let n=e.getBoundingClientRect();return[t.clientX-n.left,t.clientY-n.top]},ve=e=>{if(T||!z)return;let[t,n]=_e(e),r=fe(t,n);r&&(J.on||(J.x=r.x,J.y=r.y),J.tx=r.x,J.ty=r.y,J.on=1,he(r,t,n,performance.now()))},ye=e=>{if(T||!z)return;let[t,n]=_e(e);ge(t,n,performance.now())},be=()=>{X=null,J.on=0,$(!0)};e.addEventListener(`pointermove`,ve),e.addEventListener(`pointerdown`,ye),e.addEventListener(`pointerleave`,be);function xe(n){if(H=0,K||!z||!A)return;let r=G<0?0:Math.min(.1,(n-G)/1e3);for(G=n;O.length&&(n-O[0].t)/1e3>=u;)O.shift();for(O.length||(X=null),O.forEach((e,t)=>se.set([e.x,e.y,Math.max(0,(n-e.t)/1e3),t===0||e.start?1:0],t*4));k.length&&(n-k[0].t)/1e3>=f;)k.shift();k.forEach((e,t)=>ce.set([e.x,e.y,Math.max(0,(n-e.t)/1e3),e.seed],t*4));let i=1-Math.exp(-r*10);J.x+=(J.tx-J.x)*i,J.y+=(J.ty-J.y)*i,J.k+=((T?0:J.on)-J.k)*(1-Math.exp(-r*5));let a=Math.abs(J.tx-J.x)+Math.abs(J.ty-J.y)>.002||Math.abs(J.on-J.k)>.01,o=O.length>0||k.length>0||a;if(!T&&!o&&n-W<1e3/_-2){Se();return}W=n;let s=T?.15:(n%t+t)%t/t,l={uCamR:R.R,uCamU:R.U,uCamF:R.F,uTan:R.tan,uCamH:R.h};P&&=(A.bind(),D.use(l),E.draw(),!1);let d=v.KEY_SWING*Math.sin(ee*s),p=v.KEY_EL,te=[Math.cos(p)*Math.sin(d),Math.sin(p),-Math.cos(p)*Math.cos(d)],h=m[q?`dark`:`light`];j.bind(),ae.use({...l,uGeo:[A.tex,0],uU:s,uFoot:2*R.tan[1]/j.h,uFogL:h.fog,uKey:te,uPtr:[J.x,J.y,J.k],uTrail:se,uTrailN:O.length,uTap:ce,uTapN:k.length}),E.draw(),j.mip(),b.bindFramebuffer(b.FRAMEBUFFER,null),b.viewport(0,0,e.width,e.height),b.clearColor(0,0,0,0),b.clear(b.COLOR_BUFFER_BIT),oe.use({uShade:[j.tex,0],uAtlas:[L.tex,1],uRes:[e.width,e.height],uCells:[M,N],uCell:c*V,uN:y.length,uRange:h.range,uDark:+!!q,uGamma:h.gamma,uDense:h.dense,uC0:h.stone[0],uC1:h.stone[1],uC2:h.stone[2],uC3:h.stone[3],uG0:h.glow[0],uG1:h.glow[1],uGlint:h.glint}),E.draw(),(!T||o)&&Se()}function Se(){!H&&!K&&U&&!document.hidden&&(H=requestAnimationFrame(xe))}function $(e=!1){e&&(W=-1e9),Se()}let Ce=new IntersectionObserver(([e])=>{U=e.isIntersecting,U&&$(!0)});Ce.observe(e);let we=new ResizeObserver(()=>de());we.observe(e);let Te=()=>{G=-1,document.hidden||$(!0)};document.addEventListener(`visibilitychange`,Te);let Ee=()=>{T=w.matches||x,$(!0)};return w.addEventListener(`change`,Ee),document.fonts?.load(`500 50px "DM Mono"`).then(()=>{K||(S(I,Y),L.update(),$(!0))},()=>{}),de(),{crack(){!T&&z&&ge(z*(.25+Math.random()*.5),B*(.4+Math.random()*.45),performance.now())},refresh(){ue(),$(!0)},destroy(){K=!0,cancelAnimationFrame(H),H=0,Ce.disconnect(),we.disconnect(),e.removeEventListener(`pointermove`,ve),e.removeEventListener(`pointerdown`,ye),e.removeEventListener(`pointerleave`,be),document.removeEventListener(`visibilitychange`,Te),w.removeEventListener(`change`,Ee),A?.dispose(),j?.dispose(),L.dispose(),E.dispose(),D.dispose(),ae.dispose(),oe.dispose()}}}var E=t();function D(){let e=(0,c.useRef)(null),t=(0,c.useRef)(null),[n,r]=(0,c.useState)(!1);return(0,c.useEffect)(()=>{let n;try{n=T(e.current,{period:12e3})}catch{r(!0);return}t.current=n;let i=()=>n.refresh(),a=new MutationObserver(i);a.observe(document.documentElement,{attributes:!0,attributeFilter:[`data-theme`]});let o=matchMedia(`(prefers-color-scheme: dark)`);return o.addEventListener(`change`,i),()=>{a.disconnect(),o.removeEventListener(`change`,i),n.destroy(),t.current=null}},[]),(0,E.jsxs)(`div`,{className:`lab-root ascii-coal`,children:[(0,E.jsx)(`canvas`,{className:`wall`,ref:e,tabIndex:0,role:`img`,onKeyDown:e=>{(e.key===`Enter`||e.key===` `)&&(e.preventDefault(),t.current?.crack())},"aria-label":`A bed of faceted coal lumps seen at an angle, with cold blue light in the seams between them, drawn entirely in ASCII characters. Press Enter to crack it.`}),n&&(0,E.jsx)(`p`,{className:`fallback`,children:`This experiment needs WebGL 2`}),(0,E.jsxs)(`p`,{className:`lab-hint`,children:[(0,E.jsx)(`span`,{className:`for-mouse`,children:`Sweep across the coal to crack it`}),(0,E.jsx)(`span`,{className:`for-touch`,children:`Tap or swipe across the coal`})]})]})}export{D as default};
