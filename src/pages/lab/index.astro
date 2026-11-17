@@ -1,0 +1,29 @@
+---
+// 实验页：全部实验，每个都能直接玩。2026-11-17 从首页拆出来单独一页（laken 要的），首页只留首屏。
+import { getCollection } from 'astro:content';
+import Base from '../../layouts/Base.astro';
+import Labs from '../../components/Labs.astro';
+
+const labs = await getCollection('labs');
+const since = new Date(Math.min(...labs.map(l => +l.data.date))).toLocaleDateString('en', { year: 'numeric', month: 'short', timeZone: 'UTC' });
+---
+<Base title="Lab" description="Small interface experiments by Erian, each one a single component you can play with right in the page. The source of every one is on GitHub.">
+  <section class="wrap head">
+    <p class="eyebrow">Lab · {labs.length} experiments · since {since}</p>
+    <h1 class="display">Small things<br><em>you can play with.</em></h1>
+    <p class="lede">Interface experiments, each one a single component that runs right here. Every one comes with the prompt that builds it and its source on GitHub.</p>
+  </section>
+  <div class="wrap"><Labs /></div>
+</Base>
+
+<style>
+  .head { padding-block: 72px 40px; }
+  .eyebrow { margin-bottom: 20px; }
+  h1 { --size: 56px; }
+  .lede { margin-top: 24px; font-size: 17px; line-height: 1.55; color: var(--fg-2); max-width: 34em; text-wrap: pretty; }
+  @media (max-width: 760px) {
+    .head { padding-block: 44px 28px; }
+    h1 { --size: 36px; }
+    .lede { font-size: 15px; }
+  }
+</style>

@@ -38,7 +38,7 @@
 
 /* 配色。浅色是默认；深色两处写：跟随系统（没手动选过浅色时），和手动选了深色。
    手动选了深色那一处同时给 .always-dark：不管主题都用深色的一块（比如字符画实验的舞台），整块里的颜色都换成深色那几档。
-   灰是略带暖的中性灰，强调色只有一个：钴蓝，只给链接、当前位置和字符画里被搅动的字。 */
+   灰是略带暖的中性灰，强调色只有一个：钴蓝，只给链接、当前位置（比如首屏实验目录里正放着的那一行）和字符画里被搅动的字。 */
 :root {
   --bg: #F7F7F5;
   --bg-2: #EEEEEB;      /* 实验的舞台、代码块 */
@@ -48,8 +48,6 @@
   --line: #E0E0DC;
   --accent: #2F4BE8;    /* 对比度 6.0 */
   --accent-soft: rgb(47 75 232 / 0.1);
-  --ascii: #141414;     /* 字符画的字 */
-  --ascii-hot: #3355FF; /* 字符画里被鼠标搅动的字 */
 
   --serif: "Instrument Serif", ui-serif, Georgia, "Times New Roman", serif;
   --mono: "DM Mono", ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
@@ -72,8 +70,6 @@
     --line: #242422;
     --accent: #8597FF;
     --accent-soft: rgb(133 151 255 / 0.12);
-    --ascii: #EDEDEA;
-    --ascii-hot: #8597FF;
     color-scheme: dark;
   }
 }
@@ -87,8 +83,6 @@
   --line: #242422;
   --accent: #8597FF;
   --accent-soft: rgb(133 151 255 / 0.12);
-  --ascii: #EDEDEA;
-  --ascii-hot: #8597FF;
   color-scheme: dark;
 }
 
@@ -193,7 +187,7 @@ a:hover > .out::after, .out:hover::after { transform: translate(1px, -1px); }
 /* 开场：内容淡入上移，只动 opacity 和 translate。--d 是每样东西的延迟 */
 @media (prefers-reduced-motion: no-preference) {
   .rise {
-    animation: rise .7s cubic-bezier(.2, .7, .2, 1) both;
+    animation: rise .7s cubic-bezier(.2, .7, .2, 1) backwards;   /* 不用 both：放完就不再占一个合成层，不然小数像素的位置上格子会盖住表格最外那圈线 */
     animation-delay: var(--d, 0ms);
   }
   @keyframes rise {
