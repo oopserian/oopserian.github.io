@@ -4,15 +4,16 @@
 import { iconSvg } from "../_kit/icons";
 import { motion, clamp, easeIO } from "./motion.js";
 import { createPaper } from "./paper.js";
-import { fontsReady, paintProposal, paintCover, paintBudget } from "./pages.js";
+import { pagesReady, paintProposal, paintCover, paintBudget, PHOTO } from "./pages.js";
 
 const HINT = 30;   // 舞台底下留给提示那一行的高度（屏幕像素）
 const FILES = [
   { key: "proposal", name: "Proposal.pdf", meta: "12 pages · 2.4 MB", paint: paintProposal, ar: Math.SQRT2, ear: true, gloss: 0.06, shine: 10 },
-  { key: "cover", name: "Cover.jpg", meta: "4032 × 5040 · 3.1 MB", paint: paintCover, ar: 1.25, ear: false, gloss: 0.3, shine: 46, stiff: 1 },
+  // 封面是一张真的照片：文件名、尺寸、大小都照相机原图
+  { key: "cover", name: "DSC_8647.JPG", meta: `${PHOTO.w} × ${PHOTO.h} · ${(PHOTO.bytes / 1048576).toFixed(1)} MB`, paint: paintCover, ar: PHOTO.h / PHOTO.w, ear: false, gloss: 0.3, shine: 46, stiff: 1 },
   { key: "budget", name: "Budget.xlsx", meta: "2 pages · 48 KB", paint: paintBudget, ar: Math.SQRT2, ear: true, gloss: 0.06, shine: 10 },
 ];
-const THREAD0 = `<div class="day">Monday, 16:05</div><div class="msg them">Can you take another pass at the canopy? It feels heavy from the river side.</div><div class="msg me">Yes. I'll thin the ribs and send a new set on Wednesday.</div><div class="day">Yesterday, 18:12</div><div class="msg me">Draft's nearly done. Just tidying up the drawings.</div><div class="msg them">No rush, tomorrow morning is fine.</div><div class="day">Today, 09:41</div><div class="msg them">Morning! Could you send the proposal and the cover shot before the 3pm review?</div>`;
+const THREAD0 = `<div class="day">Monday, 16:05</div><div class="msg them">Can you take another pass at the opening spread? It feels a little heavy.</div><div class="msg me">Yes. I'll try a lighter frame and send a new set on Wednesday.</div><div class="day">Yesterday, 18:12</div><div class="msg me">Draft's nearly done. Just tidying up the captions.</div><div class="msg them">No rush, tomorrow morning is fine.</div><div class="day">Today, 09:41</div><div class="msg them">Morning! Could you send the proposal and the cover shot before the 3pm review?</div>`;
 
 let grainURL = null;   // 桌面的细颗粒，生成一次大家共用
 function grain() {
@@ -390,10 +391,10 @@ export function create(root) {
     clear() { for (const o of Flat.all) o.node.remove(); Flat.all = []; },
   };
 
-  /* ───────── 开始：等标题字体，画三页，交给页面和显卡 ───────── */
+  /* ───────── 开始：等标题字体和照片，画三页，交给页面和显卡 ───────── */
   layout();
   reset();
-  fontsReady().then(() => {
+  pagesReady().then(() => {
     if (dead) return;
     for (const f of files) {
       f.canvas = f.paint(768);

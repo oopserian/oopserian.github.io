@@ -33,8 +33,8 @@
 .paper-lab[data-mode="wide"] .desk { left: var(--side); right: calc(var(--side) + var(--cw) + 24px); top: 20px; bottom: 4px; }
 .paper-lab[data-mode="tall"] .chat { left: 16px; right: 16px; top: 16px; bottom: calc(var(--th) + 64px); }
 .paper-lab[data-mode="tall"] .desk { left: 16px; right: 16px; bottom: 6px; height: calc(var(--th) + 46px); }
-.paper-lab[data-mode="compact"] .chat { right: 12px; top: 12px; bottom: 2px; left: 150px; }
-.paper-lab[data-mode="compact"] .desk { left: 10px; top: 12px; bottom: 2px; width: 128px; }
+.paper-lab[data-mode="compact"] .chat { right: 12px; top: 12px; bottom: 2px; left: 160px; }
+.paper-lab[data-mode="compact"] .desk { left: 10px; top: 12px; bottom: 2px; width: 138px; }
 
 /* ───────── 滚动的字 ───────── */
 .paper-lab .roll { display: inline-flex; flex: none; white-space: pre; vertical-align: top; }
@@ -197,5 +197,7 @@
 .paper-lab[data-mode="compact"] .ph { font-size: 13px; }
 .paper-lab[data-mode="compact"] .files { flex-direction: column; align-items: stretch; gap: 12px; }
 .paper-lab[data-mode="compact"] .file { flex-direction: row; gap: 10px; }
+/* 小图竖着排时放进一样宽的格子（A4 那么宽），比例不同的照片居中，三个文件名左边对齐 */
+.paper-lab[data-mode="compact"] .th { margin-inline: calc((var(--th) / 1.4142 - var(--th) / var(--ar)) / 2); }
 .paper-lab[data-mode="compact"] .nm { align-items: flex-start; min-width: 0; }
 .paper-lab[data-mode="compact"] .nm span { display: none; }
