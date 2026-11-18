@@ -12,7 +12,7 @@ const projects = defineCollection({
     name: z.string(),
     summary: z.string(),          // 一行说明
     kind: z.string(),             // App、Tool、Site 这种，显示在右边
-    status: z.string().optional(),// 「Coming soon」这种，没有就不显示
+    status: z.string().optional(),// 「Out now」「Work in progress」这种，没有就不显示
     url: z.url(),
     icon: image(),
     order: z.number(),            // 越小越靠前

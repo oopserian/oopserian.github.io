@@ -8,6 +8,7 @@
 //   实验目录（两格宽）     联系        全部项目
 // 三个实验跟 /lab/ 页是同一套组件（LabStage），自己限帧、看不见就停；首屏里藏掉它们的提示和按钮，点右上的名字进详情页。
 // 窄屏上一格一格往下排。
+// SOOTY 上线以后（2026-11-18）那格的海报会动（src/scripts/sooty.ts）：星球边缘的光在流、字在走，煤块浮着，鼠标移上来光跟着走。
 import { Image } from 'astro:assets';
 import { getCollection } from 'astro:content';
 import Icon from './Icon.astro';
@@ -57,8 +58,8 @@ const handle = '@' + new URL(SITE.x).pathname.slice(1);
         <div class="say">
           <h1 class="display">Build stuff.<br><em>Sometimes it works.<span class="caret" aria-hidden="true"></span></em></h1>
           <p class="lede">
-            A web and software developer working on my own. Right now I’m building{' '}
-            <a class="link" href="https://sooty.app">SOOTY</a>, a local-first asset manager for Mac, written in Rust.
+            A web and software developer working on my own. I make{' '}
+            <a class="link" href="https://sooty.app">SOOTY</a>, a <span class="nb">local-first</span> asset manager for Mac, written in Rust. It’s out now.
           </p>
         </div>
       </div>
@@ -74,11 +75,11 @@ const handle = '@' + new URL(SITE.x).pathname.slice(1);
         </div>
       ))}
 
-      <!-- SOOTY：正在做的 -->
-      <a class="cell now rise" style="--d:120ms" href="https://sooty.app" aria-label="SOOTY, a local-first asset manager for Mac — sooty.app">
+      <!-- SOOTY：已经上线了（2026-11-18）。海报底下由脚本盖上一张会动的（见最下面），动不了就是这张海报 -->
+      <a class="cell now rise" style="--d:120ms" href="https://sooty.app" aria-label="SOOTY, a local-first asset manager for Mac, out now — sooty.app" data-sooty>
         <Image src={poster} alt="" widths={[640, 1000, 1400, 2000]} sizes="(max-width: 1079px) 100vw, 50vw" loading="eager" />
         <div class="over">
-          <span class="tag light"><span class="dot" aria-hidden="true"></span>Now building</span>
+          <span class="tag light"><span class="dot" aria-hidden="true"></span>Out now</span>
           <span class="tag light out">sooty.app</span>
         </div>
         <p class="facts mono" aria-hidden="true">
@@ -228,6 +229,7 @@ const handle = '@' + new URL(SITE.x).pathname.slice(1);
     color: var(--fg-2);
     text-wrap: pretty;
   }
+  .nb { white-space: nowrap; }
 
   /* 三个实验：舞台铺满整格，左上一块小牌子写是什么、右上一块写实验名（点了进详情页）。
      牌子有底色，什么画面上都看得清；只挡住它自己那一小块，别的地方鼠标照样能搅动 */
@@ -279,6 +281,16 @@ const handle = '@' + new URL(SITE.x).pathname.slice(1);
     transition: scale .8s cubic-bezier(.2, .7, .2, 1);
   }
   .now:hover img { scale: 1.025; }
+  /* 会动的海报：盖在 img 上，画好第一帧才淡进来；鼠标在上面的放大它自己在着色器里做 */
+  .now :global(.sooty-gl) {
+    position: absolute;
+    inset: 0;
+    width: 100%;
+    height: 100%;
+    opacity: 0;
+    transition: opacity .6s ease;
+  }
+  .now :global(.sooty-gl.on) { opacity: 1; }
   .over {
     position: relative;
     display: flex;
@@ -484,7 +496,14 @@ const handle = '@' + new URL(SITE.x).pathname.slice(1);
 </style>
 
 <script>
+  import { mountSooty } from '../scripts/sooty';
+
   const hero = document.querySelector<HTMLElement>('[data-hero]');
+
+  // ── SOOTY：海报活过来 ──
+  const sooty = hero?.querySelector<HTMLElement>('[data-sooty]');
+  const sootyImg = sooty?.querySelector('img');
+  if (sooty && sootyImg) mountSooty(sooty, sootyImg, sooty);
 
   // ── 联系：点邮箱就拷进剪贴板，图标变成对勾两秒 ──
   for (const btn of hero?.querySelectorAll<HTMLButtonElement>('[data-copy]') ?? []) {
