@@ -1,0 +1,78 @@
+/* Unboxing：整块是画布（透明的，桌面就是舞台的底色，画布上只有盒子、卡包、卡和它们的影子），
+   底下一行提示（第几步 + 怎么做，引擎往里写），撕开封条以后右上角露出「New box」。
+   没有 WebGL、软件渲染时画布不画，放一张静帧。 */
+
+/* 卡面、盒面上的无衬线字：canvas 排字要用，只有这个实验下载（Instrument Serif 和 DM Mono 网站本身就有） */
+@font-face {
+  font-family: "Instrument Sans";
+  src: url("/fonts/instrument-sans-latin-wght-normal.woff2") format("woff2");
+  font-weight: 400 700;
+  font-style: normal;
+  font-display: swap;
+}
+
+.unbox { outline: none; container-type: size; }
+.unbox:focus-visible { outline: 2px solid var(--lab-accent); outline-offset: -2px; }
+.unbox canvas {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  display: block;
+  opacity: 0;
+  touch-action: pan-y;   /* 手指落在空处上下划还是滚页面；落在能抓的东西上，引擎拦下触摸，不让页面滚 */
+  user-select: none;
+  -webkit-user-select: none;
+  transition: opacity 0.6s var(--lab-ease);
+}
+.unbox.ready canvas { opacity: 1; }
+.unbox canvas[data-cur="grab"] { cursor: grab; }
+.unbox canvas[data-cur="grabbing"] { cursor: grabbing; }
+.unbox canvas[data-cur="pointer"] { cursor: pointer; }
+/* 静帧是透明底的，整张放进舞台（contain），四周露出来的就是桌面 */
+.unbox .poster {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+}
+
+/* 提示：前面一个小格写第几步（翻卡时是 2/5，看完是 ✓） */
+.unbox .lab-hint {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  gap: 8px;
+  bottom: 14px;
+  color: var(--lab-fg-2);
+}
+.unbox .lab-hint .n {
+  min-width: 18px;
+  height: 18px;
+  padding: 0 5px;
+  box-sizing: border-box;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 9px;
+  box-shadow: inset 0 0 0 1px var(--lab-line-strong);
+  color: var(--lab-fg);
+  font-size: 10px;
+  font-variant-numeric: tabular-nums;
+}
+
+.unbox .again {
+  position: absolute;
+  top: 14px;
+  right: 14px;
+  height: 28px;
+  padding: 0 10px;
+}
+@starting-style { .unbox .again { opacity: 0; translate: 0 -4px; } }
+.unbox .again { transition: opacity 0.3s var(--lab-ease), translate 0.3s var(--lab-ease), transform 0.15s var(--lab-ease), box-shadow 0.15s; }
+/* 小舞台（实验页的卡片、手机）上「New box」只剩图标，少挡一点画面 */
+@container (max-width: 480px) or (max-height: 340px) {
+  .unbox .again { width: 28px; padding: 0; top: 10px; right: 10px; }
+  .unbox .again span { display: none; }
+}
