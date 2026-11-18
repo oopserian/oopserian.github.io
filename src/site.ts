@@ -5,7 +5,7 @@ export const SITE = {
   name: 'Erian',
   url: 'https://eooo.me',
   title: 'Erian · independent developer',
-  description: 'Erian is a web and software developer working independently from Germany, currently building SOOTY, a local-first asset manager for Mac.',
+  description: 'Erian is a web and software developer working independently from Germany, and the maker of SOOTY, a local-first asset manager for Mac.',
   email: 'oopserian@gmail.com',
   github: 'https://github.com/oopserian',
   x: 'https://x.com/oopserian',
